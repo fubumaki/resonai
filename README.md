@@ -34,3 +34,18 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Deploy to Vercel
+
+1. Import repository into Vercel and link to `fubumaki/resonai`.
+2. Set Framework Preset: Next.js. Build command: `pnpm build`. Output: `.next`.
+3. Set Environment Variable: `NEXT_PUBLIC_APP_NAME=Resonai`.
+4. Deploy. After first deploy, verify routes: `/`, `/start`, `/listen`, `/practice`.
+
+## Local development
+
+- Node 20.x required. Install pnpm.
+- Install deps: `pnpm install`
+- Dev server: `pnpm dev`
+- Format: `pnpm run format`
+
