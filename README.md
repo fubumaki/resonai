@@ -49,6 +49,26 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 - Dev server: `pnpm dev`
 - Format: `pnpm run format`
 
-## Roadmap
+## 🚀 Development Roadmap
 
-See `docs/m2-issues.md` for ready-to-paste issues for the next milestone (LPC, Pitch Band drill, Prosody drill, Orb v2, centralized constants, lab pages, tuning docs, and safety guardrails).
+**Current focus: M2 milestone**
+
+M1 delivered the core practice loop (FSM + Warmup + Reflection + IndexedDB storage).  
+We are now in **M2**, building the first full daily trainer with pitch, resonance, and prosody.
+
+### Active Issues (M2)
+- [#7](../../issues/7) feat(audio): Complete LPC worklet + F1/F2 estimation & buckets  
+- [#8](../../issues/8) feat(ui): Pitch Band drill with in-band% + lateral deviation  
+- [#9](../../issues/9) feat(ui): Prosody mini-phrases + expressiveness meter  
+- [#10](../../issues/10) feat(reflect): Orb v2 (resonance hue + tilt shimmer) + trend chips  
+- [#11](../../issues/11) chore(core): Centralize thresholds & smoothing in `constants.ts`  
+- [#12](../../issues/12) feat(labs): Add `/labs/pitch` and `/labs/lpc` harness pages  
+- [#13](../../issues/13) docs: Tuning guide + QA checklist  
+- [#14](../../issues/14) feat(safety): Strain guardrails + lower-intensity mode  
+
+### Where to Start
+1. See [`docs/m2-issues.md`](docs/m2-issues.md) for scope, tasks, and acceptance criteria.  
+2. Work on issues #7–14 in order of dependencies (start with audio worklets, then UI drills).  
+3. Each issue includes references to the **handoff report** and research docs for context.  
+
+> **Note:** All audio and storage remain local-first. Privacy and safety guardrails are non-negotiable for M2.
