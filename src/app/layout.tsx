@@ -25,7 +25,19 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>{children}</body>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <header className="border-b">
+          <div className="mx-auto flex max-w-5xl items-center justify-between p-4">
+            <a href="/" className="font-semibold">Resonai</a>
+            <nav className="flex items-center gap-4 text-sm">
+              <a href="/" className="text-muted-foreground hover:text-foreground">Home</a>
+              <a href="/listen" className="text-muted-foreground hover:text-foreground">Listen</a>
+              <a href="/practice" className="text-muted-foreground hover:text-foreground">Practice</a>
+            </nav>
+          </div>
+        </header>
+        {children}
+      </body>
     </html>
   );
 }
