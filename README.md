@@ -49,6 +49,10 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 - Dev server: `pnpm dev`
 - Format: `pnpm run format`
 
+## Features
+
+Prosody practice (statement vs question) with expressiveness meter is available in practice flows; see `docs/qa-checklist.md`.
+
 ## 🚀 Development Roadmap
 
 **Current focus: M2 milestone**
