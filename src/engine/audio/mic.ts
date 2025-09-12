@@ -42,7 +42,14 @@ export class MicEngine {
 
   async start(stream: MediaStream): Promise<void> {
     if (this.context) return;
-    const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const getAudioContextCtor = (): typeof AudioContext => {
+      const w = globalThis as unknown as {
+        AudioContext?: typeof AudioContext;
+        webkitAudioContext?: typeof AudioContext;
+      };
+      return (w.AudioContext ?? w.webkitAudioContext)!;
+    };
+    const context = new (getAudioContextCtor())();
     this.context = context;
 
     await context.audioWorklet.addModule('/worklets/pitch-processor.js');

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck
 class PitchProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
@@ -19,7 +20,7 @@ class PitchProcessor extends AudioWorkletProcessor {
   // Very rough ACF-based pitch with confidence
   private estimatePitch(frame: Float32Array): { f0: number | null; conf: number } {
     const N = frame.length;
-    let maxLag = Math.floor(sampleRate / 60); // up to ~60 Hz lower bound
+    const maxLag = Math.floor(sampleRate / 60); // up to ~60 Hz lower bound
     let minLag = Math.floor(sampleRate / 500); // ~500 Hz upper bound
     if (minLag < 2) minLag = 2;
 

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck
 class EnergyProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {

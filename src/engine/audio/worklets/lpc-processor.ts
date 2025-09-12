@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck
 // Placeholder LPC stub. Implement full LPC later.
 class LpcProcessor extends AudioWorkletProcessor {
