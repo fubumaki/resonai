@@ -1,70 +1,52 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
+import { micEngine, hzToSemitoneOffset } from '@/engine/audio/mic';
 
-type VoiceCanvasProps = {
-  onPermissionChange?: (granted: boolean) => void;
+export type VoiceCanvasProps = {
+  targetBandHz?: [number, number];
+  mode?: 'mirror' | 'pitch' | 'resonance' | 'prosody' | 'flow';
+  science?: boolean;
 };
 
-// Vertical "voice thread" visualization. Time flows top->bottom, amplitude/pitch map horizontally.
-export default function VoiceCanvas({ onPermissionChange }: VoiceCanvasProps) {
+export default function VoiceCanvas({
+  targetBandHz = [180, 240],
+  mode = 'mirror',
+  science = false,
+}: VoiceCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const overlayRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const dataTimeRef = useRef<Uint8Array | null>(null);
 
-  const cleanup = useCallback(() => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = null;
-    if (analyserRef.current) analyserRef.current.disconnect();
-    analyserRef.current = null;
-    if (audioContextRef.current) {
-      audioContextRef.current.close().catch(() => {});
-      audioContextRef.current = null;
-    }
-  }, []);
+  // Mutable telemetry snapshot for the draw loop
+  const telemetryRef = useRef({
+    f0Hz: null as number | null,
+    f0Conf: 0,
+    rms: 0,
+    hfLf: 0,
+    f1: null as number | null,
+    f2: null as number | null,
+  });
+  const emaRef = useRef({ f0Hz: null as number | null, rms: 0, hfLf: 0 });
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function setup() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        if (cancelled) return;
-        onPermissionChange?.(true);
-
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        audioContextRef.current = audioContext;
-        const source = audioContext.createMediaStreamSource(stream);
-        const analyser = audioContext.createAnalyser();
-        analyser.fftSize = 2048;
-        analyser.smoothingTimeConstant = 0.85;
-        analyserRef.current = analyser;
-        source.connect(analyser);
-        dataTimeRef.current = new Uint8Array(analyser.fftSize);
-
-        draw();
-      } catch (err) {
-        if (!cancelled) onPermissionChange?.(false);
-      }
-    }
-
-    setup();
-    return () => {
-      cancelled = true;
-      cleanup();
-    };
-  }, [cleanup, onPermissionChange]);
+    const unsub = micEngine.subscribe((s) => {
+      telemetryRef.current = {
+        f0Hz: s.f0Hz,
+        f0Conf: s.f0Conf,
+        rms: s.rms,
+        hfLf: s.hfLf,
+        f1: s.f1,
+        f2: s.f2,
+      };
+    });
+    return () => unsub();
+  }, []);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     const overlay = overlayRef.current;
-    const analyser = analyserRef.current;
-    const dataTime = dataTimeRef.current;
-    if (!canvas || !analyser || !dataTime) return;
-
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const over = overlay?.getContext('2d') ?? null;
     if (!ctx) return;
@@ -76,66 +58,101 @@ export default function VoiceCanvas({ onPermissionChange }: VoiceCanvasProps) {
       overlay.height = overlay.clientHeight;
     }
 
-    const scrollSpeed = 2; // px per frame
-    const threadHalfWidth = Math.max(1, Math.floor(width * 0.015));
+    const scrollSpeed = 2; // px/frame
+    const semitoneRange = 12; // +/- 12 st maps to ~80% width
+    const maxOffsetPx = Math.floor(width * 0.4);
 
     const step = () => {
-      if (!analyserRef.current || !dataTimeRef.current) return;
-
-      // Scroll the canvas down by scrollSpeed
-      const imageData = ctx.getImageData(0, 0, width, height - scrollSpeed);
+      // scroll down
+      const imageData = ctx.getImageData(0, 0, width, Math.max(0, height - scrollSpeed));
       ctx.putImageData(imageData, 0, scrollSpeed);
       ctx.clearRect(0, 0, width, scrollSpeed);
 
-      // Read time domain data
-      analyserRef.current.getByteTimeDomainData(dataTimeRef.current);
-
-      // Compute zero-crossing rate as placeholder for pitch proxy
-      let zeroCrossings = 0;
-      for (let i = 1; i < dataTimeRef.current.length; i++) {
-        const prev = dataTimeRef.current[i - 1] - 128;
-        const curr = dataTimeRef.current[i] - 128;
-        if ((prev >= 0 && curr < 0) || (prev < 0 && curr >= 0)) zeroCrossings++;
+      // Smooth telemetry (EMA)
+      const alpha = 0.25;
+      const t = telemetryRef.current;
+      if (t.f0Hz != null) {
+        emaRef.current.f0Hz =
+          emaRef.current.f0Hz == null ? t.f0Hz : emaRef.current.f0Hz * (1 - alpha) + t.f0Hz * alpha;
       }
-      const zcr = zeroCrossings / dataTimeRef.current.length; // 0..~0.5
+      emaRef.current.rms = emaRef.current.rms * (1 - alpha) + t.rms * alpha;
+      emaRef.current.hfLf = emaRef.current.hfLf * (1 - alpha) + t.hfLf * alpha;
 
-      // Map amplitude to x position spread
-      let sum = 0;
-      for (let i = 0; i < dataTimeRef.current.length; i++) {
-        const v = dataTimeRef.current[i] - 128;
-        sum += v * v;
+      // Map to x-center by semitone offset from band center
+      const centerHz = (targetBandHz[0] + targetBandHz[1]) / 2;
+      let xCenter = Math.floor(width / 2);
+      if (emaRef.current.f0Hz && emaRef.current.f0Hz > 0) {
+        const st = hzToSemitoneOffset(emaRef.current.f0Hz, centerHz);
+        const clamped = Math.max(-semitoneRange, Math.min(semitoneRange, st));
+        xCenter = Math.floor(width / 2 + (clamped / semitoneRange) * maxOffsetPx);
       }
-      const rms = Math.sqrt(sum / dataTimeRef.current.length) / 128; // 0..1
 
-      // Pitch-ish mapping: lower ZCR -> left (lower pitch), higher -> right
-      const xCenter = Math.floor(width * zcr);
-      const half = Math.floor(threadHalfWidth * (0.4 + rms * 1.6));
+      const rms01 = Math.max(0, Math.min(1, emaRef.current.rms * 4));
+      const threadHalf = Math.max(1, Math.floor(width * 0.01 * (0.6 + rms01 * 1.8)));
 
-      // Draw soft thread
-      const grad = ctx.createLinearGradient(xCenter - half, 0, xCenter + half, 0);
+      // Draw thread row
+      const grad = ctx.createLinearGradient(xCenter - threadHalf, 0, xCenter + threadHalf, 0);
       grad.addColorStop(0, 'rgba(99, 102, 241, 0)');
-      grad.addColorStop(0.5, 'rgba(99, 102, 241, 0.8)');
+      grad.addColorStop(0.5, 'rgba(99, 102, 241, 0.85)');
       grad.addColorStop(1, 'rgba(99, 102, 241, 0)');
       ctx.fillStyle = grad;
-      ctx.fillRect(xCenter - half, 0, half * 2, scrollSpeed);
+      ctx.fillRect(xCenter - threadHalf, 0, threadHalf * 2, scrollSpeed);
 
-      // Overlay aura rings at the top as gentle indicator
+      // Overlay target band lane (soft glow)
       if (over) {
-        over.clearRect(0, 0, width, height);
-        over.globalAlpha = 0.15 + rms * 0.35;
+        over.clearRect(0, 0, width, overlay!.height);
+        const lowSt = hzToSemitoneOffset(targetBandHz[0], centerHz);
+        const highSt = hzToSemitoneOffset(targetBandHz[1], centerHz);
+        const leftX = Math.floor(
+          width / 2 +
+            (Math.max(-semitoneRange, Math.min(semitoneRange, lowSt)) / semitoneRange) *
+              maxOffsetPx,
+        );
+        const rightX = Math.floor(
+          width / 2 +
+            (Math.max(-semitoneRange, Math.min(semitoneRange, highSt)) / semitoneRange) *
+              maxOffsetPx,
+        );
+        const laneLeft = Math.min(leftX, rightX);
+        const laneWidth = Math.max(8, Math.abs(rightX - leftX));
+        const g = over.createLinearGradient(laneLeft, 0, laneLeft + laneWidth, 0);
+        g.addColorStop(0, 'rgba(129, 140, 248, 0.05)');
+        g.addColorStop(0.5, 'rgba(129, 140, 248, 0.18)');
+        g.addColorStop(1, 'rgba(129, 140, 248, 0.05)');
+        over.fillStyle = g;
+        over.fillRect(laneLeft, 0, laneWidth, overlay!.height);
+
+        // Aura pulse at top based on loudness
+        over.globalAlpha = 0.15 + rms01 * 0.35;
         over.beginPath();
-        const radius = 24 + rms * 28;
-        over.arc(xCenter, 16, radius, 0, Math.PI * 2);
-        over.fillStyle = 'rgb(99, 102, 241)'; // indigo-500
+        over.arc(xCenter, 18, 18 + rms01 * 22, 0, Math.PI * 2);
+        over.fillStyle = 'rgb(99, 102, 241)';
         over.fill();
         over.globalAlpha = 1;
+
+        if (science) {
+          over.fillStyle = 'rgba(0,0,0,0.6)';
+          over.font = '10px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+          over.fillText(
+            `f0=${t.f0Hz?.toFixed(1) ?? '-'}Hz conf=${t.f0Conf.toFixed(2)} rms=${t.rms.toFixed(3)}`,
+            8,
+            12,
+          );
+        }
       }
 
       rafRef.current = requestAnimationFrame(step);
     };
 
     step();
-  }, []);
+  }, [targetBandHz, mode, science]);
+
+  useEffect(() => {
+    draw();
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [draw]);
 
   return (
     <div className="bg-background relative aspect-[3/4] w-full overflow-hidden rounded-md border">

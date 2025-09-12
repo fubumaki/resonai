@@ -48,4 +48,3 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 - Install deps: `pnpm install`
 - Dev server: `pnpm dev`
 - Format: `pnpm run format`
-
