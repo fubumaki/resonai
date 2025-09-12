@@ -48,3 +48,7 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 - Install deps: `pnpm install`
 - Dev server: `pnpm dev`
 - Format: `pnpm run format`
+
+## Roadmap
+
+See `docs/m2-issues.md` for ready-to-paste issues for the next milestone (LPC, Pitch Band drill, Prosody drill, Orb v2, centralized constants, lab pages, tuning docs, and safety guardrails).
