@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { FlowJson, FlowStepBase, InfoStep, DrillStep, ReflectionStep } from './types';
 import { PitchEngine } from '@/audio/PitchEngine';
 import { createCrepeDetector } from '@/audio/detectors/CrepeTinyDetector';
@@ -8,6 +8,8 @@ import YinDetector from '@/audio/detectors/YinDetector';
 // import { dtwAvgSemitoneDiff, tierFromAvgDiff } from '@/audio/intonation/dtw';
 import { endRiseDetected } from '@/audio/intonation/endRise';
 import { updateSafety, resetSafety } from '@/audio/safety';
+import DiagnosticsHUD from '@/components/DiagnosticsHUD';
+import { deviceManager } from '@/audio/deviceManager';
 
 interface DrillMetrics {
   timeInTargetPct?: number;
@@ -34,6 +36,7 @@ export function FlowRunner({ flowJson }: { flowJson: FlowJson }) {
   const [drillMetrics, setDrillMetrics] = useState<DrillMetrics>({});
   const [showCooldown, setShowCooldown] = useState(false);
   const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null);
+  const [showDeviceChangeToast, setShowDeviceChangeToast] = useState(false);
 
   const engineRef = useRef<PitchEngine | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -49,12 +52,45 @@ export function FlowRunner({ flowJson }: { flowJson: FlowJson }) {
     }
   }, [flowJson]);
 
+  const stopRecording = useCallback(() => {
+    if (processorRef.current) {
+      processorRef.current.disconnect();
+      processorRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    
+    setIsRecording(false);
+    resetSafety();
+    
+    // Process drill results
+    if (currentStep?.type === 'drill') {
+      processDrillResults(currentStep as DrillStep);
+    }
+  }, [currentStep]);
+
   useEffect(() => {
     initializeEngine();
+    
+    // Set up device change detection
+    const unsubscribe = deviceManager.onDeviceChange(() => {
+      if (isRecording) {
+        setShowDeviceChangeToast(true);
+        stopRecording();
+      }
+    });
+    
     return () => {
       cleanup();
+      unsubscribe();
     };
-  }, []);
+  }, [isRecording, stopRecording]); // Include dependencies
 
   const initializeEngine = async () => {
     try {
@@ -138,6 +174,11 @@ export function FlowRunner({ flowJson }: { flowJson: FlowJson }) {
         // Process audio through PitchEngine
         const result = engineRef.current?.pushSamples(inputData);
         if (result) {
+          // Store last result for DiagnosticsHUD
+          if (engineRef.current) {
+            (engineRef.current as unknown as { __last: unknown }).__last = result;
+          }
+          
           const timestamp = performance.now();
           
           // Safety check
@@ -178,7 +219,7 @@ export function FlowRunner({ flowJson }: { flowJson: FlowJson }) {
     }
   };
 
-  const stopRecording = () => {
+  const stopRecording = useCallback(() => {
     if (processorRef.current) {
       processorRef.current.disconnect();
       processorRef.current = null;
@@ -199,7 +240,7 @@ export function FlowRunner({ flowJson }: { flowJson: FlowJson }) {
     if (currentStep?.type === 'drill') {
       processDrillResults(currentStep as DrillStep);
     }
-  };
+  }, [currentStep]);
 
   const updateDrillMetrics = (step: DrillStep | null, result: unknown, _loudness: number) => {
     if (!step || step.type !== 'drill') return;
@@ -226,9 +267,9 @@ export function FlowRunner({ flowJson }: { flowJson: FlowJson }) {
     }
     
     setDrillMetrics(metrics);
-  };
+  }, [drillMetrics]);
 
-  const processDrillResults = (step: DrillStep) => {
+  const processDrillResults = useCallback((step: DrillStep) => {
     const data = drillDataRef.current;
     if (data.length === 0) return;
     
@@ -251,7 +292,7 @@ export function FlowRunner({ flowJson }: { flowJson: FlowJson }) {
     }
     
     setDrillMetrics(metrics);
-  };
+  }, [drillMetrics]);
 
   const nextStep = () => {
     if (!currentStep?.next) {
@@ -325,6 +366,25 @@ export function FlowRunner({ flowJson }: { flowJson: FlowJson }) {
     );
   }
 
+  if (showDeviceChangeToast) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-8 flex items-center justify-center">
+        <div className="max-w-md bg-white rounded-lg shadow-lg p-6 text-center">
+          <h2 className="text-xl font-semibold mb-4">Audio Device Changed</h2>
+          <p className="text-gray-600 mb-6">
+            Your audio device has changed. Please restart the recording when ready.
+          </p>
+          <button 
+            onClick={() => setShowDeviceChangeToast(false)}
+            className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Continue
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (sessionSummary) {
     return (
       <div className="min-h-screen bg-gray-50 p-8 flex items-center justify-center">
@@ -349,6 +409,7 @@ export function FlowRunner({ flowJson }: { flowJson: FlowJson }) {
       <div className="max-w-4xl mx-auto p-8">
         {renderStep()}
       </div>
+      {engineRef.current && <DiagnosticsHUD engine={engineRef.current} />}
     </div>
   );
 }

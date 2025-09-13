@@ -100,8 +100,16 @@ export async function createCrepeDetector(config?: {
   simd?: boolean; 
 }): Promise<CrepeTinyDetector> {
   try {
-    // @ts-expect-error - onnxruntime-web types not available
     const ort = await import('onnxruntime-web');
+    
+    // Enable WASM SIMD+threads only when cross-origin isolated
+    const isIsolated = typeof window !== 'undefined' && window.crossOriginIsolated;
+    if (isIsolated && ort.env?.wasm) {
+      // Enable SIMD and threads for maximum performance
+      ort.env.wasm.simd = config?.simd ?? true;
+      ort.env.wasm.numThreads = config?.threads ?? navigator.hardwareConcurrency ?? 4;
+    }
+    
     const detector = new CrepeTinyDetector();
     await detector.initialize({ 
       onnx: ort, 

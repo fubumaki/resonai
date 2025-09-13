@@ -6,7 +6,7 @@
       "id": "onboarding",
       "type": "info",
       "title": "Welcome",
-      "content": "Find a quiet space, wear headphones, and relax your shoulders. When you're ready, press Next.",
+      "content": "Find a quiet space, wear headphones, and relax your shoulders.\n\n💡 For best results: disable Windows microphone 'audio enhancements' in device properties for a clean signal.\n\nWhen you're ready, press Next.",
       "next": "warmup"
     },
     {
