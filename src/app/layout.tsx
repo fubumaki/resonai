@@ -26,6 +26,19 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js')
+                  .then(registration => console.log('SW registered'))
+                  .catch(error => console.log('SW registration failed'));
+              }
+            `,
+          }}
+        />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <header className="border-b">
           <div className="mx-auto flex max-w-5xl items-center justify-between p-4">

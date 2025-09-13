@@ -10,6 +10,7 @@ import { endRiseDetected } from '@/audio/intonation/endRise';
 import { updateSafety, resetSafety } from '@/audio/safety';
 import DiagnosticsHUD from '@/components/DiagnosticsHUD';
 import { deviceManager } from '@/audio/deviceManager';
+import AccessibilityAnnouncer from '@/components/AccessibilityAnnouncer';
 
 interface DrillMetrics {
   timeInTargetPct?: number;
@@ -37,6 +38,7 @@ export function FlowRunner({ flowJson }: { flowJson: FlowJson }) {
   const [showCooldown, setShowCooldown] = useState(false);
   const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null);
   const [showDeviceChangeToast, setShowDeviceChangeToast] = useState(false);
+  const [accessibilityMessage, setAccessibilityMessage] = useState('');
 
   const engineRef = useRef<PitchEngine | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -64,6 +66,12 @@ export function FlowRunner({ flowJson }: { flowJson: FlowJson }) {
       const semitones = data.map(d => d.semitones);
       const times = data.map(d => d.time);
       metrics.endRiseDetected = endRiseDetected(semitones, times);
+      
+      // Announce result
+      const message = metrics.endRiseDetected 
+        ? "Rising intonation detected successfully" 
+        : "Try adding a gentle rise at the end";
+      setAccessibilityMessage(message);
     }
     
     if (step.metrics?.includes('prosodyVar')) {
@@ -387,6 +395,7 @@ export function FlowRunner({ flowJson }: { flowJson: FlowJson }) {
         {renderStep()}
       </div>
       {engineRef.current && <DiagnosticsHUD engine={engineRef.current} />}
+      <AccessibilityAnnouncer message={accessibilityMessage} />
     </div>
   );
 }
@@ -399,7 +408,8 @@ function InfoStepComponent({ step, onNext }: { step: InfoStep; onNext: () => voi
       <p className="text-gray-600 mb-8">{step.content}</p>
       <button 
         onClick={onNext}
-        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        aria-label={`Continue to next step`}
       >
         Next
       </button>
@@ -443,7 +453,8 @@ function DrillStepComponent({
       <div className="flex space-x-4">
         <button 
           onClick={isRecording ? onStop : onStart}
-          className={`px-6 py-3 rounded-lg ${isRecording ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'} text-white`}
+          className={`px-6 py-3 rounded-lg focus:ring-2 focus:ring-offset-2 ${isRecording ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'} text-white`}
+          aria-label={isRecording ? 'Stop recording' : 'Start recording'}
         >
           {isRecording ? 'Stop' : 'Start'}
         </button>
@@ -451,7 +462,8 @@ function DrillStepComponent({
         {!isRecording && (
           <button 
             onClick={onNext}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            aria-label="Skip this drill and continue"
           >
             Next
           </button>
@@ -470,21 +482,27 @@ function ReflectionStepComponent({ step, onNext }: { step: ReflectionStep; onNex
       <div className="space-y-4">
         {step.prompts.map((prompt, i) => (
           <div key={i}>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor={`prompt-${i}`}>
               {prompt}
             </label>
             <input 
+              id={`prompt-${i}`}
               type="text" 
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Your response..."
+              aria-describedby={`prompt-${i}-help`}
             />
+            <div id={`prompt-${i}-help`} className="sr-only">
+              Enter your response for {prompt.toLowerCase()}
+            </div>
           </div>
         ))}
       </div>
       
       <button 
         onClick={onNext}
-        className="mt-8 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        className="mt-8 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        aria-label="Complete reflection and finish session"
       >
         Complete
       </button>

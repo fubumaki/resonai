@@ -120,11 +120,15 @@ export default function SelfTestPage() {
         } 
       });
       
-      const audioContext = new AudioContext({ sampleRate: 48000 });
+      const audioContext = new AudioContext({ sampleRate: 48000, latencyHint: 0 });
       const source = audioContext.createMediaStreamSource(stream);
       const processor = audioContext.createScriptProcessor(4096, 1, 1);
       
       let hasLockedIn = false;
+      let t0: number | undefined;
+      let lockedAt: number | undefined;
+      let grossErrorFrames = 0;
+      let totalFrames = 0;
       const stableReadings: number[] = [];
       
       processor.onaudioprocess = (event) => {
@@ -139,9 +143,15 @@ export default function SelfTestPage() {
           }
           
           if (result.pitchHz && result.raw.confidence > 0.5) {
-            if (!hasLockedIn) {
+            if (t0 === undefined) t0 = performance.now();
+            totalFrames++;
+            
+            const error = Math.abs(result.pitchHz - frequency) / frequency;
+            if (error > 0.20) grossErrorFrames++; // 20% = Gross Pitch Error frame
+            
+            if (!lockedAt && error < 0.02) { // 2% = lock-in threshold
+              lockedAt = performance.now();
               hasLockedIn = true;
-              lockInTimeRef.current = performance.now();
             }
             
             stableReadings.push(result.pitchHz);
@@ -167,18 +177,22 @@ export default function SelfTestPage() {
       audioContext.close();
       stream.getTracks().forEach(track => track.stop());
       
-      // Calculate results
+      // Calculate results with enhanced metrics
       if (stableReadings.length > 10) {
         const avgDetected = stableReadings.reduce((a, b) => a + b, 0) / stableReadings.length;
         const octaveError = Math.abs(Math.log2(avgDetected / frequency)) * 12; // in semitones
-        const lockInTime = hasLockedIn ? lockInTimeRef.current - testStartTimeRef.current : -1;
+        const lockInTime = lockedAt && t0 ? (lockedAt - t0) : Infinity;
+        const grossPitchError = totalFrames > 0 ? grossErrorFrames / totalFrames : 1;
+        
+        // Enhanced success criteria
+        const success = octaveError < 0.5 && lockInTime < 100 && grossPitchError < 0.05;
         
         const result: TestResult = {
           frequency,
           detectedHz: avgDetected,
           octaveError,
-          lockInTime,
-          success: octaveError < 1.0 && lockInTime > 0 && lockInTime < 1000 // <1 semitone error, <1s lock-in
+          lockInTime: lockInTime === Infinity ? -1 : lockInTime,
+          success
         };
         
         setResults(prev => [...prev, result]);
@@ -316,11 +330,13 @@ export default function SelfTestPage() {
         </div>
         
         <div className="mt-8 bg-gray-800 rounded-lg p-6">
-          <h3 className="text-lg font-semibold mb-4">Test Criteria</h3>
+          <h3 className="text-lg font-semibold mb-4">Enhanced Test Criteria</h3>
           <div className="text-sm space-y-2">
-            <div><strong>Pass:</strong> Octave error &lt; 1 semitone, Lock-in time &lt; 1000ms</div>
-            <div><strong>Target:</strong> Octave error &lt; 0.5 semitones, Lock-in time &lt; 500ms</div>
-            <div><strong>Method:</strong> 3-second sine wave test, confidence threshold 0.5</div>
+            <div><strong>Pass:</strong> Octave error &lt; 0.5 semitones, Lock-in time &lt; 100ms, GPE &lt; 5%</div>
+            <div><strong>Target:</strong> Octave error &lt; 0.2 semitones, Lock-in time &lt; 50ms, GPE &lt; 2%</div>
+            <div><strong>Method:</strong> 3-second sine wave test, confidence threshold 0.5, latencyHint: 0</div>
+            <div><strong>GPE:</strong> Gross Pitch Error - frames with &gt;20% frequency deviation</div>
+            <div><strong>Lock-in:</strong> First frame with &lt;2% frequency error</div>
           </div>
         </div>
       </div>
