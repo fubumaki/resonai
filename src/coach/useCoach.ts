@@ -8,7 +8,6 @@ import {
   CoachHint, 
   MetricSnapshot, 
   SessionSummary,
-  CoachMoment 
 } from './types';
 import { CoachPolicyV2 } from './policyDefault';
 import { 
@@ -46,7 +45,7 @@ export function useCoach(config: Partial<CoachConfig> = {}) {
     stepId: string;
     stepType: string;
     success: boolean;
-    metrics: any;
+    metrics: Record<string, unknown>;
     hints: CoachHint[];
   }>>([]);
 
@@ -62,14 +61,15 @@ export function useCoach(config: Partial<CoachConfig> = {}) {
 
   // Throttled realtime hint generation
   const generateRealtimeHints = useCallback(
-    throttle((snapshots: MetricSnapshot[]) => {
+    throttle((...args: unknown[]) => {
+      const snapshots = args[0] as MetricSnapshot[];
       if (!state.isActive) return;
 
       // Check environment first
       const environmentHints = environmentCoachRef.current.checkEnvironment(environmentState);
       
       // Get regular coaching hints
-      const hints = finalConfig.policy.realtime(snapshots);
+      const hints = finalConfig.policy.realtime(snapshots as MetricSnapshot[]);
       const allHints = [...environmentHints, ...hints];
       const filteredHints = filterHints(allHints);
       
@@ -117,7 +117,7 @@ export function useCoach(config: Partial<CoachConfig> = {}) {
   }, []);
 
   // Start new step
-  const startStep = useCallback((stepId: string, stepType: string, step: any) => {
+  const startStep = useCallback((stepId: string, stepType: string, step: Record<string, unknown>) => {
     setState(prev => ({
       ...prev,
       stepStartTime: Date.now(),
@@ -126,7 +126,7 @@ export function useCoach(config: Partial<CoachConfig> = {}) {
     }));
 
     // Generate pre-step hints
-    const preHints = finalConfig.policy.pre(step);
+    const preHints = finalConfig.policy.pre(stepType);
     if (preHints.length > 0) {
       setState(prev => ({
         ...prev,
@@ -157,18 +157,17 @@ export function useCoach(config: Partial<CoachConfig> = {}) {
     stepId: string, 
     stepType: string, 
     success: boolean,
-    additionalMetrics?: any
+    additionalMetrics?: Record<string, unknown>
   ) => {
     const currentTime = Date.now();
-    const stepDuration = currentTime - state.stepStartTime;
     
     // Aggregate metrics for this step
     const aggregated = aggregateMetrics(state.metricsHistory);
     
     // Generate post-step hints
     const postHints = finalConfig.policy.post({
-      dtwTier: additionalMetrics?.dtwTier,
-      endRiseDetected: additionalMetrics?.endRiseDetected,
+      dtwTier: additionalMetrics?.dtwTier as number | undefined,
+      endRiseDetected: additionalMetrics?.endRiseDetected as boolean | undefined,
       stats: { ...aggregated, ...additionalMetrics },
       stepType
     });
@@ -203,7 +202,7 @@ export function useCoach(config: Partial<CoachConfig> = {}) {
     // Record phrase attempt for praise rate monitoring
     if (stepType === 'drill' && additionalMetrics?.dtwTier) {
       const gotPraise = filteredPostHints.some(hint => hint.id === 'praise' || hint.id === 'rise-success');
-      sloMonitor.recordPhraseAttempt(additionalMetrics.dtwTier, gotPraise);
+      sloMonitor.recordPhraseAttempt(additionalMetrics?.dtwTier as number || 0, gotPraise);
     }
 
     // Show post-step hints
@@ -291,7 +290,7 @@ export function useCoach(config: Partial<CoachConfig> = {}) {
     getSessionSummary,
     
     // Utilities
-    createMetricSnapshot: (result: any, timestamp: number, timeInTarget?: boolean, endRiseDetected?: boolean) =>
+    createMetricSnapshot: (result: Record<string, unknown>, timestamp: number, timeInTarget?: boolean, endRiseDetected?: boolean) =>
       createMetricSnapshot(result, timestamp, timeInTarget, endRiseDetected),
     
     // SLO Monitoring

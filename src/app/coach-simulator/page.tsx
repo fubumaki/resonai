@@ -4,7 +4,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CoachPolicyV2 } from '@/coach/policyDefault';
+import { CoachPolicyV2, CoachHint } from '@/coach/policyDefault';
 import { MetricSnapshot } from '@/coach/types';
 import { CoachDisplay } from '@/coach/CoachDisplay';
 
@@ -18,8 +18,8 @@ export default function CoachSimulatorPage() {
   });
   const [dtwTier, setDtwTier] = useState<number | undefined>(undefined);
   const [endRiseDetected, setEndRiseDetected] = useState<boolean | undefined>(undefined);
-  const [lastHint, setLastHint] = useState<any>(null);
-  const [hintHistory, setHintHistory] = useState<any[]>([]);
+  const [lastHint, setLastHint] = useState<CoachHint | null>(null);
+  const [hintHistory, setHintHistory] = useState<Array<{ type: string; hint: CoachHint; time: number }>>([]);
   const [isRealtimeMode, setIsRealtimeMode] = useState(true);
 
   // Generate snapshots based on current metrics

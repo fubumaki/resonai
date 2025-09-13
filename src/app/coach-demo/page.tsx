@@ -6,7 +6,7 @@
 import { FlowRunnerWithCoach } from '@/flow/FlowRunnerWithCoach';
 import { FlowJson } from '@/flow/types';
 import { useCoach, useCoachAria } from '@/coach';
-import { CoachDisplay, CoachStatus } from '@/coach/CoachDisplay';
+import { CoachStatus } from '@/coach/CoachDisplay';
 import { useState, useEffect } from 'react';
 
 // Demo flow with all coach features

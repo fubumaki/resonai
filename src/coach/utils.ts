@@ -1,7 +1,7 @@
 // src/coach/utils.ts
 // Utility functions for the coach system
 
-import { MetricSnapshot, MetricAggregation, DTWResult } from './types';
+import { MetricSnapshot, MetricAggregation, DTWResult, CoachHint } from './types';
 
 /**
  * Aggregate metrics from a series of snapshots
@@ -137,12 +137,12 @@ export function calculateDTWTier(
 /**
  * Throttle function calls to prevent too frequent updates
  */
-export function throttle<T extends (...args: any[]) => any>(
+export function throttle<T extends (...args: unknown[]) => unknown>(
   func: T,
   limit: number
 ): T {
   let inThrottle: boolean;
-  return ((...args: any[]) => {
+  return ((...args: unknown[]) => {
     if (!inThrottle) {
       func(...args);
       inThrottle = true;
@@ -154,12 +154,12 @@ export function throttle<T extends (...args: any[]) => any>(
 /**
  * Debounce function calls to wait for a pause in activity
  */
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   delay: number
 ): T {
   let timeoutId: NodeJS.Timeout;
-  return ((...args: any[]) => {
+  return ((...args: unknown[]) => {
     clearTimeout(timeoutId);
     timeoutId = setTimeout(() => func(...args), delay);
   }) as T;
@@ -187,7 +187,7 @@ export function generateHintId(baseId: string): string {
 /**
  * Filter hints by priority and remove duplicates
  */
-export function filterHints(hints: any[]): any[] {
+export function filterHints(hints: CoachHint[]): CoachHint[] {
   // Remove duplicates by ID
   const seen = new Set<string>();
   const unique = hints.filter(hint => {
@@ -206,20 +206,20 @@ export function filterHints(hints: any[]): any[] {
  * Create a metric snapshot from pitch engine output
  */
 export function createMetricSnapshot(
-  result: any,
+  result: Record<string, unknown>,
   timestamp: number,
   timeInTarget?: boolean,
   endRiseDetected?: boolean
 ): MetricSnapshot {
   return {
     t: timestamp,
-    pitchHz: result.pitchHz,
-    semitoneRel: result.semitoneRel,
-    jitterEma: result.metrics?.jitterEma,
+    pitchHz: result.pitchHz as number | null | undefined,
+    semitoneRel: result.semitoneRel as number | null | undefined,
+    jitterEma: (result as { metrics?: { jitterEma?: number } }).metrics?.jitterEma,
     timeInTarget,
     endRiseDetected,
-    loudNorm: result.loudNorm || 0,
-    confidence: result.raw?.confidence,
-    voicedTimePct: result.voicedTimePct
+    loudNorm: (result.loudNorm as number) || 0,
+    confidence: (result as { raw?: { confidence?: number } }).raw?.confidence,
+    voicedTimePct: result.voicedTimePct as number | undefined
   };
 }

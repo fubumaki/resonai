@@ -28,12 +28,12 @@ export interface CoachHint {
 export type { Snapshot, PhraseSummary, Clock } from './policyDefault';
 
 export interface ICoachPolicy {
-  pre(flowStep: any): CoachHint[];                                        // priming tips
+  pre(stepTitle: string): CoachHint[];                                    // priming tips
   realtime(snapshots: MetricSnapshot[]): CoachHint[];                     // micro-hints
   post(agg: { 
     dtwTier?: number; 
     endRiseDetected?: boolean; 
-    stats: any;
+    stats: Record<string, unknown>;
     stepType?: string;
   }): CoachHint[];                                                        // summary advice
 }

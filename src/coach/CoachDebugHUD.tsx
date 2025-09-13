@@ -45,7 +45,7 @@ export function CoachDebugHUD({
 
   if (!isVisible) return null;
 
-  const debugState = (coach as any).getDebugState?.() || {};
+  const debugState = (coach as { getDebugState?: () => Record<string, unknown> }).getDebugState?.() || {} as Record<string, unknown>;
 
   return (
     <div className="fixed top-4 right-4 w-80 bg-black bg-opacity-90 text-white text-xs font-mono p-4 rounded-lg z-50">
@@ -98,10 +98,10 @@ export function CoachDebugHUD({
             <div className="text-blue-400">ID: {lastHint.id}</div>
             <div className="text-gray-300">Text: {lastHint.text}</div>
             <div className="text-gray-300">
-              Time since: {debugState.timeSinceLastHint?.toFixed(0)}ms
+              Time since: {(debugState.timeSinceLastHint as number)?.toFixed(0)}ms
             </div>
             <div className="text-gray-300">
-              Suppressed: {debugState.timeSinceLastHint < 1000 ? 'Rate limit' : 'None'}
+              Suppressed: {(debugState.timeSinceLastHint as number) < 1000 ? 'Rate limit' : 'None'}
             </div>
           </div>
         ) : (
@@ -154,9 +154,9 @@ export function CoachDebugHUD({
       <div className="mb-3">
         <div className="font-semibold mb-1">Policy State</div>
         <div className="space-y-1 text-xs">
-          <div>Step time: {debugState.timeSinceStepStart?.toFixed(0)}ms</div>
-          <div>Last hint ID: {debugState.lastHintId || 'None'}</div>
-          <div>Last hint time: {debugState.lastHintAt?.toFixed(0)}ms</div>
+          <div>Step time: {(debugState.timeSinceStepStart as number)?.toFixed(0)}ms</div>
+          <div>Last hint ID: {(debugState.lastHintId as string) || 'None'}</div>
+          <div>Last hint time: {(debugState.lastHintAt as number)?.toFixed(0)}ms</div>
         </div>
       </div>
 

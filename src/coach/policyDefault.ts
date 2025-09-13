@@ -152,7 +152,7 @@ export class CoachPolicyV2 {
   post(agg: { 
     dtwTier?: number; 
     endRiseDetected?: boolean; 
-    stats: any;
+    stats: Record<string, unknown>;
     stepType?: string;
   }): CoachHint[] {
     return this.postPhrase({

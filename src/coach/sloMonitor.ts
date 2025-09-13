@@ -70,7 +70,6 @@ export class SLOMonitor {
    * Get current SLO metrics
    */
   getMetrics(): SLOMetrics {
-    const now = performance.now();
     
     // Calculate hint cadence (P95)
     const hintCadence = this.calculateHintCadence();
@@ -149,7 +148,6 @@ export class SLOMonitor {
     if (this.hintIds.length < 2) return 0;
     
     let duplicates = 0;
-    const now = performance.now();
     
     for (let i = 1; i < this.hintIds.length; i++) {
       const timeDiff = this.hintTimes[i] - this.hintTimes[i - 1];

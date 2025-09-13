@@ -165,13 +165,13 @@ export class EnvironmentAwareCoach {
   static async getEnvironmentState(): Promise<EnvironmentState> {
     const isIsolated = typeof window !== 'undefined' && window.crossOriginIsolated;
     
-    let deviceChanged = false;
+    const deviceChanged = false;
     let sampleRate = 48000;
     let audioContextState: 'running' | 'suspended' | 'closed' = 'closed';
     
     try {
       // Check audio context state
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const audioContext = new (window.AudioContext || (window as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)();
       audioContextState = audioContext.state as 'running' | 'suspended' | 'closed';
       sampleRate = audioContext.sampleRate;
       audioContext.close();

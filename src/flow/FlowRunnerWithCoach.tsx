@@ -15,7 +15,8 @@ import IsolationBanner from '@/components/IsolationBanner';
 
 // Import coach system
 import { useCoach, useCoachAria } from '@/coach/useCoach';
-import { CoachDisplay, CoachDisplayCompact, CoachStatus } from '@/coach/CoachDisplay';
+import { CoachDisplay, CoachStatus } from '@/coach/CoachDisplay';
+import { CoachHint } from '@/coach/types';
 import { createMetricSnapshot } from '@/coach/utils';
 
 interface DrillMetrics {
@@ -64,7 +65,6 @@ export function FlowRunnerWithCoach({ flowJson }: { flowJson: FlowJson }) {
   const streamRef = useRef<MediaStream | null>(null);
   const drillDataRef = useRef<Array<{ semitones: number; time: number; loudness: number }>>([]);
   const startTimeRef = useRef<number>(0);
-  const targetRangeRef = useRef<{ min: number; max: number } | null>(null);
 
   // Initialize coach session when component mounts
   useEffect(() => {
@@ -76,7 +76,7 @@ export function FlowRunnerWithCoach({ flowJson }: { flowJson: FlowJson }) {
     if (flowJson.steps.length > 0) {
       const firstStep = flowJson.steps[0];
       setCurrentStep(firstStep);
-      coach.startStep(firstStep.id, firstStep.type, firstStep);
+      coach.startStep(firstStep.id, firstStep.type, firstStep as unknown as Record<string, unknown>);
     }
   }, [flowJson, coach]);
 
@@ -389,7 +389,7 @@ export function FlowRunnerWithCoach({ flowJson }: { flowJson: FlowJson }) {
       drillDataRef.current = [];
       
       // Start new step with coach
-      coach.startStep(nextStepData.id, nextStepData.type, nextStepData);
+      coach.startStep(nextStepData.id, nextStepData.type, nextStepData as unknown as Record<string, unknown>);
     }
   };
 
@@ -538,7 +538,7 @@ function DrillStepComponent({
   onStart: () => void; 
   onStop: () => void; 
   onNext: () => void;
-  coachHints: any[];
+  coachHints: CoachHint[];
 }) {
   return (
     <div className="bg-white rounded-lg shadow-lg p-8">
