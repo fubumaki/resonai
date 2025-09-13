@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "flowName": "DailyPractice_v1",
+  "steps": [
+    {
+      "id": "onboarding",
+      "type": "info",
+      "title": "Welcome",
+      "content": "Find a quiet space, wear headphones, and relax your shoulders. When you're ready, press Next.",
+      "next": "warmup"
+    },
+    {
+      "id": "warmup",
+      "type": "drill",
+      "title": "SOVT Warm‑Up",
+      "copy": "Gentle lip trill or hum for about a minute. Keep it easy.",
+      "durationSec": 60,
+      "metrics": ["voicedTimePct","jitterEma"],
+      "next": "glide"
+    },
+    {
+      "id": "glide",
+      "type": "drill",
+      "title": "Pitch Glide",
+      "copy": "Glide smoothly up, then down. Aim for steady movement (no sudden jumps).",
+      "target": { "pitchRange": "mid" },
+      "metrics": ["timeInTargetPct","jitterEma"],
+      "successThreshold": { "timeInTargetPct": 0.7 },
+      "next": "phrase"
+    },
+    {
+      "id": "phrase",
+      "type": "drill",
+      "title": "Prosody Phrase",
+      "copy": "Say: \"How are you doing?\" with a gentle rise at the end.",
+      "target": { "intonation": "rising", "phraseText": "How are you doing?" },
+      "metrics": ["endRiseDetected","prosodyVar"],
+      "successThreshold": { "endRiseDetected": true },
+      "next": "reflection"
+    },
+    {
+      "id": "reflection",
+      "type": "reflection",
+      "title": "Reflection",
+      "copy": "Nice work! Quick check‑in:",
+      "prompts": ["Comfort (1–5)", "Any tightness?", "A note for tomorrow"]
+    }
+  ]
+}
