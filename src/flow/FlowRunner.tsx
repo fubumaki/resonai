@@ -52,6 +52,31 @@ export function FlowRunner({ flowJson }: { flowJson: FlowJson }) {
     }
   }, [flowJson]);
 
+  const processDrillResults = useCallback((step: DrillStep) => {
+    const data = drillDataRef.current;
+    if (data.length === 0) return;
+    
+    const metrics: DrillMetrics = {};
+    
+    // Process based on drill type
+    if (step.target?.intonation === 'rising') {
+      // End-rise detection
+      const semitones = data.map(d => d.semitones);
+      const times = data.map(d => d.time);
+      metrics.endRiseDetected = endRiseDetected(semitones, times);
+    }
+    
+    if (step.metrics?.includes('prosodyVar')) {
+      // Compute prosody variability
+      const semitones = data.map(d => d.semitones);
+      const mean = semitones.reduce((s, v) => s + v, 0) / semitones.length;
+      const variance = semitones.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / semitones.length;
+      metrics.prosodyVar = Math.min(1, variance / 4); // Normalize to 0-1
+    }
+    
+    setDrillMetrics(prev => ({ ...prev, ...metrics }));
+  }, []);
+
   const stopRecording = useCallback(() => {
     if (processorRef.current) {
       processorRef.current.disconnect();
@@ -73,7 +98,7 @@ export function FlowRunner({ flowJson }: { flowJson: FlowJson }) {
     if (currentStep?.type === 'drill') {
       processDrillResults(currentStep as DrillStep);
     }
-  }, [currentStep]);
+  }, [currentStep, processDrillResults]);
 
   useEffect(() => {
     initializeEngine();
@@ -219,29 +244,6 @@ export function FlowRunner({ flowJson }: { flowJson: FlowJson }) {
     }
   };
 
-  const stopRecording = useCallback(() => {
-    if (processorRef.current) {
-      processorRef.current.disconnect();
-      processorRef.current = null;
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
-    
-    setIsRecording(false);
-    resetSafety();
-    
-    // Process drill results
-    if (currentStep?.type === 'drill') {
-      processDrillResults(currentStep as DrillStep);
-    }
-  }, [currentStep]);
-
   const updateDrillMetrics = (step: DrillStep | null, result: unknown, _loudness: number) => {
     if (!step || step.type !== 'drill') return;
     
@@ -267,32 +269,7 @@ export function FlowRunner({ flowJson }: { flowJson: FlowJson }) {
     }
     
     setDrillMetrics(metrics);
-  }, [drillMetrics]);
-
-  const processDrillResults = useCallback((step: DrillStep) => {
-    const data = drillDataRef.current;
-    if (data.length === 0) return;
-    
-    const metrics: DrillMetrics = { ...drillMetrics };
-    
-    // Process based on drill type
-    if (step.target?.intonation === 'rising') {
-      // End-rise detection
-      const semitones = data.map(d => d.semitones);
-      const times = data.map(d => d.time);
-      metrics.endRiseDetected = endRiseDetected(semitones, times);
-    }
-    
-    if (step.metrics?.includes('prosodyVar')) {
-      // Compute prosody variability
-      const semitones = data.map(d => d.semitones);
-      const mean = semitones.reduce((s, v) => s + v, 0) / semitones.length;
-      const variance = semitones.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / semitones.length;
-      metrics.prosodyVar = Math.min(1, variance / 4); // Normalize to 0-1
-    }
-    
-    setDrillMetrics(metrics);
-  }, [drillMetrics]);
+  };
 
   const nextStep = () => {
     if (!currentStep?.next) {
