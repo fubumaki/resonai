@@ -11,6 +11,8 @@ import { updateSafety, resetSafety } from '@/audio/safety';
 import DiagnosticsHUD from '@/components/DiagnosticsHUD';
 import { deviceManager } from '@/audio/deviceManager';
 import AccessibilityAnnouncer from '@/components/AccessibilityAnnouncer';
+import { useIsolationGuard } from '@/hooks/useIsolationGuard';
+import IsolationBanner from '@/components/IsolationBanner';
 
 interface DrillMetrics {
   timeInTargetPct?: number;
@@ -39,6 +41,8 @@ export function FlowRunner({ flowJson }: { flowJson: FlowJson }) {
   const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null);
   const [showDeviceChangeToast, setShowDeviceChangeToast] = useState(false);
   const [accessibilityMessage, setAccessibilityMessage] = useState('');
+  
+  const { isolated } = useIsolationGuard();
 
   const engineRef = useRef<PitchEngine | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -391,6 +395,7 @@ export function FlowRunner({ flowJson }: { flowJson: FlowJson }) {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <IsolationBanner isolated={isolated} />
       <div className="max-w-4xl mx-auto p-8">
         {renderStep()}
       </div>

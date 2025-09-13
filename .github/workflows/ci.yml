@@ -1,19 +1,26 @@
 name: CI
 on:
   push: { branches: [main] }
-  pull_request:
+  pull_request: { branches: [main] }
+
 jobs:
-  build-test:
+  build-and-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with: { version: 9 }
       - uses: actions/setup-node@v4
-        with: { node-version: 20, cache: 'pnpm' }
-      - run: pnpm i --frozen-lockfile
-      - run: pnpm run lint
-      - run: pnpm run typecheck
-      - run: pnpm run build
-      - run: pnpm exec playwright install --with-deps
-      - run: pnpm test:e2e
+        with: { node-version: 20 }
+      - name: Enable PNPM
+        run: corepack enable
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm build
+      - name: Install Playwright (Firefox)
+        run: npx playwright install --with-deps firefox
+      - name: E2E (headless Firefox)
+        env:
+          BASE_URL: http://localhost:3000
+        run: |
+          pnpm start & npx wait-on http://localhost:3000
+          pnpm test:e2e

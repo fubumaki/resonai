@@ -47,6 +47,7 @@ export default function RootLayout({
               <Link href="/" className="text-muted-foreground hover:text-foreground">Home</Link>
               <Link href="/listen" className="text-muted-foreground hover:text-foreground">Listen</Link>
               <Link href="/practice" className="text-muted-foreground hover:text-foreground">Practice</Link>
+              <Link href="/about" className="text-muted-foreground hover:text-foreground">About</Link>
             </nav>
           </div>
         </header>
