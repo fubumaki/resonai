@@ -21,6 +21,18 @@ export const DrillTargetSchema = z.object({
   phraseText: z.string().optional(),
 });
 
+export const CoachOverrideSchema = z.object({
+  pre: z.array(z.string()).optional(),
+  realtime: z.record(z.string(), z.string()).optional(),
+  post: z.object({
+    tiers: z.record(z.string(), z.string()).optional(),
+    endRise: z.object({
+      success: z.string().optional(),
+      miss: z.string().optional()
+    }).optional()
+  }).optional()
+});
+
 export const DrillStepSchema = FlowStepBaseSchema.extend({
   type: z.literal('drill'),
   copy: z.string().min(1),
@@ -28,6 +40,7 @@ export const DrillStepSchema = FlowStepBaseSchema.extend({
   target: DrillTargetSchema.optional(),
   metrics: z.array(z.string()).optional(),
   successThreshold: z.record(z.string(), z.union([z.number(), z.boolean()])).optional(),
+  coach: CoachOverrideSchema.optional(),
 });
 
 export const ReflectionStepSchema = FlowStepBaseSchema.extend({
