@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { exportSessions, deleteAllSessions } from '@/flow/sessionStore';
+import { exportSessions, deleteAllSessions, importSessions } from '@/flow/sessionStore';
 
 export default function SettingsPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -15,7 +16,7 @@ export default function SettingsPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `resonai-sessions-${Date.now()}.json`;
+      a.download = `resonai-sessions-v1-${Date.now()}.json`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (error) {
@@ -23,6 +24,24 @@ export default function SettingsPage() {
       alert('Export failed. Please try again.');
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const text = await file.text();
+      await importSessions(text);
+      alert('Sessions imported successfully!');
+      event.target.value = ''; // Reset file input
+    } catch (error) {
+      console.error('Import failed:', error);
+      alert(`Import failed: ${error instanceof Error ? error.message : 'Invalid file format'}`);
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -62,6 +81,17 @@ export default function SettingsPage() {
             >
               {isExporting ? 'Exporting...' : 'Export Sessions (JSON)'}
             </button>
+            
+            <label className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed cursor-pointer text-center block">
+              {isImporting ? 'Importing...' : 'Import Sessions (JSON)'}
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleImport}
+                disabled={isImporting}
+                className="hidden"
+              />
+            </label>
             
             <button
               onClick={handleDelete}
