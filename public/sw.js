@@ -1,11 +1,18 @@
 const CACHE = 'resonai-app-v2';
 const PRECACHE = [
-  '/', '/flow', '/settings',
-  '/dev/status', '/dev/pitch', '/dev/selftest',
-  '/models/crepe-tiny.onnx',
-  '/worklets/pitch-processor.js',
-  '/worklets/loudness-processor.js',
-  // add any .wasm, .onnx, chunks with content hashes as needed
+  [
+    "/",
+    "/about",
+    "/dev/pitch",
+    "/dev/selftest",
+    "/dev/status",
+    "/flow",
+    "/flows/daily_v1.json",
+    "/settings",
+    "/worklets/energy-processor.js",
+    "/worklets/lpc-processor.js",
+    "/worklets/pitch-processor.js"
+  ]
 ];
 
 self.addEventListener('install', (e) => {

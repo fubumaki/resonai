@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { FlowRunner } from '@/flow/FlowRunner';
 import { FlowJson } from '@/flow/types';
+import { validateFlowJson } from '@/flow/schema';
 
 export default function FlowPage() {
   const [flowJson, setFlowJson] = useState<FlowJson | null>(null);
@@ -19,8 +20,15 @@ export default function FlowPage() {
       if (!response.ok) {
         throw new Error(`Failed to load flow: ${response.statusText}`);
       }
-      const flow: FlowJson = await response.json();
-      setFlowJson(flow);
+      const data = await response.json();
+      
+      // Validate flow JSON schema
+      const validation = validateFlowJson(data);
+      if (!validation.success) {
+        throw new Error(validation.error || 'Flow validation failed');
+      }
+      
+      setFlowJson(data as FlowJson);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
