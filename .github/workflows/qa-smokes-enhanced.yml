@@ -1,0 +1,217 @@
+name: QA Smoke Tests (Enhanced)
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      app_url:
+        description: 'App URL to test'
+        required: false
+        default: 'https://resonai.vercel.app'
+        type: string
+      include_chrome:
+        description: 'Include Chrome tests'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  qa-smokes:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Install Playwright
+      run: |
+        npx playwright install --with-deps firefox
+        if [ "${{ github.event.inputs.include_chrome }}" = "true" ]; then
+          npx playwright install --with-deps chromium
+        fi
+      
+    - name: Run Firefox smoke tests
+      run: |
+        export APP_URL="${{ github.event.inputs.app_url || 'https://resonai.vercel.app' }}"
+        npx playwright test --project=firefox --reporter=html,json,junit
+      env:
+        HEADLESS: true
+        
+    - name: Run Chrome comparison tests
+      if: github.event.inputs.include_chrome == 'true'
+      run: |
+        export APP_URL="${{ github.event.inputs.app_url || 'https://resonai.vercel.app' }}"
+        npx playwright test --project=chromium --reporter=html,json,junit
+      env:
+        HEADLESS: true
+        
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: playwright-report
+        path: |
+          playwright-report/
+          test-results/
+        retention-days: 30
+        
+    - name: Comment PR with results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          // Read test results
+          let testResults = {};
+          try {
+            const resultsPath = 'test-results/results.json';
+            if (fs.existsSync(resultsPath)) {
+              const results = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
+              testResults = results;
+            }
+          } catch (error) {
+            console.log('Could not read test results:', error.message);
+          }
+          
+          // Generate summary table
+          const generateSummary = (suites) => {
+            if (!suites || !Array.isArray(suites)) return 'No test results available';
+            
+            let summary = '## 🧪 QA Smoke Test Results\n\n';
+            summary += '| Proof | Status | Duration | Evidence |\n';
+            summary += '|-------|--------|----------|----------|\n';
+            
+            suites.forEach(suite => {
+              const status = suite.status === 'passed' ? '✅ Pass' : 
+                           suite.status === 'failed' ? '❌ Fail' : '⚠️ Unknown';
+              const duration = suite.duration ? `${Math.round(suite.duration)}ms` : 'N/A';
+              const evidence = suite.status === 'passed' ? '[View Report]' : '[View Report]';
+              summary += `| ${suite.title} | ${status} | ${duration} | ${evidence} |\n`;
+            });
+            
+            return summary;
+          };
+          
+          const summary = generateSummary(testResults.suites);
+          
+          // Add manual testing reminders
+          const manualTests = `
+          
+          ## 🔧 Manual Testing Required
+          
+          | Proof | Status | Evidence |
+          |-------|--------|----------|
+          | **Device-Flip Resilience** | Manual | USB↔BT switching test |
+          | **Prosody Fairness** | Manual | Anti-gaming validation |
+          | **Loudness Guard** | Manual | Distance calibration test |
+          
+          ### Quick Manual Test Commands
+          \`\`\`javascript
+          // Device change detection
+          navigator.mediaDevices.ondevicechange = () => console.log('Device changed!');
+          
+          // Coach debug state
+          console.log('Coach state:', window.__coachDebugState?.());
+          
+          // Prosody thresholds
+          console.log('Thresholds:', window.__prosodyThresholds);
+          
+          // Export all data
+          console.log('QA data:', window.exportQAData?.());
+          \`\`\`
+          
+          ### Release Decision
+          - **🟢 Green (6/6):** Ship controlled beta cohort
+          - **🟡 Yellow (4-5/6):** Fix blockers, broader testing
+          - **🔴 Red (<4/6):** Not ready, address critical issues
+          `;
+          
+          const fullSummary = summary + manualTests;
+          
+          // Post comment
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: fullSummary
+          });
+          
+    - name: Generate QA Badge
+      if: always()
+      run: |
+        # Parse test results
+        if [ -f "test-results/results.json" ]; then
+          TEST_RESULTS=$(cat test-results/results.json)
+        else
+          echo "No test results found"
+          exit 1
+        fi
+        
+        # Extract test statuses
+        ISOLATION_STATUS=$(echo "$TEST_RESULTS" | jq -r '.suites[] | select(.title | contains("Isolation")) | .status // "unknown"')
+        COACH_STATUS=$(echo "$TEST_RESULTS" | jq -r '.suites[] | select(.title | contains("Coach Policy")) | .status // "unknown"')
+        PRIVACY_STATUS=$(echo "$TEST_RESULTS" | jq -r '.suites[] | select(.title | contains("Privacy")) | .status // "unknown"')
+        
+        # Count total tests and passed tests
+        TOTAL_TESTS=$(echo "$TEST_RESULTS" | jq -r '.suites | length')
+        PASSED_TESTS=$(echo "$TEST_RESULTS" | jq -r '.suites | map(select(.status == "passed")) | length')
+        
+        # Determine overall status
+        if [ "$PASSED_TESTS" -eq "$TOTAL_TESTS" ]; then
+          OVERALL_STATUS="✅ All Tests Passed"
+          BADGE_COLOR="green"
+        elif [ "$PASSED_TESTS" -gt 0 ]; then
+          OVERALL_STATUS="⚠️ Some Tests Failed"
+          BADGE_COLOR="yellow"
+        else
+          OVERALL_STATUS="❌ All Tests Failed"
+          BADGE_COLOR="red"
+        fi
+        
+        # Generate badge summary
+        cat > qa-badge-summary.md << EOF
+        ## 🧪 QA Test Results
+        
+        | Proof | Status | Evidence |
+        |-------|--------|----------|
+        | **Isolation** | $([ "$ISOLATION_STATUS" = "passed" ] && echo "✅ Pass" || echo "❌ Fail") | [View Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) |
+        | **Coach Policy** | $([ "$COACH_STATUS" = "passed" ] && echo "✅ Pass" || echo "❌ Fail") | [View Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) |
+        | **Privacy & A11y** | $([ "$PRIVACY_STATUS" = "passed" ] && echo "✅ Pass" || echo "❌ Fail") | [View Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) |
+        
+        **Overall:** $OVERALL_STATUS ($PASSED_TESTS/$TOTAL_TESTS tests passed)
+        
+        ---
+        
+        ### 📊 Test Summary
+        - **Isolation Proof:** $ISOLATION_STATUS
+        - **Coach Policy Invariants:** $COACH_STATUS  
+        - **Privacy & A11y:** $PRIVACY_STATUS
+        
+        ### 🔗 Links
+        - [Full Test Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+        - [QA Snapshot Template](QA_SNAPSHOT_TEMPLATE.md)
+        - [Manual Testing Guide](RUN_AND_VERIFY_GUIDE.md)
+        
+        EOF
+        
+    - name: Upload Badge Summary
+      uses: actions/upload-artifact@v4
+      with:
+        name: qa-badge-summary
+        path: qa-badge-summary.md
+        retention-days: 30
+

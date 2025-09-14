@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import Link from 'next/link';
+import BottomNav from '@/components/BottomNav';
 import './globals.css';
 
 const geistSans = Geist({
@@ -52,6 +53,7 @@ export default function RootLayout({
           </div>
         </header>
         {children}
+        <BottomNav />
       </body>
     </html>
   );

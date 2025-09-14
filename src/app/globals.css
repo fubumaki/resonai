@@ -120,3 +120,66 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Mobile-first responsive design */
+@layer utilities {
+  .safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .safe-area-pt {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .safe-area-pl {
+    padding-left: env(safe-area-inset-left);
+  }
+  
+  .safe-area-pr {
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* Instant Practice specific styles */
+.ip-shell {
+  @apply min-h-screen flex flex-col;
+}
+
+.ip-visual {
+  @apply flex-1 flex items-center justify-center p-8;
+}
+
+.ip-bottom {
+  @apply fixed bottom-20 left-0 right-0 p-4;
+}
+
+/* Pitch meter animation */
+.pitch-meter {
+  @apply w-32 h-32 mx-auto rounded-full flex items-center justify-center transition-all duration-300;
+}
+
+.pitch-meter[data-active="true"] {
+  @apply scale-110 bg-blue-100 dark:bg-blue-900/20;
+}
+
+/* Accessibility improvements */
+.visually-hidden {
+  @apply sr-only;
+}
+
+/* Focus management for dialogs */
+dialog:focus-visible {
+  @apply outline-none;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .pitch-meter,
+  .transition-all {
+    transition: none !important;
+  }
+  
+  .scale-110 {
+    transform: none !important;
+  }
+}

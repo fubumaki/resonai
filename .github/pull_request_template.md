@@ -1,43 +1,28 @@
-# PR Title
-<!-- e.g., feat(audio): implement LPC worklet (F1/F2) with confidence + smoothing -->
+# Pull Request
 
-## Summary
-<!-- What changed and why -->
+## Description
+Brief description of changes made.
 
-## Linked Issues
-<!-- e.g., Closes #7, #12 -->
+## Testing
+- [ ] **E2E Tests**: Run `scripts/run-e2e.ps1` locally and verify all tests pass
+- [ ] **Analytics**: Check `/analytics` dashboard shows expected KPIs
+- [ ] **Manual Testing**: Test the Instant Practice flow on `/try`
 
-## Acceptance Criteria (tick all that apply)
-- [ ] Build passes (lint, typecheck, CI).
-- [ ] Feature behavior matches `docs/m2-issues.md`.
-- [ ] No regressions on `/listen` and `/practice`.
-- [ ] Privacy: no network calls during practice.
-- [ ] Safety: warmup/cooldown present; strain guardrails intact.
+## Pre-merge Checklist
+- [ ] All Playwright tests pass locally
+- [ ] Analytics events are flowing (check server logs)
+- [ ] No console errors in browser
+- [ ] Feature flags work as expected
 
-## Perf Snapshot (paste from PerfOverlay)
-**Desktop (mid‑range):**
-- FPS avg / p95:
-- Worklet→UI latency p95 (ms):
-- CPU approx (%):
+## Analytics KPIs (if applicable)
+Before merging, paste current KPIs from `/analytics`:
+- **TTV P50**: ___ms
+- **TTV P90**: ___ms  
+- **Mic Grant Rate**: ___%
+- **Activation Rate**: ___%
 
-**Android (mid‑range):**
-- FPS avg / p95:
-- Worklet→UI latency p95 (ms):
-- Notes:
+## Screenshots
+Add screenshots if UI changes were made.
 
-## Evidence
-- [ ] Screenshots of **/labs/pitch** and **/labs/lpc** (with build SHA).
-- [ ] 30‑sec screen capture of **Pitch Band** drill behavior.
-- [ ] Telemetry export attached (JSON) or link.
-
-## QA Links
-- Step 0–5 Summary: `docs/m2-step0-5-summary-template.md` (filled)  
-- QA checklist: `docs/qa-checklist.md`
-
-## Accessibility
-- [ ] Keyboard navigation & visible focus states.
-- [ ] SR labels on controls (labs + drills).
-- [ ] Focus mode works.
-
-## Notes / Risk
-<!-- Any trade‑offs, flagged TODOs, device quirks -->
+## Notes
+Any additional notes for reviewers.

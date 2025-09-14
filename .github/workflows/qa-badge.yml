@@ -1,0 +1,130 @@
+name: QA Badge Summary
+
+on:
+  workflow_run:
+    workflows: ["QA Smoke Tests"]
+    types: [completed]
+
+jobs:
+  qa-badge:
+    if: github.event.workflow_run.conclusion != 'cancelled'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download test results
+      uses: actions/download-artifact@v4
+      with:
+        name: playwright-report
+        path: playwright-report/
+        
+    - name: Generate QA Badge
+      id: qa-badge
+      run: |
+        # Parse test results
+        if [ -f "playwright-report/results.json" ]; then
+          TEST_RESULTS=$(cat playwright-report/results.json)
+        else
+          echo "No test results found"
+          exit 1
+        fi
+        
+        # Extract test statuses
+        ISOLATION_STATUS=$(echo "$TEST_RESULTS" | jq -r '.suites[] | select(.title | contains("Isolation")) | .status // "unknown"')
+        COACH_STATUS=$(echo "$TEST_RESULTS" | jq -r '.suites[] | select(.title | contains("Coach Policy")) | .status // "unknown"')
+        PRIVACY_STATUS=$(echo "$TEST_RESULTS" | jq -r '.suites[] | select(.title | contains("Privacy")) | .status // "unknown"')
+        
+        # Count total tests and passed tests
+        TOTAL_TESTS=$(echo "$TEST_RESULTS" | jq -r '.suites | length')
+        PASSED_TESTS=$(echo "$TEST_RESULTS" | jq -r '.suites | map(select(.status == "passed")) | length')
+        
+        # Determine overall status
+        if [ "$PASSED_TESTS" -eq "$TOTAL_TESTS" ]; then
+          OVERALL_STATUS="✅ All Tests Passed"
+          BADGE_COLOR="green"
+        elif [ "$PASSED_TESTS" -gt 0 ]; then
+          OVERALL_STATUS="⚠️ Some Tests Failed"
+          BADGE_COLOR="yellow"
+        else
+          OVERALL_STATUS="❌ All Tests Failed"
+          BADGE_COLOR="red"
+        fi
+        
+        # Generate badge summary
+        cat > qa-badge-summary.md << EOF
+        ## 🧪 QA Test Results
+        
+        | Proof | Status | Evidence |
+        |-------|--------|----------|
+        | **Isolation** | $([ "$ISOLATION_STATUS" = "passed" ] && echo "✅ Pass" || echo "❌ Fail") | [View Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}) |
+        | **Coach Policy** | $([ "$COACH_STATUS" = "passed" ] && echo "✅ Pass" || echo "❌ Fail") | [View Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}) |
+        | **Privacy & A11y** | $([ "$PRIVACY_STATUS" = "passed" ] && echo "✅ Pass" || echo "❌ Fail") | [View Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}) |
+        
+        **Overall:** $OVERALL_STATUS ($PASSED_TESTS/$TOTAL_TESTS tests passed)
+        
+        ---
+        
+        ### 📊 Test Summary
+        - **Isolation Proof:** $ISOLATION_STATUS
+        - **Coach Policy Invariants:** $COACH_STATUS  
+        - **Privacy & A11y:** $PRIVACY_STATUS
+        
+        ### 🔗 Links
+        - [Full Test Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }})
+        - [QA Snapshot Template](QA_SNAPSHOT_TEMPLATE.md)
+        - [Manual Testing Guide](README_QA.md)
+        
+        EOF
+        
+        # Output for GitHub Actions
+        echo "overall_status=$OVERALL_STATUS" >> $GITHUB_OUTPUT
+        echo "badge_color=$BADGE_COLOR" >> $GITHUB_OUTPUT
+        echo "passed_tests=$PASSED_TESTS" >> $GITHUB_OUTPUT
+        echo "total_tests=$TOTAL_TESTS" >> $GITHUB_OUTPUT
+        
+    - name: Comment PR with Badge
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const badgeContent = fs.readFileSync('qa-badge-summary.md', 'utf8');
+          
+          // Find existing QA comment
+          const comments = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+          
+          const existingComment = comments.data.find(comment => 
+            comment.body.includes('🧪 QA Test Results')
+          );
+          
+          if (existingComment) {
+            // Update existing comment
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: existingComment.id,
+              body: badgeContent
+            });
+          } else {
+            // Create new comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: badgeContent
+            });
+          }
+          
+    - name: Upload Badge Summary
+      uses: actions/upload-artifact@v4
+      with:
+        name: qa-badge-summary
+        path: qa-badge-summary.md
+        retention-days: 30
+

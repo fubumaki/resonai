@@ -1,0 +1,92 @@
+name: e2e-nightly (root-config)
+
+on:
+  schedule:
+    - cron: "0 2 * * *"   # 02:00 UTC nightly
+  workflow_dispatch:
+
+jobs:
+  e2e-win-root:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Install Playwright (Firefox only)
+        run: npx playwright install --with-deps
+
+      - name: Print config path (debug)
+        run: dir
+
+      # Root config uses Playwright's webServer to run the Next dev server on :3003
+      - name: Run e2e with ROOT config (Playwright-managed server)
+        run: npx playwright test --config=playwright.config.ts --project=firefox
+
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-root
+          path: playwright-report
+
+      - name: Upload traces/videos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts-root
+          path: |
+            test-results
+            playwright-report/*.zip
+            playwright-report/data
+
+      - name: Summarize results (top failing specs)
+        if: always()
+        shell: pwsh
+        run: |
+          $f = "playwright-report/results.json"
+          if (-Not (Test-Path $f)) { "No results.json found" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append; exit 0 }
+          $json = Get-Content $f -Raw | ConvertFrom-Json
+          $stats = $json?.stats
+          $suites = $json?.suites
+          $failures = @()
+          foreach ($s in $suites) {
+            foreach ($spec in $s.specs) {
+              foreach ($t in $spec.tests) {
+                foreach ($r in $t.results) {
+                  if ($r.status -eq "failed") {
+                    $failures += [pscustomobject]@{
+                      title = $spec.title
+                      file = $spec.file
+                    }
+                    break
+                  }
+                }
+              }
+            }
+          }
+          $summary = @()
+          $summary += "# Nightly Playwright Summary"
+          if ($stats) {
+            $summary += ""
+            $summary += "**Passed:** $($stats.expected)  **Failed:** $($stats.unexpected)  **Flaky:** $($stats.flaky)  **Skipped:** $($stats.skipped)"
+          }
+          if ($failures.Count -gt 0) {
+            $summary += ""
+            $summary += "## Failing specs"
+            $failures | Select-Object -Unique file, title | ForEach-Object {
+              $summary += "- `$($_.file)` → **$($_.title)**"
+            }
+          } else {
+            $summary += ""
+            $summary += "All specs passed ✅"
+          }
+          $summary -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
