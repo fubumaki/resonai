@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { db, defaultSettings, type SettingsRow } from '../lib/db';
+import { db, defaultSettings, type SettingsRow } from '@/lib/db';
 
 export function useSettings() {
   const [settings, setSettings] = useState<SettingsRow>(defaultSettings);
