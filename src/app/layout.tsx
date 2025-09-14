@@ -3,7 +3,7 @@ import "./ui.css";
 import Link from "next/link";
 import SwRegister from "./SwRegister";
 import PerfHUD from "./PerfHUD";
-// // import CspDevLogger from "./CspDevLogger";
+// import CspDevLogger from "./CspDevLogger";
 
 export const metadata = {
   title: "Resonai — Local-first voice feminization trainer",
