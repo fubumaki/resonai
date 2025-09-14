@@ -100,22 +100,23 @@ export async function createCrepeDetector(config?: {
   simd?: boolean; 
 }): Promise<CrepeTinyDetector> {
   try {
-    const ort = await import('onnxruntime-web');
+    // const ort = await import('onnxruntime-web'); // Temporarily disabled for build
+    throw new Error('CREPE detector temporarily disabled for build');
     
     // Enable WASM SIMD+threads only when cross-origin isolated
-    const isIsolated = typeof window !== 'undefined' && window.crossOriginIsolated;
-    if (isIsolated && ort.env?.wasm) {
-      // Enable SIMD and threads for maximum performance
-      ort.env.wasm.simd = config?.simd ?? true;
-      ort.env.wasm.numThreads = config?.threads ?? navigator.hardwareConcurrency ?? 4;
-    }
+    // const isIsolated = typeof window !== 'undefined' && window.crossOriginIsolated;
+    // if (isIsolated && ort.env?.wasm) {
+    //   // Enable SIMD and threads for maximum performance
+    //   ort.env.wasm.simd = config?.simd ?? true;
+    //   ort.env.wasm.numThreads = config?.threads ?? navigator.hardwareConcurrency ?? 4;
+    // }
     
-    const detector = new CrepeTinyDetector();
-    await detector.initialize({ 
-      onnx: ort, 
-      ...config 
-    });
-    return detector;
+    // const detector = new CrepeTinyDetector();
+    // await detector.initialize({ 
+    //   onnx: ort, 
+    //   ...config 
+    // });
+    // return detector;
   } catch (error) {
     throw new Error(`Failed to create CREPE detector: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
