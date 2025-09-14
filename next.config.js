@@ -2,8 +2,10 @@ const isProd = process.env.NODE_ENV === "production";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Tell Next.js where to find the app directory
-  appDir: 'src/app',
+  // Ensure Vercel can find the app directory
+  experimental: {
+    appDir: true
+  },
   async headers() {
     const csp = [
       "default-src 'self'",
