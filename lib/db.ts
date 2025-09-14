@@ -1,6 +1,6 @@
 'use client';
 
-import Dexie, { Table } from 'dexie';
+import Dexie from 'dexie';
 
 export type PresetKey = 'alto' | 'mezzo' | 'soprano' | 'custom';
 
@@ -54,8 +54,8 @@ export const defaultSettings: SettingsRow = {
 };
 
 class ResonaiDB extends Dexie {
-  trials!: Table<TrialRow, number>;
-  settings!: Table<SettingsRow, string>;
+  trials!: Dexie.Table<TrialRow, number>;
+  settings!: Dexie.Table<SettingsRow, string>;
   constructor() {
     super('resonai');
     // v1 -> v2 adds audio settings fields
