@@ -1,6 +1,6 @@
 'use client';
 
-import { db } from '../src/lib/db';
+import { db } from '../lib/db';
 
 type ImportedPayload = {
   version: number;

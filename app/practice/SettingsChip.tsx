@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { PresetKey } from '../src/lib/db';
+import type { PresetKey } from '../lib/db';
 
 export default function SettingsChip({
   preset,

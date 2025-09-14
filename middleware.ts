@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { bucketPct } from './src/lib/flagBucket';
+import { bucketPct } from './lib/flagBucket';
 
 const PILOT_COOKIE = 'pilot_cohort';     // 'pilot' | 'control'
 const DEFAULT_ROLLOUT = 0.2;             // 20% if env missing
