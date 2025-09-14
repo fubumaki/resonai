@@ -3,7 +3,7 @@
 
 // --- add at top-level (module scope) ---
 type RateState = { count: number; resetAt: number };
-const RL: Map<string, RateState> = (globalThis as any).__EVENT_RL__ ??= new Map();
+const RL: Map<string, RateState> = (globalThis as { __EVENT_RL__?: Map<string, RateState> }).__EVENT_RL__ ??= new Map();
 
 function clientKey(req: Request) {
   // best-effort; in many hosts x-forwarded-for is set, otherwise UA-based
@@ -22,14 +22,14 @@ function checkRate(req: Request, limit = 120, windowMs = 60_000) {
   return s.count <= limit;
 }
 
-function safeJsonLen(obj: any) {
+function safeJsonLen(obj: unknown) {
   try { return JSON.stringify(obj).length; } catch { return Infinity; }
 }
 // --- end top-level helpers ---
 
 type EventItem = {
   event: string;
-  props?: Record<string, any>;
+  props?: Record<string, unknown>;
   ts?: number;
   session_id?: string;
   variant?: Record<string, string>;
@@ -40,7 +40,7 @@ type Store = {
   max: number;
 };
 
-const store: Store = (globalThis as any).__EVENT_STORE__ ??= {
+const store: Store = (globalThis as { __EVENT_STORE__?: Store }).__EVENT_STORE__ ??= {
   buf: [],
   max: 1000, // ring buffer size
 };
@@ -81,7 +81,10 @@ export async function POST(request: Request) {
       return new Response(JSON.stringify({ error: 'no events provided' }), { status: 400 });
     }
     // Very light validation
-    const valid = payload.filter((e: any) => typeof e?.event === 'string' && e.event.length > 0);
+    const valid = payload.filter((e: unknown): e is EventItem => 
+      typeof e === 'object' && e !== null && 'event' in e && 
+      typeof (e as EventItem).event === 'string' && (e as EventItem).event.length > 0
+    );
     if (!valid.length) {
       return new Response(JSON.stringify({ error: 'invalid events' }), { status: 400 });
     }
@@ -90,7 +93,7 @@ export async function POST(request: Request) {
     const SCHEMA_VERSION = 'v1';
     for (const e of valid) {
       if (!e.ts) e.ts = Date.now();
-      (e as any).schema = SCHEMA_VERSION;
+      (e as EventItem & { schema: string }).schema = SCHEMA_VERSION;
 
       // If props accidentally huge, clamp
       if (e.props && safeJsonLen(e.props) > 10_000) e.props = { _clamped: true };
@@ -102,8 +105,8 @@ export async function POST(request: Request) {
       status: 200,
       headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
     });
-  } catch (err: any) {
-    return new Response(JSON.stringify({ error: String(err?.message || err) }), { status: 500 });
+  } catch (err: unknown) {
+    return new Response(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }), { status: 500 });
   }
 }
 
@@ -119,7 +122,7 @@ export async function GET(request: Request) {
 }
 
 export async function DELETE() {
-  const store: { buf: any[] } = (globalThis as any).__EVENT_STORE__ ??= { buf: [] };
+  const store: Store = (globalThis as { __EVENT_STORE__?: Store }).__EVENT_STORE__ ??= { buf: [], max: 1000 };
   store.buf.length = 0;
   return new Response(JSON.stringify({ ok: true, cleared: true, total: 0 }), {
     status: 200,

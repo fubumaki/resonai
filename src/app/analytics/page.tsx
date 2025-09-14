@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 
 type EventItem = {
   event: string;
-  props?: Record<string, any>;
+  props?: Record<string, unknown>;
   ts?: number;
   session_id?: string;
   variant?: Record<string, string>;
@@ -37,8 +37,8 @@ export default function AnalyticsPage() {
       const j: FetchPayload = await r.json();
       setEvents(j.events ?? []);
       setError(null);
-    } catch (e: any) {
-      setError(e?.message || String(e));
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }

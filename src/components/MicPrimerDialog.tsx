@@ -63,7 +63,7 @@ export default function MicPrimerDialog({ isOpen, onAccept, onDecline }: MicPrim
         
         <div id="primer-description" className="space-y-2 text-sm text-slate-600 dark:text-slate-300">
           <p>We use your mic to give you instant feedback during practice.</p>
-          <p>You're in control; recordings stay on your device during practice.</p>
+          <p>You&apos;re in control; recordings stay on your device during practice.</p>
         </div>
 
         <div className="flex gap-3 pt-2">

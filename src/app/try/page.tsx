@@ -97,8 +97,8 @@ export default function InstantPractice() {
       const ttv = Date.now() - ttvStartTime.current;
       trackTtvMeasured(ttv);
       
-    } catch (e: any) {
-      setError(e?.message ?? 'Microphone access denied');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Microphone access denied');
       setCurrentMessage('micDenied');
       trackPermissionDenied('instant_practice');
     }

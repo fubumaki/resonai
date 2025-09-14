@@ -22,7 +22,7 @@ export function middleware(req: NextRequest) {
       || crypto.randomUUID();
     const pct = Number(process.env.PILOT_ROLLOUT_PCT ?? DEFAULT_ROLLOUT);
     const cohort = bucketPct(sid) < pct ? 'pilot' : 'control';
-    res.cookies.set(PILOT_COOKIE, cohort, { path: '/', httpOnly: false, sameSite: 'Lax', maxAge: 60 * 60 * 24 * 365 });
+    res.cookies.set(PILOT_COOKIE, cohort, { path: '/', httpOnly: false, sameSite: 'lax', maxAge: 60 * 60 * 24 * 365 });
   }
 
   return res;

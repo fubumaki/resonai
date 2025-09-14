@@ -5,7 +5,7 @@
 
 export interface AnalyticsEvent {
   event: string;
-  props: Record<string, any>;
+  props: Record<string, unknown>;
   ts: number;
   session_id: string;
   user_id?: string;
@@ -36,7 +36,7 @@ class AnalyticsClient {
     }, this.flushInterval);
   }
 
-  track(event: string, props: Record<string, any> = {}): void {
+  track(event: string, props: Record<string, unknown> = {}): void {
     const analyticsEvent: AnalyticsEvent = {
       event,
       props,
