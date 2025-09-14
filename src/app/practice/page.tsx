@@ -1,470 +1,473 @@
-'use client';
+"use client";
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
-import { micEngine, TelemetrySample } from '@/engine/audio/mic';
-import { getAllSessions, putSession, SessionRecord } from '@/lib/db';
+import { useEffect, useRef, useState, useMemo } from "react";
+import Trials from "./Trials";
+import { db, defaultSettings } from '../../lib/db';
+import { useSettings } from './useSettings';
+import SettingsChip from './SettingsChip';
+import ExportButton from './ExportButton';
+import SessionSummary from './SessionSummary';
+import WorkletHealth from './WorkletHealth';
+import DevicePicker from './DevicePicker';
+import Meter from './ui/Meter';
+import TargetBar from './ui/TargetBar';
+import { hzToNote } from '../../lib/pitch';
+import type { TrialResult } from './Trials';
 
-type State = 'IDLE' | 'WARMUP' | 'REFLECT' | 'DONE';
+type PresetKey = "alto" | "mezzo" | "soprano" | "custom";
+type Range = { min: number; max: number };
+type Preset = { name: string; pitch: Range; bright: Range; note: string };
 
-const SILENCE_RMS = 0.01; // soft threshold for voiced detection
-const CLIP_RMS = 0.25; // show hint above this
-const SKIP_AFTER_SEC = 30;
-const WARMUP_SEC = 120;
-const WARMUP_LOW_INTENSITY_SEC = 60;
-
-type Heuristics = {
-  voicedMs: number;
-  totalMs: number;
-  voicedTimePct: number;
-  jitterEma: number;
-  tiltEma: number;
+const PRESETS: Record<PresetKey, Preset> = {
+  alto:    { name: "Alto",    pitch: { min: 165, max: 200 }, bright: { min: 1500, max: 2500 }, note: "Warm, relaxed" },
+  mezzo:   { name: "Mezzo",   pitch: { min: 180, max: 220 }, bright: { min: 1800, max: 2800 }, note: "Balanced focus" },
+  soprano: { name: "Soprano", pitch: { min: 200, max: 260 }, bright: { min: 2000, max: 3200 }, note: "Light, bright" },
+  custom:  { name: "Custom",  pitch: { min: 170, max: 220 }, bright: { min: 1800, max: 2800 }, note: "Tweak to taste" }
 };
 
-function formatClock(sec: number): string {
-  const s = Math.max(0, Math.ceil(sec));
-  const m = Math.floor(s / 60)
-    .toString()
-    .padStart(1, '0');
-  const r = (s % 60).toString().padStart(2, '0');
-  return `${m}:${r}`;
-}
+function useAudioUnlock(ctxRef: React.MutableRefObject<AudioContext | null>) {
+  const [needsUnlock, setNeedsUnlock] = useState(false);
 
-function computeFeedback(h: Heuristics, clipping: boolean): string {
-  if (clipping) return 'Input is hot — lower mic or speak softer.';
-  const options = [
-    'Breath looks steady.',
-    'Try gentler starts; lighten the onset.',
-    'Nice: easier phonation showing up.',
-    'Keep it light — think “buzzy lips”.',
-    'Soften the volume; stay effortless.',
-  ];
-  // Slight bias based on jitter/tilt for variety
-  if (h.jitterEma < 3) return options[0];
-  if (h.tiltEma < 0.8) return options[2];
-  return options[Math.floor((h.voicedTimePct * 10) % options.length)];
-}
-
-function Sparkline({ series, width = 240, height = 48 }: { series: (number | null)[]; width?: number; height?: number }) {
-  const path = useMemo(() => {
-    const values = series.filter((v): v is number => v != null && isFinite(v));
-    if (values.length < 2) return '';
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const span = max - min || 1;
-    const n = series.length;
-    let d = '';
-    for (let i = 0; i < n; i++) {
-      const v = series[i];
-      if (v == null || !isFinite(v)) continue;
-      const x = (i / (n - 1)) * width;
-      const y = height - ((v - min) / span) * height;
-      d += (d ? ' L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1);
-    }
-    return d;
-  }, [series, width, height]);
-
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} className="block">
-      <path d={path} stroke="currentColor" strokeWidth="1.5" fill="none" />
-    </svg>
-  );
-}
-
-function useMicSession(onSample: (s: TelemetrySample) => void) {
-  const [granted, setGranted] = useState<boolean | null>(null);
   useEffect(() => {
-    let cancelled = false;
-    let unsub: (() => void) | null = null;
-    async function go() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        if (cancelled) return;
-        setGranted(true);
-        await micEngine.start(stream);
-        unsub = micEngine.subscribe(onSample);
-      } catch (e) {
-        if (!cancelled) setGranted(false);
-      }
-    }
-    go();
-    return () => {
-      cancelled = true;
-      unsub?.();
-      micEngine.stop();
-    };
-  }, [onSample]);
-  return granted;
+    const ctx = ctxRef.current;
+    if (!ctx) return;
+    const check = () => setNeedsUnlock(ctx.state === "suspended");
+    check();
+    const onState = () => check();
+    ctx.addEventListener("statechange", onState);
+    return () => ctx.removeEventListener("statechange", onState);
+  }, []);
+
+  const unlock = async () => {
+    const ctx = ctxRef.current;
+    if (!ctx) return;
+    try { await ctx.resume(); } catch {}
+  };
+  return { needsUnlock, unlock };
 }
 
-export default function PracticePage() {
-  const [state, setState] = useState<State>('IDLE');
-  const [lowIntensity, setLowIntensity] = useState(false);
-  const targetSec = lowIntensity ? WARMUP_LOW_INTENSITY_SEC : WARMUP_SEC;
-  const [running, setRunning] = useState(false);
-  const [autoPaused, setAutoPaused] = useState(false);
-  const [canSkip, setCanSkip] = useState(false);
-  const [clipping, setClipping] = useState(false);
+export default function Practice() {
+  const [preset, setPreset] = useState<PresetKey>("mezzo");
+  const [pitchTarget, setPitchTarget] = useState<Range>(PRESETS.mezzo.pitch);
+  const [brightTarget, setBrightTarget] = useState<Range>(PRESETS.mezzo.bright);
 
-  // Metrics
-  const prevTsRef = useRef<number | null>(null);
-  const prevF0Ref = useRef<number | null>(null);
-  const [elapsedMs, setElapsedMs] = useState(0);
-  const voicedMsRef = useRef(0);
-  const totalMsRef = useRef(0);
-  const jitterEmaRef = useRef(0);
-  const tiltEmaRef = useRef(1);
-  const [f0Series, setF0Series] = useState<(number | null)[]>([]);
-  const silenceMsRef = useRef(0);
+  const [ready, setReady] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
-  const heuristics: Heuristics = {
-    voicedMs: voicedMsRef.current,
-    totalMs: totalMsRef.current,
-    voicedTimePct: totalMsRef.current > 0 ? voicedMsRef.current / totalMsRef.current : 0,
-    jitterEma: jitterEmaRef.current,
-    tiltEma: tiltEmaRef.current,
+  const [level, setLevel] = useState(0);
+  const [dbfs, setDbfs] = useState<number | null>(null);
+  const [pitch, setPitch] = useState<number | null>(null);
+  const [centroid, setCentroid] = useState<number | null>(null);
+  const [h1h2, setH1H2] = useState<number | null>(null);
+  const [clarity, setClarity] = useState(0);
+  const [lowPower, setLowPower] = useState(false);
+
+  // Audio device settings
+  const [inputDeviceId, setInputDeviceId] = useState<string | null>(null);
+  const [echoCancellation, setEchoCancellation] = useState(true);
+  const [noiseSuppression, setNoiseSuppression] = useState(true);
+  const [autoGainControl, setAutoGainControl] = useState(false);
+
+  const inPitch = useMemo(() => pitch != null && pitch >= pitchTarget.min && pitch <= pitchTarget.max, [pitch, pitchTarget]);
+  const inBright = useMemo(() => centroid != null && centroid >= brightTarget.min && centroid <= brightTarget.max, [centroid, brightTarget]);
+
+  const tip = useCoachTip({ pitch, centroid, h1h2, inPitch, inBright });
+
+  const { settings, save, loading } = useSettings();
+
+  const mediaStream = useRef<MediaStream | null>(null);
+  const audioCtx = useRef<AudioContext | null>(null);
+  const analyser = useRef<AnalyserNode | null>(null);
+  const source = useRef<MediaStreamAudioSourceNode | null>(null);
+  const worklet = useRef<AudioWorkletNode | null>(null);
+  const mute = useRef<GainNode | null>(null);
+
+  // Worklet health tracking
+  const intervalsRef = useRef<number[]>([]);
+  const lastMsgRef = useRef<number>(performance.now());
+
+  const { needsUnlock, unlock } = useAudioUnlock(audioCtx);
+
+  // Load saved settings on first load
+  useEffect(() => {
+    if (loading) return;
+    setPreset(settings.preset);
+    setPitchTarget({ min: settings.pitchMin, max: settings.pitchMax });
+    setBrightTarget({ min: settings.brightMin, max: settings.brightMax });
+    setLowPower(settings.lowPower ?? false);
+    setInputDeviceId(settings.inputDeviceId ?? null);
+    setEchoCancellation(settings.echoCancellation);
+    setNoiseSuppression(settings.noiseSuppression);
+    setAutoGainControl(settings.autoGainControl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
+  // Auto-save when settings change
+  useEffect(() => { if (!loading) save({ preset }); }, [preset, loading, save]);
+  useEffect(() => { if (!loading) save({ pitchMin: pitchTarget.min, pitchMax: pitchTarget.max }); }, [pitchTarget, loading, save]);
+  useEffect(() => { if (!loading) save({ brightMin: brightTarget.min, brightMax: brightTarget.max }); }, [brightTarget, loading, save]);
+  useEffect(() => { if (!loading) save({ lowPower }); }, [lowPower, loading, save]);
+  useEffect(() => { if (!loading) save({ inputDeviceId }); }, [inputDeviceId, loading, save]);
+  useEffect(() => { if (!loading) save({ echoCancellation, noiseSuppression, autoGainControl }); }, [echoCancellation, noiseSuppression, autoGainControl, loading, save]);
+
+  useEffect(() => {
+    // Switch preset updates targets unless "custom"
+    if (preset !== "custom") {
+      setPitchTarget(PRESETS[preset].pitch);
+      setBrightTarget(PRESETS[preset].bright);
+    }
+  }, [preset]);
+
+  // Refactored audio initialization function
+  const startAudio = async () => {
+    // tear down old
+    mediaStream.current?.getTracks().forEach(t => t.stop());
+    analyser.current?.disconnect();
+    source.current?.disconnect();
+    worklet.current?.disconnect();
+    mute.current?.disconnect();
+
+    // create/reuse context
+    const ctx = audioCtx.current ?? new (window.AudioContext || (window as any).webkitAudioContext)({ latencyHint: "interactive" });
+    audioCtx.current = ctx;
+
+    const build = (forceDefault = false): MediaStreamConstraints => ({
+      audio: {
+        deviceId: !forceDefault && inputDeviceId ? { exact: inputDeviceId } : undefined,
+        echoCancellation,
+        noiseSuppression,
+        autoGainControl,
+      }
+    });
+
+    try {
+      mediaStream.current = await navigator.mediaDevices.getUserMedia(build(false));
+    } catch (e: any) {
+      // Typical when device unplugged or permission changes
+      mediaStream.current = await navigator.mediaDevices.getUserMedia(build(true));
+      toast("Selected mic unavailable — using system default.");
+    }
+
+    source.current = audioCtx.current.createMediaStreamSource(mediaStream.current);
+
+    // analyser for level
+    analyser.current = audioCtx.current.createAnalyser();
+    analyser.current.fftSize = 2048;
+    source.current.connect(analyser.current);
+
+    // worklet
+    if (!worklet.current) {
+      await audioCtx.current.audioWorklet.addModule("/worklets/pitch.worklet.js");
+      worklet.current = new AudioWorkletNode(audioCtx.current, "pitch-processor");
+      worklet.current.port.onmessage = ({ data }) => {
+        const p = data.pitch ? Math.round(data.pitch) : null;
+        setPitch((prev) => smooth(prev, p));
+        setCentroid(data.centroidHz ? Math.round(data.centroidHz) : null);
+        setH1H2(data.h1h2 ?? null);
+        setClarity(data.clarity ?? 0);
+        
+        // Track worklet message intervals for health monitoring
+        const now = performance.now();
+        intervalsRef.current.push(now - lastMsgRef.current);
+        lastMsgRef.current = now;
+        if (intervalsRef.current.length > 200) intervalsRef.current.shift();
+      };
+    }
+
+    // mute to avoid feedback
+    mute.current = audioCtx.current.createGain();
+    mute.current.gain.value = 0;
+    source.current.connect(worklet.current!);
+    worklet.current!.connect(mute.current).connect(audioCtx.current.destination);
+    worklet.current!.port.postMessage({ minHz: 70, maxHz: 500, voicingRms: 0.012 });
   };
 
-  const granted = useMicSession((s) => {
-    // Time deltas are based on message cadence
-    const prevTs = prevTsRef.current;
-    prevTsRef.current = s.ts;
-    if (prevTs == null) return;
-    const dt = Math.max(0, s.ts - prevTs);
-
-    // Silence detection and auto pause/resume
-    const isSilent = s.rms < SILENCE_RMS;
-    if (isSilent) {
-      silenceMsRef.current += dt;
-      if (running && silenceMsRef.current > 5000) {
-        setRunning(false);
-        setAutoPaused(true);
-      }
-    } else {
-      silenceMsRef.current = 0;
-      if (autoPaused) {
-        setRunning(true);
-        setAutoPaused(false);
-      }
-    }
-
-    // Clipping hint
-    setClipping(s.rms > CLIP_RMS);
-
-    // Update metrics only while running in WARMUP
-    if (state === 'WARMUP' && running) {
-      totalMsRef.current += dt;
-      if (!isSilent) voicedMsRef.current += dt;
-      setElapsedMs((v) => v + dt);
-
-      // jitter proxy: EMA of abs semitone delta when both f0 present
-      const prevF0 = prevF0Ref.current;
-      if (s.f0Hz != null && prevF0 != null && isFinite(s.f0Hz) && isFinite(prevF0)) {
-        const semitoneDelta = 12 * Math.log2(s.f0Hz / prevF0);
-        const absDelta = Math.abs(semitoneDelta);
-        const alpha = 0.1;
-        jitterEmaRef.current = alpha * absDelta + (1 - alpha) * jitterEmaRef.current;
-      }
-      if (s.f0Hz != null && isFinite(s.f0Hz)) prevF0Ref.current = s.f0Hz;
-
-      // tilt proxy: EMA of hf/lf ratio
-      if (isFinite(s.hfLf)) {
-        const alphaT = 0.05;
-        tiltEmaRef.current = alphaT * s.hfLf + (1 - alphaT) * tiltEmaRef.current;
-      }
-
-      // f0 sparkline ring buffer
-      setF0Series((arr) => {
-        const next = arr.length > 240 ? arr.slice(arr.length - 239) : arr.slice();
-        next.push(s.f0Hz ?? null);
-        return next;
-      });
-    }
-  });
-
-  // Manage skip availability
   useEffect(() => {
-    if (state === 'WARMUP') setCanSkip(elapsedMs / 1000 >= SKIP_AFTER_SEC);
-  }, [elapsedMs, state]);
+    (async () => {
+      try {
+        await startAudio();
+        setReady(true);
+      } catch (e: any) { setErr(e?.message ?? "Microphone permission denied."); }
+    })();
+    return () => {
+      mediaStream.current?.getTracks().forEach(t => t.stop());
+      audioCtx.current?.close();
+    };
+  }, []);
 
-  // Transition when timer completes
+  // Restart audio when device/constraints change
   useEffect(() => {
-    if (state === 'WARMUP') {
-      const remaining = targetSec - elapsedMs / 1000;
-      if (remaining <= 0) setState('REFLECT');
-    }
-  }, [elapsedMs, state, targetSec]);
+    if (!ready) return;
+    (async () => {
+      try { await startAudio(); } catch (e: any) { setErr(e?.message ?? "Device change failed."); }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inputDeviceId, echoCancellation, noiseSuppression, autoGainControl]);
 
-  function resetWarmup(): void {
-    setElapsedMs(0);
-    voicedMsRef.current = 0;
-    totalMsRef.current = 0;
-    jitterEmaRef.current = 0;
-    tiltEmaRef.current = 1;
-    prevTsRef.current = null;
-    prevF0Ref.current = null;
-    setF0Series([]);
-    silenceMsRef.current = 0;
-    setAutoPaused(false);
-    setClipping(false);
-  }
-
-  function startWarmup(): void {
-    resetWarmup();
-    setState('WARMUP');
-    setRunning(true);
-  }
-
-  const remainingSec = Math.max(0, targetSec - elapsedMs / 1000);
-
-  // Reflection sliders
-  const [comfort, setComfort] = useState(0.5);
-  const [fatigue, setFatigue] = useState(0.3);
-  const [euphoria, setEuphoria] = useState(0.4);
-  const [saving, setSaving] = useState(false);
-  const [history, setHistory] = useState<SessionRecord[]>([]);
-
+  // Handle device hot-plug
   useEffect(() => {
-    getAllSessions().then(setHistory).catch(() => {});
-  }, [state]);
+    const onChange = () => startAudio().catch(() => {});
+    navigator.mediaDevices.addEventListener?.("devicechange", onChange);
+    return () => navigator.mediaDevices.removeEventListener?.("devicechange", onChange);
+  }, [ready, inputDeviceId, echoCancellation, noiseSuppression, autoGainControl]);
 
-  function renderOrbDataUrl(): string {
-    const size = 96;
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext('2d')!;
-    const center = size / 2;
-    const radius = center - 2;
-    // color from tilt (brightness) and jitter (saturation)
-    const tilt = Math.max(0, Math.min(2, heuristics.tiltEma));
-    const jitter = Math.max(0, Math.min(12, heuristics.jitterEma));
-    const hue = 200 + (euphoria * 160 - 80); // bias by euphoria
-    const sat = 40 + (10 - Math.min(10, jitter)) * 4; // less jitter → more saturation
-    const light = 45 + Math.max(0, Math.min(45, (1 / (tilt + 0.2)) * 30));
-    ctx.fillStyle = `hsl(${hue.toFixed(0)} ${sat.toFixed(0)}% ${light.toFixed(0)}%)`;
-    ctx.beginPath();
-    ctx.arc(center, center, radius, 0, Math.PI * 2);
-    ctx.fill();
-    // subtle shimmer ring from voiced pct
-    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-    ctx.lineWidth = 2 + heuristics.voicedTimePct * 3;
-    ctx.beginPath();
-    ctx.arc(center, center, radius - 4, 0, Math.PI * 2);
-    ctx.stroke();
-    return canvas.toDataURL('image/png');
-  }
+  const rafLevel = () => {
+    const data = new Uint8Array(analyser.current!.fftSize);
+    const lastRef = useRef(0);
+    const tick = () => {
+      const now = performance.now();
+      const interval = lowPower ? 100 : 16; // 10 fps vs ~60 fps
+      if (now - lastRef.current >= interval) {
+        analyser.current!.getByteTimeDomainData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) { const v = (data[i] - 128) / 128; sum += v * v; }
+        const rms = Math.sqrt(sum / data.length);
+        setLevel(Math.min(1, rms * 2));
+        
+        // Calculate dBFS
+        const db = 20 * Math.log10(rms + 1e-7);
+        setDbfs(Math.max(-60, Math.min(-6, db)));
+        lastRef.current = now;
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  };
 
-  async function saveSessionAndFinish(): Promise<void> {
-    setSaving(true);
+  const onTrialComplete = async (r: TrialResult) => {
     try {
-      const orb = renderOrbDataUrl();
-      const rec: SessionRecord = {
+      await (db as any).trials.add({
         ts: Date.now(),
-        voicedTimePct: heuristics.voicedTimePct,
-        jitterEma: heuristics.jitterEma,
-        tiltEma: heuristics.tiltEma,
-        comfort,
-        fatigue,
-        euphoria,
-        orb,
-        f0Series: f0Series.filter((v): v is number => v != null && isFinite(v)).slice(-240),
-      };
-      await putSession(rec);
-      const all = await getAllSessions();
-      setHistory(all);
-      setState('DONE');
-    } finally {
-      setSaving(false);
-    }
-  }
+        phrase: r.phrase,
+        pitchMin: pitchTarget.min,
+        pitchMax: pitchTarget.max,
+        brightMin: brightTarget.min,
+        brightMax: brightTarget.max,
+        medianPitch: r.medianPitch,
+        medianCentroid: r.medianCentroid,
+        inPitchPct: r.inPitchPct,
+        inBrightPct: r.inBrightPct,
+        pitchStabilityHz: r.pitchStabilityHz,
+        score: r.score,
+      });
+      // Trim to last 20
+      const count = await (db as any).trials.count();
+      if (count > 20) {
+        const old = await (db as any).trials.orderBy('ts').toArray();
+        const excess = old.length - 20;
+        await (db as any).trials.bulkDelete(old.slice(0, excess).map((x:any) => x.id));
+      }
+    } catch {/* offline/no-op */}
+  };
+
+  const onCustom = (setter: (r: Range) => void, r: Range) => {
+    setPreset("custom");
+    setter(r);
+  };
+
+  // Toast helper
+  const toast = (msg: string) => {
+    const host = document.getElementById('toasts');
+    if (!host) return;
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.textContent = msg;
+    host.appendChild(el);
+    setTimeout(() => el.remove(), 1800);
+  };
+
+  // Reset handlers
+  const resetToPresetDefaults = () => {
+    // Use the currently selected preset's defaults
+    const p = PRESETS[preset];
+    setPitchTarget({ ...p.pitch });
+    setBrightTarget({ ...p.bright });
+    toast('Targets reset to preset defaults.');
+  };
+
+  const resetAll = async () => {
+    // Settings → defaults
+    setPreset(defaultSettings.preset);
+    setPitchTarget({ min: defaultSettings.pitchMin, max: defaultSettings.pitchMax });
+    setBrightTarget({ min: defaultSettings.brightMin, max: defaultSettings.brightMax });
+    setLowPower(false);
+    try { await (db as any).trials.clear(); } catch {}
+    toast('Settings reset and trials cleared.');
+  };
 
   return (
-    <main className="min-h-dvh p-6">
-      <div className="mx-auto max-w-3xl space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold">Practice</h1>
-          <div className="text-sm text-muted-foreground" aria-live="polite">
-            {granted === null && 'Requesting mic permission…'}
-            {granted === true && 'Mic ready'}
-            {granted === false && 'Mic denied'}
-          </div>
+    <section className="hero">
+      <h1>Practice</h1>
+
+      <div className="flex gap-12 items-center justify-between wrap mb-4">
+        <div style={{ color: 'var(--muted)' }}>
+          {preset.toUpperCase()} • Pitch {pitchTarget.min}–{pitchTarget.max} Hz • Bright {brightTarget.min}–{brightTarget.max} Hz
         </div>
-
-        {/* FSM panels */}
-        {state === 'IDLE' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Warmup drill (SOVT)</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">Duration</div>
-                <div className="flex items-center gap-3 text-sm">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={lowIntensity}
-                      onChange={(e) => setLowIntensity(e.target.checked)}
-                    />
-                    Lower intensity (60s)
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Button onClick={startWarmup} disabled={granted !== true}>
-                  Start warmup
-                </Button>
-                <Button variant="secondary" asChild>
-                  <a href="/listen">Mic check</a>
-                </Button>
-              </div>
-              <p className="text-muted-foreground text-sm">
-                Do gentle lip trills or easy hums. Keep it light.
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {state === 'WARMUP' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Warmup in progress</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="text-3xl tabular-nums">{formatClock(remainingSec)}</div>
-                <div className="flex items-center gap-2">
-                  <Button size="sm" variant={running ? 'secondary' : 'default'} onClick={() => setRunning((r) => !r)}>
-                    {running ? 'Pause' : 'Resume'}
-                  </Button>
-                  <Button size="sm" variant="secondary" disabled={!canSkip} onClick={() => setState('REFLECT')}>
-                    Next
-                  </Button>
-                </div>
-              </div>
-
-              <div className="h-2 w-full overflow-hidden rounded bg-secondary">
-                <div
-                  className="h-full bg-primary transition-[width]"
-                  style={{ width: `${Math.min(100, ((elapsedMs / 1000) / targetSec) * 100)}%` }}
-                />
-              </div>
-
-              <div className="flex items-center justify-between text-sm">
-                <div className={clipping ? 'text-red-600' : 'text-muted-foreground'}>
-                  {clipping ? 'Lower input: getting hot' : 'Keep it easy and quiet'}
-                </div>
-                {autoPaused && <div className="text-amber-600">Paused on silence — resume when voiced</div>}
-              </div>
-
-              <div className="rounded-md border p-3 text-sm">
-                {computeFeedback(heuristics, clipping)}
-              </div>
-
-              <div>
-                <div className="text-xs text-muted-foreground mb-1">F0 sparkline</div>
-                <div className="text-muted-foreground">
-                  <Sparkline series={f0Series} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4 text-xs text-muted-foreground">
-                <div>
-                  <div className="font-medium text-foreground">Voiced time</div>
-                  {(heuristics.voicedTimePct * 100).toFixed(0)}%
-                </div>
-                <div>
-                  <div className="font-medium text-foreground">Jitter proxy</div>
-                  {heuristics.jitterEma.toFixed(1)} st
-                </div>
-                <div>
-                  <div className="font-medium text-foreground">Tilt proxy</div>
-                  {heuristics.tiltEma.toFixed(2)}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {state === 'REFLECT' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Reflection</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-4">
-                <img src={typeof window !== 'undefined' ? renderOrbDataUrl() : ''} alt="Session orb" className="h-24 w-24 rounded-full border" />
-                <div>
-                  <div className="text-xs text-muted-foreground mb-1">F0 sparkline</div>
-                  <Sparkline series={f0Series} width={180} height={40} />
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div>
-                  <div className="mb-1 text-sm">Comfort</div>
-                  <Slider value={[comfort]} min={0} max={1} step={0.01} onValueChange={([v]) => setComfort(v)} />
-                </div>
-                <div>
-                  <div className="mb-1 text-sm">Fatigue</div>
-                  <Slider value={[fatigue]} min={0} max={1} step={0.01} onValueChange={([v]) => setFatigue(v)} />
-                </div>
-                <div>
-                  <div className="mb-1 text-sm">Euphoria</div>
-                  <Slider value={[euphoria]} min={0} max={1} step={0.01} onValueChange={([v]) => setEuphoria(v)} />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Button onClick={saveSessionAndFinish} disabled={saving}>
-                  {saving ? 'Saving…' : 'Finish'}
-                </Button>
-                <Button variant="secondary" onClick={startWarmup}>Do it again</Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {state === 'DONE' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Saved</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground">Session saved locally. You can run another warmup anytime.</p>
-              <div className="flex items-center gap-2">
-                <Button onClick={() => setState('IDLE')}>Back to start</Button>
-                <Button variant="secondary" onClick={startWarmup}>Do it again</Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Simple history */}
-        <div>
-          <h2 className="mb-2 text-lg font-semibold">History</h2>
-          {history.length === 0 && (
-            <p className="text-sm text-muted-foreground">No sessions yet.</p>
-          )}
-          <div className="grid gap-3 md:grid-cols-2">
-            {history.map((s) => (
-              <div key={s.ts} className="flex items-center gap-3 rounded-md border p-2">
-                <img src={s.orb} alt="orb" className="h-10 w-10 rounded-full" />
-                <div className="flex-1">
-                  <div className="text-sm font-medium">{new Date(s.ts).toLocaleString()}</div>
-                  <div className="text-xs text-muted-foreground">
-                    voiced {(s.voicedTimePct * 100).toFixed(0)}% · jitter {s.jitterEma.toFixed(1)} st · tilt {s.tiltEma.toFixed(2)}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <SettingsChip
+          preset={preset}
+          onPreset={(p) => setPreset(p)}
+          lowPower={lowPower}
+          onLowPower={setLowPower}
+          onResetToPresetDefaults={resetToPresetDefaults}
+          onResetAll={resetAll}
+        />
       </div>
-    </main>
+
+      <div className="panel" style={{ display: "grid", gap: 8 }}>
+        <div className="flex gap-12 items-center wrap">
+          <label>
+            <span className="badge">Profile</span>
+            <select
+              value={preset}
+              onChange={(e) => setPreset(e.target.value as PresetKey)}
+              style={{ marginLeft: 8, background: "transparent", color: "var(--text)", border: "1px solid rgba(255,255,255,.2)", borderRadius: 8, padding: "6px 10px" }}
+              aria-label="Target profile"
+            >
+              <option value="alto">Alto</option>
+              <option value="mezzo">Mezzo</option>
+              <option value="soprano">Soprano</option>
+              <option value="custom">Custom</option>
+            </select>
+                  </label>
+          <span style={{ color: "var(--muted)" }}>{PRESETS[preset].note}</span>
+              </div>
+
+        {!ready && !err && <p className="badge">Allow microphone to begin.</p>}
+        {err && <div role="alert" className="panel" style={{ borderColor: "rgba(255,92,122,.4)" }}>{err}</div>}
+        {needsUnlock && (
+          <div className="panel" role="alert" style={{ borderColor: "rgba(255,92,122,.4)" }}>
+            <p>Tap "Enable audio" to begin analysis.</p>
+            <button className="button" onClick={unlock}>Enable audio</button>
+              </div>
+        )}
+
+        {ready && (
+          <>
+            <div>
+              <strong>Mic level</strong>
+              <Meter level={level} />
+              <div className="flex gap-12 align-base mt-6">
+                <span className="badge">Sample rate {audioCtx.current?.sampleRate ?? 0} Hz</span>
+                {dbfs != null && <span className="badge">Level {Math.round(dbfs)} dBFS</span>}
+              </div>
+              </div>
+
+            {/* Worklet Health */}
+            <WorkletHealth intervalsRef={intervalsRef} />
+
+            {/* Device Picker */}
+            <DevicePicker
+              value={inputDeviceId}
+              onChange={setInputDeviceId}
+              ec={echoCancellation} ns={noiseSuppression} agc={autoGainControl}
+              onChangeConstraints={({ ec, ns, agc }) => {
+                if (ec !== undefined) setEchoCancellation(ec);
+                if (ns !== undefined) setNoiseSuppression(ns);
+                if (agc !== undefined) setAutoGainControl(agc);
+              }}
+            />
+
+            {/* Pitch */}
+            <div className="col gap-6">
+              <div className="flex gap-12 align-base">
+                <span className="badge">Pitch (Hz)</span>
+                <strong className="text-2xl">{pitch ?? "—"}</strong>
+                {pitch && <span className="badge">{hzToNote(pitch)}</span>}
+                {pitch && <span className="badge" aria-live="polite">{inPitch ? "In range ✓" : "Adjust…"}</span>}
+                <span className="badge" title="Autocorrelation clarity">clarity {Math.round(clarity * 100)}</span>
+              </div>
+              <TargetBar value={pitch} min={120} max={320} tmin={pitchTarget.min} tmax={pitchTarget.max} />
+              <div style={{ display: "grid", gap: 4 }}>
+                <Slider label="Min pitch" min={120} max={250} value={pitchTarget.min}
+                        onChange={(v) => onCustom(setPitchTarget, { ...pitchTarget, min: v })} />
+                <Slider label="Max pitch" min={170} max={340} value={pitchTarget.max}
+                        onChange={(v) => onCustom(setPitchTarget, { ...pitchTarget, max: v })} />
+                </div>
+              </div>
+
+            {/* Brightness */}
+            <div className="col gap-6">
+              <div className="flex gap-12 align-base">
+                <span className="badge">Brightness (centroid Hz)</span>
+                <strong className="text-2xl">{centroid ?? "—"}</strong>
+                {centroid && <span className="badge" aria-live="polite">{inBright ? "In range ✓" : "Add/soften"}</span>}
+                {h1h2 != null && <span className="badge" title="H1–H2 dB (lower = brighter)">H1–H2 {h1h2.toFixed(1)} dB</span>}
+              </div>
+              <TargetBar value={centroid} min={800} max={4000} tmin={brightTarget.min} tmax={brightTarget.max} />
+              <div style={{ display: "grid", gap: 4 }}>
+                <Slider label="Min brightness" min={1000} max={2800} value={brightTarget.min}
+                        onChange={(v) => onCustom(setBrightTarget, { ...brightTarget, min: v })} />
+                <Slider label="Max brightness" min={1800} max={3800} value={brightTarget.max}
+                        onChange={(v) => onCustom(setBrightTarget, { ...brightTarget, max: v })} />
+                </div>
+              </div>
+
+            {/* Coach */}
+            <div className="panel panel--dashed" aria-live="polite">
+              <strong>Coach</strong>
+              <p className="m-0">{tip}</p>
+              </div>
+
+            {/* Guided trials */}
+            <Trials
+              getSnapshot={() => ({
+                pitch,
+                centroid,
+                inPitch,
+                inBright
+              })}
+              targets={{ pitch: pitchTarget, bright: brightTarget }}
+              onComplete={onTrialComplete}
+            />
+
+            {/* Export button */}
+            <ExportButton />
+
+            {/* Session Summary */}
+            <SessionSummary />
+          </>
+        )}
+      </div>
+    </section>
   );
+}
+
+function Slider({ label, min, max, value, onChange }:
+  { label: string; min: number; max: number; value: number; onChange: (v: number) => void }) {
+  return (
+    <label style={{ display: "grid", gap: 6 }}>
+      <span className="sr-only">{label}</span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={1}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        aria-label={label}
+      />
+      <div style={{ color: "var(--muted)", fontSize: 12 }}>{label}: <strong>{value}</strong> Hz</div>
+    </label>
+  );
+}
+
+function useCoachTip({ pitch, centroid, h1h2, inPitch, inBright }:
+  { pitch: number | null, centroid: number | null, h1h2: number | null, inPitch: boolean, inBright: boolean }) {
+  // Simple rule engine — one hint at a time
+  if (pitch == null || centroid == null) return "Say 'mee‑mee‑mee' for one second. Keep your volume steady.";
+  if (!inPitch && pitch < 160) return "Try a slightly higher pitch. Imagine speaking on a gentle question.";
+  if (!inPitch && pitch > 280) return "Relax the pitch down a touch. Aim for a comfortable speaking note.";
+  if (inPitch && !inBright) {
+    if (centroid < 1700) return "Add a little brightness: smile slightly and raise the tongue near the alveolar ridge.";
+    if (centroid > 3300) return "Soften brightness: relax lip spread and reduce air pressure.";
+  }
+  if (h1h2 != null && h1h2 > 12) return "Reduce breathiness: firmer onset ('uh') then speak.";
+  if (h1h2 != null && h1h2 < 2 && centroid < 1800) return "Bring some warmth back: lighten laryngeal tension.";
+  return "Nice! Try a short phrase and keep it steady.";
+}
+
+function smooth(prev: number | null, next: number | null) {
+  if (next == null) return null;
+  if (prev == null) return next;
+  return Math.round(prev * 0.7 + next * 0.3);
 }

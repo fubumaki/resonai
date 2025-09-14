@@ -1,0 +1,104 @@
+/* app/ui.css — util classes replacing most inline style objects */
+.flex         { display:flex; }
+.grid         { display:grid; }
+.wrap         { flex-wrap:wrap; }
+.row          { display:flex; align-items:center; gap:12px; }
+.row-lg       { display:flex; align-items:center; gap:16px; }
+.col          { display:grid; gap:8px; }
+.gap-6        { gap:6px; }
+.gap-8        { gap:8px; }
+.gap-10       { gap:10px; }
+.gap-12       { gap:12px; }
+.justify-between { justify-content:space-between; }
+.align-base   { align-items:baseline; }
+.items-center { align-items:center; }
+.mb-4         { margin-bottom:16px; }
+.m-0          { margin:0; }
+.mt-6         { margin-top:6px; }
+.mt-8         { margin-top:8px; }
+.mt-10        { margin-top:10px; }
+.mt-12        { margin-top:12px; }
+.w-full       { width:100%; }
+.h-16         { height:16px; }
+.round-999    { border-radius:999px; }
+.round-8      { border-radius:8px; }
+.round-10     { border-radius:10px; }
+.round-12     { border-radius:12px; }
+.bg-track     { background:rgba(255,255,255,.07); }
+.bg-accent    { background:linear-gradient(90deg, var(--brand), var(--ok)); }
+.panel--dashed{ border-style:dashed; background:transparent; }
+.badge-quiet  { color:var(--muted); font-size:12px; }
+.btn-ghost    { background:var(--panel); color:var(--text); border:1px solid rgba(255,255,255,.2); }
+
+/* target bar (previously inline) */
+.targetbar    { position:relative; height:22px; background:rgba(255,255,255,.07); border-radius:999px; }
+.targetbar__zone { position:absolute; top:0; bottom:0; background:rgba(122,94,255,.35); border-radius:999px; }
+.targetbar__marker { position:absolute; top:-6px; width:16px; height:34px; border-radius:8px; background:white; }
+
+/* dialog polish */
+.panel[role="dialog"] { box-shadow: var(--shadow); }
+
+/* meter */
+.meter        { width:100%; height:16px; background:rgba(255,255,255,.07); border-radius:999px; }
+
+/* common layout patterns */
+.hero-grid    { display:grid; gap:20px; padding-block:56px; }
+.hero-title   { font-size:clamp(28px, 3.5vw + 12px, 44px); line-height:1.1; margin:0; }
+.hero-subtitle{ color:var(--muted); margin:0; }
+
+/* form controls */
+.input-range  { background:transparent; color:var(--text); border:1px solid rgba(255,255,255,.2); border-radius:8px; padding:6px 10px; }
+.select-input { background:transparent; color:var(--text); border:1px solid rgba(255,255,255,.2); border-radius:8px; padding:6px 10px; }
+
+/* status indicators */
+.status-good  { color:var(--ok); }
+.status-warn  { color:#ffa500; }
+.status-bad   { color:var(--danger); }
+
+/* spacing utilities */
+.p-4          { padding:4px; }
+.p-6          { padding:6px; }
+.p-8          { padding:8px; }
+.p-10         { padding:10px; }
+.p-12         { padding:12px; }
+.p-16         { padding:16px; }
+
+/* text utilities */
+.text-sm      { font-size:12px; }
+.text-lg      { font-size:18px; }
+.text-xl      { font-size:20px; }
+.text-2xl     { font-size:24px; }
+.text-3xl     { font-size:28px; }
+.font-bold    { font-weight:700; }
+.font-normal  { font-weight:400; }
+
+/* positioning */
+.relative     { position:relative; }
+.absolute     { position:absolute; }
+.fixed        { position:fixed; }
+.top-0        { top:0; }
+.right-0      { right:0; }
+.bottom-0     { bottom:0; }
+.left-0       { left:0; }
+.inset-0      { top:0; right:0; bottom:0; left:0; }
+
+/* text colors */
+.text-muted   { color:var(--muted); }
+
+/* z-index */
+.z-10         { z-index:10; }
+.z-20         { z-index:20; }
+.z-30         { z-index:30; }
+.z-40         { z-index:40; }
+.z-50         { z-index:50; }
+.z-1000       { z-index:1000; }
+
+/* SVG components (CSP-safe) */
+.meter-svg { width: 100%; height: 16px; display: block; }
+.meter-bg { fill: rgba(255,255,255,.07); }
+.meter-fill { fill: color-mix(in oklab, var(--brand) 65%, var(--ok) 35%); }
+
+.target-svg { width: 100%; height: 22px; display: block; }
+.track { fill: rgba(255,255,255,.07); }
+.zone { fill: rgba(122,94,255,.35); }
+.marker { fill: #fff; }

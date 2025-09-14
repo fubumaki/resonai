@@ -1,26 +1,24 @@
-'use client';
-
-export default function Page() {
+export default function Home() {
   return (
-    <main className="grid min-h-dvh place-items-center bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900">
-      <div className="space-y-4 text-center">
-        <h1 className="text-4xl font-bold tracking-tight">Resonai</h1>
-        <p className="text-muted-foreground">Local-first voice feminization trainer</p>
-        <div className="space-y-3">
-          <a
-            href="/try"
-            className="inline-flex items-center justify-center rounded-md bg-blue-600 px-6 py-3 text-white shadow hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 font-semibold"
-          >
-            Start Instant Practice
-          </a>
-          <a
-            href="/start"
-            className="inline-flex items-center justify-center rounded-md bg-black px-4 py-2 text-white shadow hover:bg-black/90 dark:bg-white dark:text-black"
-          >
-            Begin Voice Journey
-          </a>
+    <section className="hero">
+      <span className="badge">Private • Local‑first • Pilot</span>
+      <h1>Train your voice with instant feedback — no uploads, no account.</h1>
+      <p>Click "Start practice" to calibrate your mic, pick a target profile, and try your first phrase in under a minute.</p>
+      <p>
+        <a className="button" href="/practice">Start practice (no sign‑up)</a>
+      </p>
+      <div className="grid">
+        <div className="panel span6">
+          <strong>Listen</strong>
+          <p>Hear example phrases and feel the target resonance, pitch, and intonation patterns.</p>
+          <a href="/listen">Open Listen</a>
+        </div>
+        <div className="panel span6">
+          <strong>Practice</strong>
+          <p>Speak and get real‑time feedback on pitch and brightness. Speak naturally for continuous analysis.</p>
+          <a href="/practice">Open Practice</a>
         </div>
       </div>
-    </main>
+    </section>
   );
 }

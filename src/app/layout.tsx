@@ -1,54 +1,52 @@
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
-import Link from 'next/link';
-import BottomNav from '@/components/BottomNav';
-import './globals.css';
+import "./globals.css";
+import "./ui.css";
+import Link from "next/link";
+import SwRegister from "./SwRegister";
+import PerfHUD from "./PerfHUD";
+// import CspDevLogger from "./CspDevLogger";
 
-const inter = Inter({
-  variable: '--font-inter',
-  subsets: ['latin'],
-});
-
-export const metadata: Metadata = {
-  title: 'Resonai',
-  description:
-    'Resonai  a local-first voice feminization trainer with live mic visualization and gentle, science-backed guidance.',
+export const metadata = {
+  title: "Resonai — Local-first voice feminization trainer",
+  description: "Private, low-latency practice with instant feedback.",
+  manifest: "/manifest.webmanifest",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export const viewport = {
+  themeColor: "#7c5cff",
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('/sw.js')
-                  .then(registration => console.log('SW registered'))
-                  .catch(error => console.log('SW registration failed'));
-              }
-            `,
-          }}
-        />
-      </head>
-      <body className={`${inter.variable} antialiased`}>
-        <header className="border-b">
-          <div className="mx-auto flex max-w-5xl items-center justify-between p-4">
-            <Link href="/" className="font-semibold">Resonai</Link>
-            <nav className="flex items-center gap-4 text-sm">
-              <Link href="/" className="text-muted-foreground hover:text-foreground">Home</Link>
-              <Link href="/listen" className="text-muted-foreground hover:text-foreground">Listen</Link>
-              <Link href="/practice" className="text-muted-foreground hover:text-foreground">Practice</Link>
-              <Link href="/about" className="text-muted-foreground hover:text-foreground">About</Link>
+      <body>
+        <a href="#main" className="sr-only">Skip to content</a>
+        <header className="site">
+          <div className="container">
+            <nav className="bar" aria-label="Primary">
+              <Link href="/" className="brand" aria-label="Resonai home">Resonai</Link>
+              <ul>
+                <li><Link href="/listen">Listen</Link></li>
+                <li><Link href="/practice">Practice</Link></li>
+                <li><Link href="/about">About</Link></li>
+              </ul>
+              <Link href="/practice" className="button">Start practice</Link>
             </nav>
           </div>
         </header>
-        {children}
-        <BottomNav />
+        <main id="main" className="container">{children}</main>
+        <footer className="site">
+          <div className="container">
+            © {new Date().getFullYear()} Resonai — Local‑first. No cloud audio. 
+            <Link href="/data" style={{ marginLeft: 12, color: "var(--muted)" }}>Data & Privacy</Link>
+            <span style={{ marginLeft: 12, color: "var(--muted)", fontSize: "0.85em" }}>
+              v{process.env.NEXT_PUBLIC_BUILD_ID || "dev"}
+            </span>
+          </div>
+        </footer>
+        <div aria-live="polite" aria-atomic="true" id="toasts" />
+        <SwRegister />
+        {process.env.NODE_ENV !== "production" && <PerfHUD />}
+        {/* {process.env.NODE_ENV !== "production" && <CspDevLogger />} */}
       </body>
     </html>
   );

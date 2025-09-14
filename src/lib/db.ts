@@ -1,58 +1,81 @@
-export type SessionRecord = {
-  ts: number;
-  voicedTimePct: number;
-  jitterEma: number;
-  tiltEma: number;
-  comfort: number;
-  fatigue: number;
-  euphoria: number;
-  orb: string; // data URL of svg/png
-  f0Series?: number[]; // optional recent F0s for sparkline
+'use client';
+
+import Dexie, { Table } from 'dexie';
+
+export type PresetKey = 'alto' | 'mezzo' | 'soprano' | 'custom';
+
+export type SettingsRow = {
+  id: string;                // 'default'
+  preset: PresetKey;
+  pitchMin: number;
+  pitchMax: number;
+  brightMin: number;
+  brightMax: number;
+  lowPower: boolean;
+
+  // NEW: audio device + constraints
+  inputDeviceId: string | null;
+  echoCancellation: boolean;
+  noiseSuppression: boolean;
+  autoGainControl: boolean;
 };
 
-const DB_NAME = 'resonai-db';
-const DB_VERSION = 1;
-const STORE = 'sessions';
+export type TrialRow = {
+  id?: number;
+  ts: number;
+  phrase: string;
+  // targets used during the trial (for context)
+  pitchMin: number;
+  pitchMax: number;
+  brightMin: number;
+  brightMax: number;
+  // results
+  medianPitch: number | null;
+  medianCentroid: number | null;
+  inPitchPct: number;
+  inBrightPct: number;
+  pitchStabilityHz: number | null;
+  score: number; // 0..100
+};
 
-function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(STORE)) {
-        db.createObjectStore(STORE, { keyPath: 'ts' });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+export const defaultSettings: SettingsRow = {
+  id: 'default',
+  preset: 'mezzo',
+  pitchMin: 180,
+  pitchMax: 220,
+  brightMin: 1800,
+  brightMax: 2800,
+  lowPower: false,
+
+  inputDeviceId: null,
+  echoCancellation: true,
+  noiseSuppression: true,
+  autoGainControl: false,
+};
+
+class ResonaiDB extends Dexie {
+  trials!: Table<TrialRow, number>;
+  settings!: Table<SettingsRow, string>;
+  constructor() {
+    super('resonai');
+    // v1 -> v2 adds audio settings fields
+    this.version(1).stores({
+      trials: '++id, ts',
+      settings: 'id',
+    });
+    this.version(2).stores({
+      trials: '++id, ts',
+      settings: 'id',
+    }).upgrade(async (tx) => {
+      const table = tx.table<SettingsRow, string>('settings');
+      await table.toCollection().modify((s) => {
+        (s as any).inputDeviceId ??= null;
+        (s as any).echoCancellation ??= true;
+        (s as any).noiseSuppression ??= true;
+        (s as any).autoGainControl ??= false;
+      });
+    });
+  }
 }
 
-export async function putSession(session: SessionRecord): Promise<void> {
-  const db = await openDb();
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite');
-    const store = tx.objectStore(STORE);
-    store.put(session);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-    tx.onabort = () => reject(tx.error);
-  });
-  db.close();
-}
-
-export async function getAllSessions(): Promise<SessionRecord[]> {
-  const db = await openDb();
-  const result = await new Promise<SessionRecord[]>((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readonly');
-    const store = tx.objectStore(STORE);
-    const req = store.getAll();
-    req.onsuccess = () => resolve((req.result as SessionRecord[]) || []);
-    req.onerror = () => reject(req.error);
-  });
-  db.close();
-  // Sort newest first
-  return result.sort((a, b) => b.ts - a.ts);
-}
-
-
+export const db = typeof window === 'undefined' ? ({} as any) : new ResonaiDB();
