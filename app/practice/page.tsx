@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useMemo } from "react";
 import Trials from "./Trials";
-import { db, defaultSettings } from '../../lib/db';
+import { db, defaultSettings } from '../src/lib/db';
 import { useSettings } from './useSettings';
 import SettingsChip from './SettingsChip';
 import ExportButton from './ExportButton';
@@ -11,7 +11,7 @@ import WorkletHealth from './WorkletHealth';
 import DevicePicker from './DevicePicker';
 import Meter from './ui/Meter';
 import TargetBar from './ui/TargetBar';
-import { hzToNote } from '../../lib/pitch';
+import { hzToNote } from '../src/lib/pitch';
 import type { TrialResult } from './Trials';
 
 type PresetKey = "alto" | "mezzo" | "soprano" | "custom";
