@@ -1,25 +1,34 @@
 'use client';
 
+import { calculateTrainingSessionProgress, type TrainingSessionProgress } from '@/lib/progress';
+
 interface ProgressBarProps {
   currentStep: number;
   totalSteps: number;
   className?: string;
+  ariaDescribedBy?: string;
 }
 
-export default function ProgressBar({ currentStep, totalSteps, className = '' }: ProgressBarProps) {
-  const progress = Math.min((currentStep / totalSteps) * 100, 100);
+export default function ProgressBar({ 
+  currentStep, 
+  totalSteps, 
+  className = '',
+  ariaDescribedBy
+}: ProgressBarProps) {
+  const progress: TrainingSessionProgress = calculateTrainingSessionProgress(currentStep, totalSteps);
   
   return (
     <div
       className={`w-full ${className}`}
       role="progressbar"
-      aria-valuenow={currentStep}
-      aria-valuemin={1}
-      aria-valuemax={totalSteps}
+      aria-valuenow={progress.safeStep}
+      aria-valuemin={0}
+      aria-valuemax={progress.safeTotal}
+      aria-describedby={ariaDescribedBy}
     >
       <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 mb-2">
-        <span>Step {currentStep} of {totalSteps}</span>
-        <span>{Math.round(progress)}%</span>
+        <span>Step {progress.safeStep} of {progress.safeTotal}</span>
+        <span>{progress.percent}%</span>
       </div>
 
       <svg
@@ -35,7 +44,7 @@ export default function ProgressBar({ currentStep, totalSteps, className = '' }:
           y="0"
           height="8"
           rx="4"
-          width={Math.max(0, Math.min(100, progress))}
+          width={progress.width}
         />
       </svg>
     </div>

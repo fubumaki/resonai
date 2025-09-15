@@ -11,6 +11,7 @@ import WorkletHealth from './WorkletHealth';
 import DevicePicker from './DevicePicker';
 import Meter from './ui/Meter';
 import TargetBar from './ui/TargetBar';
+import ProgressBar from '@/components/ProgressBar';
 import { hzToNote } from '@/lib/pitch';
 import type { TrialResult } from './Trials';
 
@@ -61,6 +62,7 @@ export default function Practice() {
   const [h1h2, setH1H2] = useState<number | null>(null);
   const [clarity, setClarity] = useState(0);
   const [lowPower, setLowPower] = useState(false);
+  const [sessionProgress, setSessionProgress] = useState(0);
 
   // Audio device settings
   const [inputDeviceId, setInputDeviceId] = useState<string | null>(null);
@@ -257,6 +259,9 @@ export default function Practice() {
         const excess = old.length - 20;
         await (db as any).trials.bulkDelete(old.slice(0, excess).map((x:any) => x.id));
       }
+
+      // Update session progress (increment by 1 for each completed trial)
+      setSessionProgress(prev => Math.min(prev + 1, 10)); // Cap at 10 trials
     } catch {/* offline/no-op */}
   };
 
@@ -312,6 +317,20 @@ export default function Practice() {
           onResetAll={resetAll}
         />
       </div>
+
+      {/* Session Progress */}
+      {ready && (
+        <div className="mb-4">
+          <ProgressBar
+            currentStep={sessionProgress}
+            totalSteps={10}
+            ariaDescribedBy="session-progress-status"
+          />
+          <div id="session-progress-status" className="sr-only" aria-live="polite">
+            Practice session progress: {sessionProgress} of 10 trials completed
+          </div>
+        </div>
+      )}
 
       <div className="panel col gap-8">
         <div className="flex gap-12 items-center wrap">
