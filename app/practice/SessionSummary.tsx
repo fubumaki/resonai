@@ -60,7 +60,7 @@ export default function SessionSummary() {
     // early return if nothing
     if (rows.length === 0) {
       ctx.fillStyle = "var(--muted)";
-      ctx.fillText("No trials yet — press Start trial.", m.l, m.t + 16);
+      ctx.fillText("No trials yet - press Start trial.", m.l, m.t + 16);
       return;
     }
 
@@ -127,13 +127,13 @@ export default function SessionSummary() {
       idx: rows.length - i,
       time: new Date(r.ts).toLocaleTimeString(),
       score: r.score,
-      pitch: r.medianPitch ?? "—",
-      bright: r.medianCentroid ?? "—"
+      pitch: r.medianPitch ?? "-",
+      bright: r.medianCentroid ?? "-"
     })), [rows]);
 
   return (
     <section className="panel" data-testid="session-summary" aria-label="Session summary">
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+      <div className="flex align-base justify-between gap-2 wrap">
         <strong>Session summary</strong>
         <button className="button" onClick={exportCsv}>Export chart data (CSV)</button>
       </div>
@@ -142,28 +142,28 @@ export default function SessionSummary() {
         ref={canvasRef}
         role="img"
         aria-label="Line chart of last trials' scores"
-        style={{ width: "100%", display: "block", marginTop: 8, borderRadius: 8 }}
+        className="w-full block mt-2 round-8"
       />
 
-      <div className="panel" style={{ marginTop: 8 }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-          <thead style={{ color: "var(--muted)" }}>
+      <div className="panel mt-2">
+        <table className="table">
+          <thead className="thead-muted">
             <tr>
-              <th style={{ textAlign: "left", padding: "4px 6px" }}>#</th>
-              <th style={{ textAlign: "left", padding: "4px 6px" }}>Time</th>
-              <th style={{ textAlign: "left", padding: "4px 6px" }}>Score</th>
-              <th style={{ textAlign: "left", padding: "4px 6px" }}>Pitch</th>
-              <th style={{ textAlign: "left", padding: "4px 6px" }}>Bright</th>
+              <th className="td-pad">#</th>
+              <th className="td-pad">Time</th>
+              <th className="td-pad">Score</th>
+              <th className="td-pad">Pitch</th>
+              <th className="td-pad">Bright</th>
             </tr>
           </thead>
           <tbody>
             {readable.slice().reverse().map((r, i) => (
-              <tr key={i} style={{ borderTop: "1px solid rgba(255,255,255,.08)" }}>
-                <td style={{ padding: "6px" }}>{r.idx}</td>
-                <td style={{ padding: "6px" }}>{r.time}</td>
-                <td style={{ padding: "6px" }}>{r.score}</td>
-                <td style={{ padding: "6px" }}>{r.pitch}</td>
-                <td style={{ padding: "6px" }}>{r.bright}</td>
+              <tr key={i} className="row-divider">
+                <td className="p-6">{r.idx}</td>
+                <td className="p-6">{r.time}</td>
+                <td className="p-6">{r.score}</td>
+                <td className="p-6">{r.pitch}</td>
+                <td className="p-6">{r.bright}</td>
               </tr>
             ))}
           </tbody>

@@ -1,0 +1,24 @@
+# CODEOWNERS
+# Patterns relative to repository root
+
+# App code
+/app/**             @you @CodexAgent
+/components/**      @you @CodexAgent
+/styles/**          @you
+
+# Public assets
+/public/**          @you
+
+# Infra/CI/Security
+/.github/**         @CodexAgent
+/tools/**           @CodexAgent
+/QUALITY-GATES/**   @CodexAgent
+/next.config.*      @CodexAgent
+/eslint.*           @CodexAgent
+/playwright*/**     @CodexAgent
+
+# Docs & backlog
+/docs/**            @ChatGPTAgent @you
+/TASKS.md           @ChatGPTAgent @you
+/AGENTS.md          @ChatGPTAgent @you
+

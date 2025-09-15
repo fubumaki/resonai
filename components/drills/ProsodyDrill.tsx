@@ -135,7 +135,7 @@ export function ProsodyDrill({
         disabled={active}
         className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
       >
-        {active ? 'Recording…' : 'Start (≈2.5s)'}
+        {active ? 'Recording...' : 'Start (~2.5s)'}
       </button>
       
       {!active && (
@@ -149,15 +149,15 @@ export function ProsodyDrill({
           <div className="text-sm text-gray-600">
             Recording... ({segment.length} frames captured)
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-            <div 
-              className="bg-blue-600 h-2 rounded-full transition-all duration-100" 
-              style={{ 
-                width: startT.current ? 
-                  `${Math.min(100, ((frames.at(-1)?.t ?? 0) - startT.current) / durationMs * 100)}%` : 
-                  '0%' 
-              }}
-            />
+          <div className="mt-2">
+            <svg className="meter-svg" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">
+              <rect className="meter-bg" x="0" y="0" width="100" height="8" rx="4" />
+              <rect
+                className="meter-fill"
+                x="0" y="0" height="8" rx="4"
+                width={startT.current ? Math.min(100, ((frames.at(-1)?.t ?? 0) - (startT.current ?? 0)) / durationMs * 100) : 0}
+              />
+            </svg>
           </div>
         </div>
       )}
@@ -168,7 +168,7 @@ export function ProsodyDrill({
             <strong>Result:</strong> {prosody?.label?.toUpperCase() || 'FLAT'}
             {prosody && (
               <>
-                {' '}· slope≈{prosody.slopeCentsPerSec.toFixed(0)} c/s · voiced {prosody.voicedMs.toFixed(0)}ms
+                {' '}· slope~{prosody.slopeCentsPerSec.toFixed(0)} c/s · voiced {prosody.voicedMs.toFixed(0)}ms
               </>
             )}
           </div>

@@ -42,3 +42,8 @@ next-env.d.ts
 
 # Local Netlify folder
 .netlify
+
+# Playwright artifacts
+/playwright-report/
+/playwright/test-results/
+/playwright/playwright-report/

@@ -25,13 +25,13 @@ export default function WorkletHealth({ intervalsRef }:{
   }, [stamp, intervalsRef]);
 
   return (
-    <div className="panel" style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
+    <div className="panel row align-base gap-10">
       <strong>Engine:</strong>
       <span className="badge" aria-live="polite">{status}</span>
       {mean != null && p95 != null && (
         <span className="badge" title="Message interval statistics">μ {mean}ms • p95 {p95}ms</span>
       )}
-      <span style={{ color: "var(--muted)" }}>{desc}</span>
+      <span className="text-muted">{desc}</span>
     </div>
   );
 }

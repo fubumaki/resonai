@@ -1,27 +1,73 @@
 name: CI
+
 on:
-  push:
-    branches: [ main ]
   pull_request:
+  push:
+    branches: [ main, master ]
 
 jobs:
-  build-test:
+  build-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4
         with:
-          node-version: '20'
-      - run: corepack enable
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run lint
-      - run: pnpm run typecheck
-      - run: pnpm run build
-      - run: pnpm exec playwright install --with-deps
-      - run: pnpm run test:e2e --reporter=github
-      - if: failure()
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare reports dir
+        run: mkdir -p reports
+
+      - name: Typecheck (to text)
+        run: pnpm run typecheck | tee reports/tsc.txt
+
+      - name: Lint (JSON)
+        run: pnpm run lint:json
+
+      - name: Guard: no inline styles
+        run: pnpm run lint:noinline
+
+      - name: Guard: ASCII only
+        run: pnpm run lint:ascii
+
+      - name: Guard: Invisible/Bidi Unicode
+        run: pnpm run lint:unicode
+
+      - name: Install Playwright Browsers
+        run: pnpm exec playwright install --with-deps
+
+      - name: Unit tests (JSON)
+        run: pnpm run test:unit:json || true
+
+      - name: E2E tests (JSON)
+        env:
+          CI: "true"
+        run: pnpm run test:e2e:json || true
+
+      - name: A11y (optional JSON)
+        run: pnpm run a11y:json || true
+
+      - name: Collect CI signals
+        run: node tools/self_improve/collect_signals.mjs
+
+      - name: Enforce budgets
+        run: node tools/self_improve/check_budgets.mjs QUALITY-GATES/budgets.json reports/signals.json
+
+      - name: Upload reports
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 7
+          name: reports
+          path: reports

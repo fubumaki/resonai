@@ -119,35 +119,35 @@ export default function Trials({
   };
 
   return (
-    <div className="panel" style={{ display: "grid", gap: 10 }}>
-      <div style={{ display: "flex", gap: 10, alignItems: "baseline", flexWrap: "wrap" }}>
+    <div className="panel col gap-2">
+      <div className="flex gap-2 align-base wrap">
         <strong>Phrase trial</strong>
         <span className="badge">Say: "{phrase}"</span>
       </div>
 
-      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+      <div className="flex gap-2 items-center">
         {!active ? (
           <button className="button" onClick={start} aria-label="Start trial">Start trial</button>
         ) : (
           <button className="button" onClick={finish} aria-label="Stop trial">Stop</button>
         )}
         {countdown !== 0 && <span className="badge" aria-live="assertive">{countdown}</span>}
-        {active && <span className="badge" aria-live="polite">Recording…</span>}
+        {active && <span className="badge" aria-live="polite">Recording...</span>}
       </div>
 
       {results.length > 0 && (
-        <div style={{ display: "grid", gap: 8 }}>
+        <div className="col gap-2">
           {results.map((r, i) => (
-            <div key={i} className="panel" style={{ display: "grid", gap: 6 }}>
-              <div style={{ display: "flex", gap: 10, alignItems: "baseline", justifyContent: "space-between" }}>
+            <div key={i} className="panel col gap-1">
+              <div className="flex gap-2 align-base justify-between">
                 <div><strong>Score</strong> {r.score}/100</div>
-                <div style={{ color: "var(--muted)" }}>{Math.round(r.durationMs/100)/10}s</div>
+                <div className="text-muted">{Math.round(r.durationMs/100)/10}s</div>
               </div>
-              <div style={{ display:"flex", gap:12, flexWrap:"wrap", color:"var(--muted)" }}>
-                <span className="badge">Pitch {r.medianPitch ?? "—"} Hz</span>
-                <span className="badge">Bright {r.medianCentroid ?? "—"} Hz</span>
-                <span className="badge">In‑pitch {r.inPitchPct}%</span>
-                <span className="badge">In‑bright {r.inBrightPct}%</span>
+              <div className="flex gap-3 wrap text-muted">
+                <span className="badge">Pitch {r.medianPitch ?? "-"} Hz</span>
+                <span className="badge">Bright {r.medianCentroid ?? "-"} Hz</span>
+                <span className="badge">In-pitch {r.inPitchPct}%</span>
+                <span className="badge">In-bright {r.inBrightPct}%</span>
                 {r.pitchStabilityHz != null && <span className="badge">Stability ±{r.pitchStabilityHz} Hz</span>}
               </div>
             </div>

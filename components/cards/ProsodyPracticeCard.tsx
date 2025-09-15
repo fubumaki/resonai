@@ -91,7 +91,7 @@ export function ProsodyPracticeCard({
               onClick={start}
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
             >
-              Start (≈ 2.5s each)
+              Start (~ 2.5s each)
             </button>
           </div>
         </div>
@@ -132,7 +132,7 @@ function ResultsPane({
   onRetry: () => void;
 }) {
   const status = passCount === 2 ? 'Great! Both contours detected.' :
-                 passCount === 1 ? 'Nice! 1 of 2 detected—try once more.' :
+                 passCount === 1 ? 'Nice! 1 of 2 detected - try once more.' :
                  'Let&apos;s try again with gentler contours.';
 
   // Generate coaching tips for failed attempts
@@ -170,7 +170,7 @@ function ResultsPane({
                   {r.label.toUpperCase()}
                 </span>
                 <span className="text-gray-500">
-                  slope ≈ {r.slopeCentsPerSec.toFixed(0)} c/s
+                  slope ~ {r.slopeCentsPerSec.toFixed(0)} c/s
                 </span>
                 <span className="text-gray-500">
                   voiced {r.voicedMs.toFixed(0)}ms
@@ -179,7 +179,7 @@ function ResultsPane({
                   expressiveness {(r.expressiveness01 * 100).toFixed(0)}%
                 </span>
                 <span className={r.pass ? 'text-green-600' : 'text-red-600'}>
-                  {r.pass ? '✓' : '✕'}
+                  {r.pass ? '✓' : '✗'}
                 </span>
               </div>
               {tip && (

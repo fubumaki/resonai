@@ -93,17 +93,17 @@ function updateServiceWorker(assets) {
   try {
     let swContent = fs.readFileSync(SW_FILE, 'utf8');
     
-    // Find the PRECACHE array and replace it
+    // Find the APP_SHELL array and replace it
     const precacheArray = JSON.stringify(assets, null, 2)
       .split('\n')
       .map(line => '  ' + line)
       .join('\n');
     
-    const newPrecacheBlock = `const PRECACHE = [\n${precacheArray}\n];`;
+    const newPrecacheBlock = `const APP_SHELL = [\n${precacheArray}\n];`;
     
-    // Replace the existing PRECACHE array
+    // Replace the existing APP_SHELL array
     swContent = swContent.replace(
-      /const PRECACHE = \[[\s\S]*?\];/,
+      /const APP_SHELL = \[[\s\S]*?\];/,
       newPrecacheBlock
     );
     

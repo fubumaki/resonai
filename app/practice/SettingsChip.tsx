@@ -53,7 +53,7 @@ export default function SettingsChip({
   }, [open]);
 
   return (
-    <div style={{ position: 'relative', marginLeft: 'auto' }}>
+    <div className="relative ml-auto">
       <button
         className="button"
         aria-haspopup="dialog"
@@ -70,16 +70,15 @@ export default function SettingsChip({
           ref={panelRef}
           role="dialog"
           aria-label="Settings"
-          className="panel"
-          style={{ position: 'absolute', right: 0, top: 'calc(100% + 8px)', width: 320, zIndex: 50, display: 'grid', gap: 10 }}
+          className="panel popover-panel"
         >
-          <label style={{ display: 'grid', gap: 6 }}>
+          <label className="col gap-6">
             <span className="badge">Profile</span>
             <select
               aria-label="Target profile"
               value={preset}
               onChange={(e) => onPreset(e.target.value as PresetKey)}
-              style={{ background: 'transparent', color: 'var(--text)', border: '1px solid rgba(255,255,255,.2)', borderRadius: 8, padding: '6px 10px' }}
+              className="select-input"
             >
               <option value="alto">Alto</option>
               <option value="mezzo">Mezzo</option>
@@ -88,28 +87,27 @@ export default function SettingsChip({
             </select>
           </label>
 
-          <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <label className="row items-center gap-8">
             <input type="checkbox" checked={lowPower} onChange={(e) => onLowPower(e.target.checked)} />
-            <span>Low‑power mode</span>
+            <span>Low-power mode</span>
           </label>
 
-          <div className="panel" style={{ background: 'transparent', borderStyle: 'dashed' }}>
+          <div className="panel panel--dashed">
             <strong>Reset</strong>
-            <div style={{ display: 'grid', gap: 8, marginTop: 6 }}>
+            <div className="col gap-8 mt-6">
               <button className="button" onClick={() => { onResetToPresetDefaults(); setOpen(false); }}>Reset to preset defaults</button>
-              <button className="button"
-                onClick={() => { if (confirm('Reset settings and clear saved trials?')) { onResetAll(); setOpen(false); } }}
-                style={{ background: 'var(--danger)' }}>
+              <button className="button button-danger"
+                onClick={() => { if (confirm('Reset settings and clear saved trials?')) { onResetAll(); setOpen(false); } }}>
                 Reset everything
               </button>
             </div>
           </div>
 
-          <p style={{ color: 'var(--muted)', fontSize: 12 }}>
+          <p className="text-muted text-sm">
             Saved on this device only (IndexedDB). Close with <kbd>Esc</kbd>.
           </p>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <div className="row justify-end">
             <button className="button" onClick={() => setOpen(false)}>Close</button>
           </div>
         </div>

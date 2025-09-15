@@ -47,21 +47,21 @@ export default function DevicePicker({
   })), [devices]);
 
   return (
-    <div className="panel" style={{ display: 'grid', gap: 8 }}>
+    <div className="panel col gap-8">
       <strong>Microphone</strong>
-      {error && <div role="alert" className="panel" style={{ borderColor: "rgba(255,92,122,.4)" }}>{error}</div>}
+      {error && <div role="alert" className="panel panel-danger">{error}</div>}
 
       {options.length === 0 ? (
         <p className="badge">Allow microphone to choose a device.</p>
       ) : (
-        <label style={{ display: 'grid', gap: 6 }}>
+        <label className="col gap-6">
           <span className="sr-only">Input device</span>
           <select
             aria-label="Input device"
             value={value ?? ''}
             onChange={(e) => onChange(e.target.value || null)}
             disabled={disabled}
-            style={{ background: 'transparent', color: 'var(--text)', border: '1px solid rgba(255,255,255,.2)', borderRadius: 8, padding: '6px 10px' }}
+            className="select-input"
           >
             <option value="">System default</option>
             {options.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
@@ -69,21 +69,21 @@ export default function DevicePicker({
         </label>
       )}
 
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-        <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+      <div className="row gap-12 wrap items-center">
+        <label className="row gap-6 items-center">
           <input type="checkbox" checked={ec} onChange={(e) => onChangeConstraints({ ec: e.target.checked })} />
           <span>Echo cancellation</span>
         </label>
-        <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <label className="row gap-6 items-center">
           <input type="checkbox" checked={ns} onChange={(e) => onChangeConstraints({ ns: e.target.checked })} />
           <span>Noise suppression</span>
         </label>
-        <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <label className="row gap-6 items-center">
           <input type="checkbox" checked={agc} onChange={(e) => onChangeConstraints({ agc: e.target.checked })} />
           <span>Auto gain control</span>
         </label>
       </div>
-      <p style={{ color: 'var(--muted)', margin: 0, fontSize: 12 }}>
+      <p className="text-muted m-0 text-sm">
         Tip: choose a USB mic if available for steadier pitch tracking.
       </p>
     </div>

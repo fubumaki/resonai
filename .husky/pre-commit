@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Fast feedback on staged files
+if command -v npx >/dev/null 2>&1; then
+  npx lint-staged
+else
+  echo "[husky] npx not found; running full quick guards"
+  node scripts/check-invisible-unicode.js || exit 1
+  node scripts/check-ascii.js || exit 1
+  node scripts/no-inline-style.js || exit 1
+fi
+

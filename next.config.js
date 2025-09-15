@@ -17,6 +17,9 @@ const nextConfig = {
 
     const security = [
       { key: "Content-Security-Policy", value: csp },
+      // Enable cross-origin isolation for SAB/Worklets reliability
+      { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+      { key: "Cross-Origin-Embedder-Policy", value: "require-corp" },
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
       { key: "Permissions-Policy",
         value: "camera=(), geolocation=(), gyroscope=(), microphone=(), " +

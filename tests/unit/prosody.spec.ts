@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   ProsodyFrame, classifyProsody, ProsodyOptions, hzToCentsRelative, median, ema, slopePerSecond, windowVoiced, voicedDurationMs
-} from '../../src/engine/audio/prosody';
+} from '../../engine/audio/prosody';
 
 function series(
   t0: number,

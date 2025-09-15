@@ -21,11 +21,11 @@ export default function Status() {
   }, []);
   
   return (
-    <main style={{fontFamily:'system-ui', padding:24}}>
+    <main className="dev-main">
       <h1>Dev Status</h1>
-      <ul>
+      <ul className="dev-list">
         {Object.entries(info).map(([k,v]) => (
-          <li key={k}><strong>{k}</strong>: {v ? '✅' : '❌'}</li>
+          <li key={k}><strong>{k}</strong>: {v ? 'OK' : 'FAIL'}</li>
         ))}
       </ul>
     </main>

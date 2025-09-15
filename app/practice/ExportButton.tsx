@@ -67,15 +67,12 @@ export default function ExportButton() {
   };
 
   return (
-    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+    <div className="flex gap-2 wrap">
       <button className="button" onClick={onExport}>Export last 20 trials</button>
-      <button className="button" onClick={onImportClick}
-        style={{ background: 'var(--panel)', color: 'var(--text)', border: '1px solid rgba(255,255,255,.2)' }}>
+      <button className="button btn-ghost" onClick={onImportClick}>
         Import trials (JSON)
       </button>
-      <button className="button" onClick={onClear}
-        title="Clear saved trials"
-        style={{ background: 'var(--panel)', color: 'var(--text)', border: '1px solid rgba(255,255,255,.2)' }}>
+      <button className="button btn-ghost" onClick={onClear} title="Clear saved trials">
         Clear
       </button>
     </div>

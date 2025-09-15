@@ -17,7 +17,7 @@ const eslintConfig = [
   {
     rules: {
       "no-restricted-syntax": [
-        "warn",
+        "error",
         {
           selector: "JSXAttribute[name.name='style']",
           message: "Avoid inline styles; use CSS classes or SVG attributes (strict CSP).",

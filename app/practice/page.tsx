@@ -145,7 +145,7 @@ export default function Practice() {
     } catch (e: any) {
       // Typical when device unplugged or permission changes
       mediaStream.current = await navigator.mediaDevices.getUserMedia(build(true));
-      toast("Selected mic unavailable — using system default.");
+      toast("Selected mic unavailable - using system default.");
     }
 
     source.current = audioCtx.current.createMediaStreamSource(mediaStream.current);
@@ -300,8 +300,8 @@ export default function Practice() {
       <h1>Practice</h1>
 
       <div className="flex gap-12 items-center justify-between wrap mb-4">
-        <div style={{ color: 'var(--muted)' }}>
-          {preset.toUpperCase()} • Pitch {pitchTarget.min}–{pitchTarget.max} Hz • Bright {brightTarget.min}–{brightTarget.max} Hz
+        <div className="text-muted">
+          {preset.toUpperCase()} • Pitch {pitchTarget.min}-{pitchTarget.max} Hz • Bright {brightTarget.min}-{brightTarget.max} Hz
         </div>
         <SettingsChip
           preset={preset}
@@ -313,14 +313,14 @@ export default function Practice() {
         />
       </div>
 
-      <div className="panel" style={{ display: "grid", gap: 8 }}>
+      <div className="panel col gap-8">
         <div className="flex gap-12 items-center wrap">
           <label>
             <span className="badge">Profile</span>
             <select
               value={preset}
               onChange={(e) => setPreset(e.target.value as PresetKey)}
-              style={{ marginLeft: 8, background: "transparent", color: "var(--text)", border: "1px solid rgba(255,255,255,.2)", borderRadius: 8, padding: "6px 10px" }}
+              className="select-input ml-2"
               aria-label="Target profile"
             >
               <option value="alto">Alto</option>
@@ -329,13 +329,13 @@ export default function Practice() {
               <option value="custom">Custom</option>
             </select>
                   </label>
-          <span style={{ color: "var(--muted)" }}>{PRESETS[preset].note}</span>
+          <span className="text-muted">{PRESETS[preset].note}</span>
               </div>
 
         {!ready && !err && <p className="badge">Allow microphone to begin.</p>}
-        {err && <div role="alert" className="panel" style={{ borderColor: "rgba(255,92,122,.4)" }}>{err}</div>}
+        {err && <div role="alert" className="panel panel-danger">{err}</div>}
         {needsUnlock && (
-          <div className="panel" role="alert" style={{ borderColor: "rgba(255,92,122,.4)" }}>
+          <div className="panel panel-danger" role="alert">
             <p>Tap "Enable audio" to begin analysis.</p>
             <button className="button" onClick={unlock}>Enable audio</button>
               </div>
@@ -371,13 +371,13 @@ export default function Practice() {
             <div className="col gap-6">
               <div className="flex gap-12 align-base">
                 <span className="badge">Pitch (Hz)</span>
-                <strong className="text-2xl">{pitch ?? "—"}</strong>
+                <strong className="text-2xl">{pitch ?? "-"}</strong>
                 {pitch && <span className="badge">{hzToNote(pitch)}</span>}
-                {pitch && <span className="badge" aria-live="polite">{inPitch ? "In range ✓" : "Adjust…"}</span>}
+                {pitch && <span className="badge" aria-live="polite">{inPitch ? "In range ✓" : "Adjust..."}</span>}
                 <span className="badge" title="Autocorrelation clarity">clarity {Math.round(clarity * 100)}</span>
               </div>
               <TargetBar value={pitch} min={120} max={320} tmin={pitchTarget.min} tmax={pitchTarget.max} />
-              <div style={{ display: "grid", gap: 4 }}>
+              <div className="col gap-4">
                 <Slider label="Min pitch" min={120} max={250} value={pitchTarget.min}
                         onChange={(v) => onCustom(setPitchTarget, { ...pitchTarget, min: v })} />
                 <Slider label="Max pitch" min={170} max={340} value={pitchTarget.max}
@@ -389,12 +389,12 @@ export default function Practice() {
             <div className="col gap-6">
               <div className="flex gap-12 align-base">
                 <span className="badge">Brightness (centroid Hz)</span>
-                <strong className="text-2xl">{centroid ?? "—"}</strong>
+                <strong className="text-2xl">{centroid ?? "-"}</strong>
                 {centroid && <span className="badge" aria-live="polite">{inBright ? "In range ✓" : "Add/soften"}</span>}
-                {h1h2 != null && <span className="badge" title="H1–H2 dB (lower = brighter)">H1–H2 {h1h2.toFixed(1)} dB</span>}
+                {h1h2 != null && <span className="badge" title="H1-H2 dB (lower = brighter)">H1-H2 {h1h2.toFixed(1)} dB</span>}
               </div>
               <TargetBar value={centroid} min={800} max={4000} tmin={brightTarget.min} tmax={brightTarget.max} />
-              <div style={{ display: "grid", gap: 4 }}>
+              <div className="col gap-4">
                 <Slider label="Min brightness" min={1000} max={2800} value={brightTarget.min}
                         onChange={(v) => onCustom(setBrightTarget, { ...brightTarget, min: v })} />
                 <Slider label="Max brightness" min={1800} max={3800} value={brightTarget.max}
@@ -435,7 +435,7 @@ export default function Practice() {
 function Slider({ label, min, max, value, onChange }:
   { label: string; min: number; max: number; value: number; onChange: (v: number) => void }) {
   return (
-    <label style={{ display: "grid", gap: 6 }}>
+    <label className="col gap-6">
       <span className="sr-only">{label}</span>
       <input
         type="range"
@@ -446,15 +446,15 @@ function Slider({ label, min, max, value, onChange }:
         onChange={(e) => onChange(Number(e.target.value))}
         aria-label={label}
       />
-      <div style={{ color: "var(--muted)", fontSize: 12 }}>{label}: <strong>{value}</strong> Hz</div>
+      <div className="text-muted text-sm">{label}: <strong>{value}</strong> Hz</div>
     </label>
   );
 }
 
 function useCoachTip({ pitch, centroid, h1h2, inPitch, inBright }:
   { pitch: number | null, centroid: number | null, h1h2: number | null, inPitch: boolean, inBright: boolean }) {
-  // Simple rule engine — one hint at a time
-  if (pitch == null || centroid == null) return "Say 'mee‑mee‑mee' for one second. Keep your volume steady.";
+  // Simple rule engine - one hint at a time
+  if (pitch == null || centroid == null) return "Say 'mee-mee-mee' for one second. Keep your volume steady.";
   if (!inPitch && pitch < 160) return "Try a slightly higher pitch. Imagine speaking on a gentle question.";
   if (!inPitch && pitch > 280) return "Relax the pitch down a touch. Aim for a comfortable speaking note.";
   if (inPitch && !inBright) {

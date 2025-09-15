@@ -1,0 +1,10 @@
+{
+  "typescript": { "errors": 0 },
+  "eslint":     { "errors": 0, "warnings": 0 },
+  "a11y":       { "violations": 0 },
+  "e2e":        { "failures": 0 },
+  "unit":       { "failures": 0 },
+  "bundle":     { "app_js_kb": 250, "vendor_kb": 350 },
+  "perf":       { "ttci_ms": 2500 }
+}
+

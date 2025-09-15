@@ -1,0 +1,36 @@
+name: Self-Improve
+on:
+  schedule: [{ cron: "0 3 * * *" }]
+  workflow_dispatch:
+
+jobs:
+  mine-and-open-tasks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with: { version: 8 }
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Ensure reports dir exists
+        run: mkdir -p reports
+
+      - name: Collect signals (no-op if no reports)
+        run: node tools/self_improve/collect_signals.mjs || true
+
+      - name: Derive tasks (append to TASKS.md)
+        run: node tools/self_improve/derive_tasks.mjs
+
+      - name: Commit TASKS.md update
+        run: |
+          git config user.name "ChatGPT Agent"
+          git config user.email "bot@example.com"
+          git add TASKS.md tools/self_improve/signals.json || true
+          git commit -m "chore: refresh auto-sourced tasks" || echo "No changes"
+          git push || true
+

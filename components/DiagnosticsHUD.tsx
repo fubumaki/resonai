@@ -44,20 +44,10 @@ export default function DiagnosticsHUD({ engine }: { engine: unknown }) {
   }, [engine]);
 
   return (
-    <div style={{
-      position: 'fixed', 
-      right: 12, 
-      bottom: 12, 
-      padding: '8px 12px', 
-      background: 'rgba(0,0,0,.65)', 
-      color: '#fff', 
-      font: '12px system-ui', 
-      borderRadius: 8,
-      zIndex: 9999
-    }}>
-      <div>ISO: {state.iso ? '✅' : '❌'} SIMD: {state.simd ? '✅' : '❌'} THR: {state.threads ? '✅' : '❌'}</div>
-      <div>Hz: {state.hz ? state.hz.toFixed(1) : '—'}  Semi: {state.semi ? state.semi.toFixed(2) : '—'}</div>
-      <div>Jitter EMA: {state.jitter != null ? state.jitter.toFixed(3) : '—'}</div>
+    <div className="overlay-fixed">
+      <div>ISO: {state.iso ? 'OK' : 'FAIL'} SIMD: {state.simd ? 'OK' : 'FAIL'} THR: {state.threads ? 'OK' : 'FAIL'}</div>
+      <div>Hz: {state.hz ? state.hz.toFixed(1) : '-'}  Semi: {state.semi ? state.semi.toFixed(2) : '-'}</div>
+      <div>Jitter EMA: {state.jitter != null ? state.jitter.toFixed(3) : '-'}</div>
     </div>
   );
 }

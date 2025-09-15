@@ -6,45 +6,34 @@ interface ExpressivenessMeterProps {
   showPercentage?: boolean;
 }
 
-export function ExpressivenessMeter({ 
-  value01, 
-  label = "Expressiveness",
-  showPercentage = true 
+export function ExpressivenessMeter({
+  value01,
+  label = 'Expressiveness',
+  showPercentage = true,
 }: ExpressivenessMeterProps) {
   const pct = Math.round(Math.max(0, Math.min(1, value01)) * 100);
-  
-  const containerStyle: React.CSSProperties = {
-    background: '#f3f4f6',
-    borderRadius: 6,
-    height: 8,
-    position: 'relative',
-    overflow: 'hidden'
-  };
-  
-  const barStyle: React.CSSProperties = {
-    width: `${pct}%`,
-    height: '100%',
-    background: 'linear-gradient(90deg, #60a5fa, #34d399, #fbbf24)',
-    borderRadius: 6,
-    transition: 'width 0.3s ease-in-out'
-  };
-  
-  const labelStyle: React.CSSProperties = {
-    fontSize: 12,
-    marginTop: 4,
-    opacity: 0.7,
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  };
 
   return (
     <div>
-      <div aria-label={`${label} meter`} style={containerStyle}>
-        <div style={barStyle} />
-      </div>
+      <svg
+        className="meter-svg"
+        role="img"
+        aria-label={`${label} meter`}
+        viewBox="0 0 100 16"
+        preserveAspectRatio="none"
+      >
+        <rect className="meter-bg" x="0" y="0" width="100" height="16" rx="6" />
+        <rect
+          className="meter-fill"
+          x="0"
+          y="0"
+          height="16"
+          rx="6"
+          width={Math.max(0, Math.min(100, pct))}
+        />
+      </svg>
       {showPercentage && (
-        <div style={labelStyle}>
+        <div className="row justify-between badge-quiet mt-8">
           <span>{label}</span>
           <span>{pct}%</span>
         </div>

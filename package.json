@@ -8,18 +8,29 @@
     "build": "next build",
     "start": "next start -p 3003",
     "lint": "next lint",
+    "lint:json": "eslint . -f json -o reports/eslint.json || true",
+    "lint:noinline": "node scripts/no-inline-style.js",
+    "lint:ascii": "node scripts/check-ascii.js",
+    "lint:unicode": "node scripts/check-invisible-unicode.js",
+    "check:manifest": "node scripts/check-manifest.js",
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run",
+    "test:unit:json": "vitest run --reporter=json --outputFile=reports/unit.json",
     "test:e2e": "playwright test --project=firefox",
+    "test:e2e:json": "playwright test --project=firefox --reporter=json > reports/e2e.json",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:noweb:win": "cmd /c \"set PW_DISABLE_WEBSERVER=1 && playwright test --config=playwright/playwright.noweb.config.ts --project=firefox\"",
     "test:coach": "npx playwright test tests/coach_policy.spec.ts --project=firefox",
     "test:isolation": "npx playwright test tests/isolation.spec.ts --project=firefox",
     "test:privacy": "npx playwright test tests/privacy_a11y.spec.ts --project=firefox",
     "test:all": "npm run test:unit && npm run test:e2e",
+    "ci": "npm run typecheck && npm run lint && npm run test:unit && npm run test:e2e",
     "playwright:install": "npx playwright install",
     "playwright:ui": "npx playwright test --ui",
-    "playwright:report": "npx playwright show-report"
+    "playwright:report": "npx playwright show-report",
+    "a11y:json": "playwright test --grep @a11y --reporter=json > reports/a11y.json",
+    "issues:seed": "node tools/seed_issues_from_tasks.mjs",
+    "issues:create": "node tools/seed_issues_from_tasks.mjs --create"
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.7",
@@ -46,5 +57,18 @@
     "tailwindcss": "^4.1.13",
     "typescript": "^5",
     "vitest": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18.17.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,md,mdx,css}": [
+      "node scripts/check-invisible-unicode.js",
+      "git add"
+    ],
+    "app/**/*.{ts,tsx,md,mdx,js,css}": [
+      "node scripts/check-ascii.js",
+      "git add"
+    ]
   }
 }

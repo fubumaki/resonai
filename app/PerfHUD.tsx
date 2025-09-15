@@ -31,18 +31,14 @@ export default function PerfHUD() {
       poEvent.observe({ type: "event", buffered: true, durationThreshold: 40 });
 
       function update() {
-        setTxt(`FCP ${fcp}ms • INP ${inp}ms • CLS ${cls.toFixed(3)}`);
+        setTxt(`FCP ${fcp}ms - INP ${inp}ms - CLS ${cls.toFixed(3)}`);
       }
     } catch {}
   }, []);
 
   if (!txt) return null;
   return (
-    <div style={{
-      position:"fixed", right:12, bottom:12, zIndex:1000,
-      background:"var(--panel)", border:"1px solid rgba(255,255,255,.1)",
-      padding:"6px 10px", borderRadius:8, color:"var(--muted)", fontSize:12
-    }} aria-live="polite" aria-label="Performance indicators">
+    <div className="perf-hud" aria-live="polite" aria-label="Performance indicators">
       {txt}
     </div>
   );

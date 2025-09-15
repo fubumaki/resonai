@@ -36,12 +36,10 @@ export default defineConfig({
     navigationTimeout: 60_000,
   },
   webServer: DISABLE_WEBSERVER ? undefined : {
-    command: 'npm run dev:ci', // pinned to :3003
+    command: 'npm run dev',
     url: BASE_URL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 180_000,
-    stdout: 'pipe',
-    stderr: 'pipe',
+    reuseExistingServer: true,
+    timeout: 120_000,
   },
   projects: [{ name: 'firefox', use: { ...devices['Desktop Firefox'] } }],
 });

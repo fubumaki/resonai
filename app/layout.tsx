@@ -6,7 +6,7 @@ import PerfHUD from "./PerfHUD";
 // import CspDevLogger from "./CspDevLogger";
 
 export const metadata = {
-  title: "Resonai — Local-first voice feminization trainer",
+  title: "Resonai - Local-first voice feminization trainer",
   description: "Private, low-latency practice with instant feedback.",
   manifest: "/manifest.webmanifest",
 };
@@ -36,9 +36,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <main id="main" className="container">{children}</main>
         <footer className="site">
           <div className="container">
-            © {new Date().getFullYear()} Resonai — Local‑first. No cloud audio. 
-            <Link href="/data" style={{ marginLeft: 12, color: "var(--muted)" }}>Data & Privacy</Link>
-            <span style={{ marginLeft: 12, color: "var(--muted)", fontSize: "0.85em" }}>
+            © {new Date().getFullYear()} Resonai - Local-first. No cloud audio.
+            <Link href="/data" className="ml-12 text-muted">Data & Privacy</Link>
+            <span className="ml-12 text-muted text-sm">
               v{process.env.NEXT_PUBLIC_BUILD_ID || "dev"}
             </span>
           </div>
@@ -51,3 +51,4 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   );
 }
+

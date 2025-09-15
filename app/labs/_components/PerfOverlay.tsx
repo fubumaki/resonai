@@ -38,22 +38,10 @@ export function PerfOverlay() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  const box: React.CSSProperties = {
-    position: 'fixed', 
-    left: 12, 
-    bottom: 12, 
-    zIndex: 9999,
-    background: 'rgba(0,0,0,0.7)', 
-    color: '#fff', 
-    padding: 10, 
-    borderRadius: 8, 
-    fontSize: 12,
-    minWidth: '180px'
-  };
 
   return (
-    <div style={box} data-testid="perf-overlay">
-      <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>Performance</div>
+    <div className="overlay-fixed" data-testid="perf-overlay">
+      <div className="font-bold mb-1">Performance</div>
       <div>FPS ~ {fps.toFixed(0)}</div>
       <div>Frame p95: {p95.toFixed(1)} ms</div>
       <div>Worklet→UI p95: {lagP95.toFixed(1)} ms</div>

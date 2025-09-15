@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeExpressiveness } from '../../src/engine/audio/expressiveness';
+import { computeExpressiveness } from '../../engine/audio/expressiveness';
 
 describe('computeExpressiveness', () => {
   it('returns zero expressiveness for empty series', () => {

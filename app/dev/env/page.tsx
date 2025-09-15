@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 
 type Check = { label: string; ok: boolean; detail?: string };
-const Row = ({c}:{c:Check}) => <li><strong>{c.label}:</strong> {c.ok?'✅':'❌'} {c.detail? `— ${c.detail}`:''}</li>;
+const Row = ({c}:{c:Check}) => <li><strong>{c.label}:</strong> {c.ok?'OK':'FAIL'} {c.detail? ` - ${c.detail}`:''}</li>;
 
 export default function EnvPage() {
   const [checks,setChecks] = useState<Check[]>([]);
@@ -16,7 +16,7 @@ export default function EnvPage() {
     const acRate = await getACSampleRate();
 
     setChecks([
-      { label:'Cross‑origin isolated', ok: iso },
+      { label:'Cross-origin isolated', ok: iso },
       { label:'SharedArrayBuffer', ok: sab },
       { label:'WASM SIMD', ok: simd },
       { label:'WASM threads (SAB)', ok: threads },
@@ -24,16 +24,16 @@ export default function EnvPage() {
       { label:'Mic echoCancellation OFF', ok: ec === false },
       { label:'Mic noiseSuppression OFF', ok: ns === false },
       { label:'Mic autoGainControl OFF', ok: agc === false },
-      { label:'Mic sampleRate', ok: true, detail: inRate? `${inRate} Hz` : '—' },
-      { label:'AudioContext sampleRate', ok: true, detail: acRate? `${acRate} Hz` : '—' }
+      { label:'Mic sampleRate', ok: true, detail: inRate? `${inRate} Hz` : '-' },
+      { label:'AudioContext sampleRate', ok: true, detail: acRate? `${acRate} Hz` : '-' }
     ]);
   })(); }, []);
 
   return (
-    <main style={{fontFamily:'system-ui', padding:24}}>
+    <main className="dev-main">
       <h1>Environment Report</h1>
-      <ul>{checks.map((c,i)=><Row key={i} c={c}/>)}</ul>
-      {!checks.find(c=>c.label==='Cross‑origin isolated')?.ok &&
+      <ul className="dev-list">{checks.map((c,i)=><Row key={i} c={c}/>)}</ul>
+      {!checks.find(c=>c.label==='Cross-origin isolated')?.ok &&
         <p role="alert">Performance mode disabled. Running fallback detector (YIN). See Dev Status for COOP/COEP tips.</p>}
     </main>
   );

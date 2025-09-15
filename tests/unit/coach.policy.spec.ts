@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { CoachPolicyV2, type Clock, type Snapshot } from '../../src/coach/policyDefault';
+import { CoachPolicyV2, type Clock, type Snapshot } from '../../coach/policyDefault';
 
 // Simple fake clock for deterministic testing
 const createFakeClock = (): Clock & { advance: (ms: number) => void } => {

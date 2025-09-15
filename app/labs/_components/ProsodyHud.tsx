@@ -19,21 +19,6 @@ type Props = {
   persistKey?: string;
 };
 
-const wrapStyle: React.CSSProperties = {
-  position: 'fixed',
-  right: 12,
-  bottom: 12,
-  padding: 12,
-  background: 'rgba(0,0,0,0.7)',
-  color: '#fff',
-  borderRadius: 10,
-  zIndex: 9999,
-  width: 280,
-  fontSize: 13,
-  boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
-};
-
-const labelStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 8 };
 
 export function ProsodyHud({ defaults, onChange, persistKey = 'prosody.hud' }: Props) {
   const [persist, setPersist] = useState(true);
@@ -61,10 +46,10 @@ export function ProsodyHud({ defaults, onChange, persistKey = 'prosody.hud' }: P
   const reset = () => setV(defaults);
 
   return (
-    <div style={wrapStyle} data-testid="prosody-hud">
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+    <div className="hud-fixed" data-testid="prosody-hud">
+      <div className="hud-header">
         <strong>Prosody HUD</strong>
-        <label style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <label className="ml-auto flex items-center gap-1">
           <input
             type="checkbox"
             checked={persist}
@@ -73,37 +58,37 @@ export function ProsodyHud({ defaults, onChange, persistKey = 'prosody.hud' }: P
           />
           Persist
         </label>
-        <button onClick={reset} style={{ marginLeft: 8 }} aria-label="Reset prosody thresholds">
+        <button onClick={reset} className="ml-2" aria-label="Reset prosody thresholds">
           Reset
         </button>
       </div>
 
-      <div style={labelStyle}>
+      <div className="hud-label-row">
         <label htmlFor="p-window">Window (ms)</label>
         <input id="p-window" type="number" value={v.windowMs}
           onChange={e => setV({ ...v, windowMs: clampInt(e.target.value, 200, 3000, v.windowMs) })} />
       </div>
-      <div style={labelStyle}>
+      <div className="hud-label-row">
         <label htmlFor="p-minvoiced">Min voiced (ms)</label>
         <input id="p-minvoiced" type="number" value={v.minVoicedMs}
           onChange={e => setV({ ...v, minVoicedMs: clampInt(e.target.value, 100, 1500, v.minVoicedMs) })} />
       </div>
-      <div style={labelStyle}>
+      <div className="hud-label-row">
         <label htmlFor="p-rise">Rise (c/s)</label>
         <input id="p-rise" type="number" value={v.rise}
           onChange={e => setV({ ...v, rise: clampInt(e.target.value, 50, 800, v.rise) })} />
       </div>
-      <div style={labelStyle}>
+      <div className="hud-label-row">
         <label htmlFor="p-fall">Fall (c/s)</label>
         <input id="p-fall" type="number" value={v.fall}
           onChange={e => setV({ ...v, fall: clampInt(e.target.value, -800, -50, v.fall) })} />
       </div>
-      <div style={labelStyle}>
+      <div className="hud-label-row">
         <label htmlFor="p-ema">EMA α (0..1)</label>
         <input id="p-ema" type="number" step="0.05" value={v.ema}
           onChange={e => setV({ ...v, ema: clampFloat01(e.target.value, v.ema) })} />
       </div>
-      <div style={labelStyle}>
+      <div className="hud-label-row">
         <label htmlFor="p-minsamp">Min samples</label>
         <input id="p-minsamp" type="number" value={v.minSamples}
           onChange={e => setV({ ...v, minSamples: clampInt(e.target.value, 2, 64, v.minSamples) })} />

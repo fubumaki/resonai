@@ -79,31 +79,31 @@ export default function AnalyticsPage() {
   }, [events]);
 
   return (
-    <main style={styles.main} aria-labelledby="title">
-      <h1 id="title" style={styles.h1}>Analytics (live)</h1>
+    <main className="main-narrow" aria-labelledby="title">
+      <h1 id="title" className="text-2xl mb-4">Analytics (live)</h1>
 
-      <section aria-label="Key performance indicators" style={styles.kpiGrid}>
+      <section aria-label="Key performance indicators" className="kpi-grid">
         <Kpi label="TTV p50" value={prettyMs(kpis.p50)} hint={`${kpis.ttvCount} samples`} />
         <Kpi label="TTV p90" value={prettyMs(kpis.p90)} hint={`${kpis.ttvCount} samples`} />
         <Kpi label="Mic grant" value={`${kpis.micGrant.toFixed(1)}%`} />
         <Kpi label="Activation" value={`${kpis.activationRate.toFixed(1)}%`} />
       </section>
 
-      <section aria-label="Recent events" style={styles.panel}>
-        <h2 style={styles.h2}>Recent events</h2>
-        {loading ? <p>Loading…</p> : error ? <p role="alert">Error: {error}</p> : (
-          <div role="table" aria-label="events table" style={{ maxHeight: 360, overflow: 'auto', border: '1px solid #e0e0e0', borderRadius: 8 }}>
-            <div role="row" style={{ display: 'grid', gridTemplateColumns: '160px 200px 1fr', padding: '8px 12px', fontWeight: 600, background: '#fafafa', borderBottom: '1px solid #eee' }}>
+      <section aria-label="Recent events" className="panel-light">
+        <h2 className="text-lg mb-2">Recent events</h2>
+        {loading ? <p>Loading...</p> : error ? <p role="alert">Error: {error}</p> : (
+          <div role="table" aria-label="events table" className="table-scroll">
+            <div role="row" className="grid-analytics-row grid-analytics-head">
               <div role="columnheader">Time</div>
               <div role="columnheader">Event</div>
               <div role="columnheader">Props</div>
             </div>
             {events.slice().reverse().map((e, i) => (
-              <div key={i} role="row" style={{ display: 'grid', gridTemplateColumns: '160px 200px 1fr', padding: '8px 12px', borderBottom: '1px solid #f0f0f0' }}>
-                <div role="cell">{e.ts ? new Date(e.ts).toLocaleTimeString() : '—'}</div>
+              <div key={i} role="row" className="grid-analytics-row row-divider">
+                <div role="cell">{e.ts ? new Date(e.ts).toLocaleTimeString() : '-'}</div>
                 <div role="cell">{e.event}</div>
-                <div role="cell" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace', fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {e.props ? JSON.stringify(e.props) : '—'}
+                <div role="cell" className="mono-ellipsis">
+                  {e.props ? JSON.stringify(e.props) : '-'}
                 </div>
               </div>
             ))}
@@ -116,22 +116,11 @@ export default function AnalyticsPage() {
 
 function Kpi({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div style={styles.kpi}>
-      <div style={styles.kpiLabel}>{label}</div>
-      <div style={styles.kpiValue}>{value}</div>
-      {hint ? <div style={styles.kpiHint}>{hint}</div> : null}
+    <div className="panel-light">
+      <div className="text-sm text-muted">{label}</div>
+      <div className="text-2xl font-bold mt-1">{value}</div>
+      {hint ? <div className="text-xs text-muted mt-1">{hint}</div> : null}
     </div>
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
-  main: { maxWidth: 980, margin: '24px auto', padding: '0 16px' },
-  h1: { fontSize: 24, margin: '8px 0 16px' },
-  h2: { fontSize: 18, margin: '0 0 8px' },
-  kpiGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 16 },
-  panel: { border: '1px solid #eaeaea', borderRadius: 8, padding: 12, background: '#fff' },
-  kpi: { border: '1px solid #eaeaea', borderRadius: 8, padding: 12, background: '#fff' },
-  kpiLabel: { fontSize: 12, color: '#666' },
-  kpiValue: { fontSize: 22, fontWeight: 700, marginTop: 4 },
-  kpiHint: { fontSize: 11, color: '#888', marginTop: 2 },
-};
