@@ -2,6 +2,11 @@ const isProd = process.env.NODE_ENV === "production";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Expose selected Vercel build metadata to the client
+  env: {
+    NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA: process.env.VERCEL_GIT_COMMIT_SHA,
+    NEXT_PUBLIC_VERCEL_ENV: process.env.VERCEL_ENV,
+  },
   async headers() {
     const csp = [
       "default-src 'self'",

@@ -4,6 +4,7 @@ import Link from "next/link";
 import SwRegister from "./SwRegister";
 import PerfHUD from "./PerfHUD";
 // import CspDevLogger from "./CspDevLogger";
+import CommitHud from "../components/CommitHud";
 
 export const metadata = {
   title: "Resonai - Local-first voice feminization trainer",
@@ -46,6 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div aria-live="polite" aria-atomic="true" id="toasts" />
         <SwRegister />
         {process.env.NODE_ENV !== "production" && <PerfHUD />}
+        <CommitHud />
         {/* {process.env.NODE_ENV !== "production" && <CspDevLogger />} */}
       </body>
     </html>
