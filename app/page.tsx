@@ -2,7 +2,7 @@ export default function Home() {
   return (
     <section className="hero">
       <span className="badge">Private • Local-first • Pilot</span>
-      <h1>Train your voice with instant feedback - no uploads, no account.</h1>
+      <h1>Train your voice with instant feedback - no uploads, no account. 🚀</h1>
       <p>Click "Start practice" to calibrate your mic, pick a target profile, and try your first phrase in under a minute.</p>
       <p>
         <a className="button" href="/practice">Start practice (no sign-up)</a>
