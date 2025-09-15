@@ -13,6 +13,7 @@
     "lint:ascii": "node scripts/check-ascii.js",
     "lint:unicode": "node scripts/check-invisible-unicode.js",
     "check:manifest": "node scripts/check-manifest.js",
+    "test:deployment": "node scripts/test-deployment.js",
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run",
     "test:unit:json": "vitest run --reporter=json --outputFile=reports/unit.json",
