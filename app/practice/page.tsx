@@ -11,6 +11,7 @@ import WorkletHealth from './WorkletHealth';
 import DevicePicker from './DevicePicker';
 import Meter from './ui/Meter';
 import TargetBar from './ui/TargetBar';
+import ProgressBar from '@/components/ProgressBar';
 import { hzToNote } from '@/lib/pitch';
 import type { TrialResult } from './Trials';
 
@@ -19,10 +20,10 @@ type Range = { min: number; max: number };
 type Preset = { name: string; pitch: Range; bright: Range; note: string };
 
 const PRESETS: Record<PresetKey, Preset> = {
-  alto:    { name: "Alto",    pitch: { min: 165, max: 200 }, bright: { min: 1500, max: 2500 }, note: "Warm, relaxed" },
-  mezzo:   { name: "Mezzo",   pitch: { min: 180, max: 220 }, bright: { min: 1800, max: 2800 }, note: "Balanced focus" },
+  alto: { name: "Alto", pitch: { min: 165, max: 200 }, bright: { min: 1500, max: 2500 }, note: "Warm, relaxed" },
+  mezzo: { name: "Mezzo", pitch: { min: 180, max: 220 }, bright: { min: 1800, max: 2800 }, note: "Balanced focus" },
   soprano: { name: "Soprano", pitch: { min: 200, max: 260 }, bright: { min: 2000, max: 3200 }, note: "Light, bright" },
-  custom:  { name: "Custom",  pitch: { min: 170, max: 220 }, bright: { min: 1800, max: 2800 }, note: "Tweak to taste" }
+  custom: { name: "Custom", pitch: { min: 170, max: 220 }, bright: { min: 1800, max: 2800 }, note: "Tweak to taste" }
 };
 
 function useAudioUnlock(ctxRef: React.MutableRefObject<AudioContext | null>) {
@@ -41,7 +42,7 @@ function useAudioUnlock(ctxRef: React.MutableRefObject<AudioContext | null>) {
   const unlock = async () => {
     const ctx = ctxRef.current;
     if (!ctx) return;
-    try { await ctx.resume(); } catch {}
+    try { await ctx.resume(); } catch { }
   };
   return { needsUnlock, unlock };
 }
@@ -61,6 +62,7 @@ export default function Practice() {
   const [h1h2, setH1H2] = useState<number | null>(null);
   const [clarity, setClarity] = useState(0);
   const [lowPower, setLowPower] = useState(false);
+  const [sessionProgress, setSessionProgress] = useState(0);
 
   // Audio device settings
   const [inputDeviceId, setInputDeviceId] = useState<string | null>(null);
@@ -165,7 +167,7 @@ export default function Practice() {
         setCentroid(data.centroidHz ? Math.round(data.centroidHz) : null);
         setH1H2(data.h1h2 ?? null);
         setClarity(data.clarity ?? 0);
-        
+
         // Track worklet message intervals for health monitoring
         const now = performance.now();
         intervalsRef.current.push(now - lastMsgRef.current);
@@ -206,7 +208,7 @@ export default function Practice() {
 
   // Handle device hot-plug
   useEffect(() => {
-    const onChange = () => startAudio().catch(() => {});
+    const onChange = () => startAudio().catch(() => { });
     navigator.mediaDevices.addEventListener?.("devicechange", onChange);
     return () => navigator.mediaDevices.removeEventListener?.("devicechange", onChange);
   }, [ready, inputDeviceId, echoCancellation, noiseSuppression, autoGainControl]);
@@ -223,7 +225,7 @@ export default function Practice() {
         for (let i = 0; i < data.length; i++) { const v = (data[i] - 128) / 128; sum += v * v; }
         const rms = Math.sqrt(sum / data.length);
         setLevel(Math.min(1, rms * 2));
-        
+
         // Calculate dBFS
         const db = 20 * Math.log10(rms + 1e-7);
         setDbfs(Math.max(-60, Math.min(-6, db)));
@@ -255,9 +257,12 @@ export default function Practice() {
       if (count > 20) {
         const old = await (db as any).trials.orderBy('ts').toArray();
         const excess = old.length - 20;
-        await (db as any).trials.bulkDelete(old.slice(0, excess).map((x:any) => x.id));
+        await (db as any).trials.bulkDelete(old.slice(0, excess).map((x: any) => x.id));
       }
-    } catch {/* offline/no-op */}
+
+      // Update session progress (increment by 1 for each completed trial)
+      setSessionProgress(prev => Math.min(prev + 1, 10)); // Cap at 10 trials
+    } catch {/* offline/no-op */ }
   };
 
   const onCustom = (setter: (r: Range) => void, r: Range) => {
@@ -291,7 +296,7 @@ export default function Practice() {
     setPitchTarget({ min: defaultSettings.pitchMin, max: defaultSettings.pitchMax });
     setBrightTarget({ min: defaultSettings.brightMin, max: defaultSettings.brightMax });
     setLowPower(false);
-    try { await (db as any).trials.clear(); } catch {}
+    try { await (db as any).trials.clear(); } catch { }
     toast('Settings reset and trials cleared.');
   };
 
@@ -313,6 +318,20 @@ export default function Practice() {
         />
       </div>
 
+      {/* Session Progress */}
+      {ready && (
+        <div className="mb-4">
+          <ProgressBar
+            currentStep={sessionProgress}
+            totalSteps={10}
+            ariaDescribedBy="session-progress-status"
+          />
+          <div id="session-progress-status" className="sr-only" aria-live="polite">
+            Practice session progress: {sessionProgress} of 10 trials completed
+          </div>
+        </div>
+      )}
+
       <div className="panel col gap-8">
         <div className="flex gap-12 items-center wrap">
           <label>
@@ -328,9 +347,9 @@ export default function Practice() {
               <option value="soprano">Soprano</option>
               <option value="custom">Custom</option>
             </select>
-                  </label>
+          </label>
           <span className="text-muted">{PRESETS[preset].note}</span>
-              </div>
+        </div>
 
         {!ready && !err && <p className="badge">Allow microphone to begin.</p>}
         {err && <div role="alert" className="panel panel-danger">{err}</div>}
@@ -338,7 +357,7 @@ export default function Practice() {
           <div className="panel panel-danger" role="alert">
             <p>Tap "Enable audio" to begin analysis.</p>
             <button className="button" onClick={unlock}>Enable audio</button>
-              </div>
+          </div>
         )}
 
         {ready && (
@@ -350,7 +369,7 @@ export default function Practice() {
                 <span className="badge">Sample rate {audioCtx.current?.sampleRate ?? 0} Hz</span>
                 {dbfs != null && <span className="badge">Level {Math.round(dbfs)} dBFS</span>}
               </div>
-              </div>
+            </div>
 
             {/* Worklet Health */}
             <WorkletHealth intervalsRef={intervalsRef} />
@@ -379,11 +398,11 @@ export default function Practice() {
               <TargetBar value={pitch} min={120} max={320} tmin={pitchTarget.min} tmax={pitchTarget.max} />
               <div className="col gap-4">
                 <Slider label="Min pitch" min={120} max={250} value={pitchTarget.min}
-                        onChange={(v) => onCustom(setPitchTarget, { ...pitchTarget, min: v })} />
+                  onChange={(v) => onCustom(setPitchTarget, { ...pitchTarget, min: v })} />
                 <Slider label="Max pitch" min={170} max={340} value={pitchTarget.max}
-                        onChange={(v) => onCustom(setPitchTarget, { ...pitchTarget, max: v })} />
-                </div>
+                  onChange={(v) => onCustom(setPitchTarget, { ...pitchTarget, max: v })} />
               </div>
+            </div>
 
             {/* Brightness */}
             <div className="col gap-6">
@@ -396,17 +415,17 @@ export default function Practice() {
               <TargetBar value={centroid} min={800} max={4000} tmin={brightTarget.min} tmax={brightTarget.max} />
               <div className="col gap-4">
                 <Slider label="Min brightness" min={1000} max={2800} value={brightTarget.min}
-                        onChange={(v) => onCustom(setBrightTarget, { ...brightTarget, min: v })} />
+                  onChange={(v) => onCustom(setBrightTarget, { ...brightTarget, min: v })} />
                 <Slider label="Max brightness" min={1800} max={3800} value={brightTarget.max}
-                        onChange={(v) => onCustom(setBrightTarget, { ...brightTarget, max: v })} />
-                </div>
+                  onChange={(v) => onCustom(setBrightTarget, { ...brightTarget, max: v })} />
               </div>
+            </div>
 
             {/* Coach */}
             <div className="panel panel--dashed" aria-live="polite">
               <strong>Coach</strong>
               <p className="m-0">{tip}</p>
-              </div>
+            </div>
 
             {/* Guided trials */}
             <Trials
