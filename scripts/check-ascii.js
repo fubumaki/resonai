@@ -7,7 +7,7 @@ const okExt = new Set(['.ts', '.tsx', '.js', '.jsx', '.css', '.md', '.yml', '.ya
 const root = process.cwd();
 let bad = [];
 
-function isAscii(str){ return /^[\x00-\x7F]*$/.test(str); }
+function isAscii(str) { return /^[\x00-\x7F]*$/.test(str); }
 
 function walk(dir) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
