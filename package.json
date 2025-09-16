@@ -35,7 +35,8 @@
     "a11y:json": "playwright test --grep @a11y --reporter=json > reports/a11y.json",
     "cursor:model": "node scripts/cursor-model-router.mjs",
     "issues:seed": "node tools/seed_issues_from_tasks.mjs",
-    "issues:create": "node tools/seed_issues_from_tasks.mjs --create"
+    "issues:create": "node tools/seed_issues_from_tasks.mjs --create",
+    "codex:render-summary": "tsx tools/codex-cloud/render-summary.ts"
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.7",
