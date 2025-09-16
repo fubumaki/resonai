@@ -19,6 +19,15 @@ Generated: 2025-09-16 06:33 UTC — see [.artifacts/SSOT.md](.artifacts/SSOT.md)
 4. `playwright/tests/smoke.spec.ts` — data privacy page is accessible (failed ×1) — 8.01s — Locator: getByText('Local‑first by design')
 5. `playwright/tests/mic_flow.spec.ts` — one-tap mic toggles recording and emits analytics (failed ×1) — 7.24s — Locator: locator('.pitch-meter')
 
+## How to regenerate SSOT locally
+
+`ash
+pnpm run test:unit:json
+pnpm run test:e2e:json
+pnpm exec tsx scripts/ci-summary.ts
+`
+
+Regenerate the SSOT whenever the reporter artifacts change so the top block stays accurate.
 Quick commands to run the Instant Practice feature and verify everything works.
 
 ## 🚀 Quick Start

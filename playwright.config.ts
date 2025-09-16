@@ -32,7 +32,7 @@ export default defineConfig({
   testMatch: ['**/*.spec.ts', '**/*.test.ts'],
   workers: 1,
   fullyParallel: false,
-  retries: process.env.CI ? 2 : 0,
+  retries: 0,
   reporter: reporters,
   use: {
     baseURL: BASE_URL,
@@ -41,11 +41,26 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     navigationTimeout: 60_000,
   },
-  webServer: DISABLE_WEBSERVER ? undefined : {
-    command: 'npm run dev',
-    url: BASE_URL,
-    reuseExistingServer: true,
-    timeout: 120_000,
-  },
-  projects: [{ name: 'firefox', use: { ...devices['Desktop Firefox'] } }],
+  webServer: DISABLE_WEBSERVER
+    ? undefined
+    : {
+        command: 'npm run dev',
+        url: BASE_URL,
+        reuseExistingServer: true,
+        timeout: 120_000,
+      },
+  projects: [
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+      grepInvert: /@flaky/,
+      retries: onCI ? 1 : 0,
+    },
+    {
+      name: 'firefox-flaky',
+      use: { ...devices['Desktop Firefox'] },
+      grep: /@flaky/,
+      retries: 2,
+    },
+  ],
 });
