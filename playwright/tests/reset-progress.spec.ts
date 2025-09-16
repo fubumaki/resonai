@@ -45,7 +45,7 @@ test.describe('Practice session progress resets', () => {
     await expect(status).toContainText('Practice data reset.');
     await expect(status).toContainText('0 of 10 trials completed');
     await expect(progressBar).toHaveAttribute('data-progress', '0');
-    await expect(page.locator('#toasts .toast', { hasText: 'Practice data reset' })).toBeVisible();
+    await expect(page.locator('#toasts .toast', { hasText: 'Practice data reset' }).first()).toBeVisible();
 
     await page.evaluate(() => window.__setPracticeProgress?.(6));
 
@@ -58,7 +58,7 @@ test.describe('Practice session progress resets', () => {
     await expect(status).toContainText('Practice data reset.');
     await expect(status).toContainText('0 of 10 trials completed');
     await expect(progressBar).toHaveAttribute('data-progress', '0');
-    await expect(page.locator('#toasts .toast', { hasText: 'Practice data reset' })).toBeVisible();
+    await expect(page.locator('#toasts .toast', { hasText: 'Practice data reset' }).first()).toBeVisible();
 
     await page.evaluate(() => window.__setPracticeProgress?.(7));
 
