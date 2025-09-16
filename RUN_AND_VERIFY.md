@@ -44,6 +44,31 @@ pnpm agent:start
 ```
 This starts a self-perpetuating background worker that monitors and manages automated tasks. The worker respects the `.agent/LOCK` kill-switch file - create this file to stop the agent, remove it to restart.
 
+#### Agent Configuration
+The agent behavior can be customized via `.agent/config.json` or environment variables:
+
+**Configuration file** (`.agent/config.json`):
+```json
+{
+  "maxJobs": 2,
+  "maxFiles": 10,
+  "maxLines": 200,
+  "jobTtlMs": 43200000,
+  "maxAttempts": 3,
+  "backoffMs": 900000
+}
+```
+
+**Environment variables** (override config file):
+- `AGENT_MAX_JOBS`: Maximum concurrent jobs (default: 2)
+- `AGENT_MAX_FILES`: Maximum files per job (default: 10)
+- `AGENT_MAX_LINES`: Maximum lines of code per job (default: 200)
+- `AGENT_JOB_TTL_MS`: Job time-to-live in milliseconds (default: 12 hours)
+
+**Control the agent**:
+- **Stop**: `touch .agent/LOCK` (or create the file manually)
+- **Restart**: `rm .agent/LOCK` (or delete the file)
+
 ### 3. Run E2E Tests (No Web Server)
 ```bash
 npx playwright test --config=playwright/playwright.noweb.config.ts --project=firefox

@@ -176,7 +176,28 @@ pnpm agent:start
 - Respects existing job budgets and per-lane PR limits
 - Maintains all existing security guardrails (CSP, no inline styles)
 
-#### 5. Troubleshooting
+#### 5. Configuration
+The agent behavior can be customized via `.agent/config.json` or environment variables:
+
+**Configuration file** (`.agent/config.json`):
+```json
+{
+  "maxJobs": 2,
+  "maxFiles": 10,
+  "maxLines": 200,
+  "jobTtlMs": 43200000,
+  "maxAttempts": 3,
+  "backoffMs": 900000
+}
+```
+
+**Environment variables** (override config file):
+- `AGENT_MAX_JOBS`: Maximum concurrent jobs (default: 2)
+- `AGENT_MAX_FILES`: Maximum files per job (default: 10)
+- `AGENT_MAX_LINES`: Maximum lines of code per job (default: 200)
+- `AGENT_JOB_TTL_MS`: Job time-to-live in milliseconds (default: 12 hours)
+
+#### 6. Troubleshooting
 - If the agent won't start, check for existing runner processes
 - Ensure `.agent/` directory exists with proper permissions
 - Verify `scripts/agent/runner.ts` is accessible
