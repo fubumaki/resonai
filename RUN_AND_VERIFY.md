@@ -20,6 +20,41 @@ npx playwright test --config=playwright/playwright.noweb.config.ts --project=fir
 npx playwright test --config=playwright.config.ts --project=firefox
 ```
 
+### 4. Summarize CI Signals
+```bash
+pnpm run ci-summary
+```
+Use this after refreshing JSON reports to copy the SSOT markdown block below.
+
+## 📊 CI SSOT Snapshot
+
+Run the JSON reporters before summarizing (each command writes to `reports/`):
+- `pnpm exec tsc --noEmit > reports/tsc.txt`
+- `pnpm run lint:json`
+- `pnpm run test:unit:json`
+- `pnpm run test:e2e:json`
+- `pnpm run a11y:json`
+
+Paste the latest output from `pnpm run ci-summary` between the markers:
+
+<!-- SSOT:START -->
+```markdown
+> Generated: 2025-09-16T04:16:58.055Z
+
+| Metric | Actual | Budget | Status |
+| --- | --- | --- | --- |
+| TypeScript Errors | — | ≤ 0 | — |
+| ESLint Errors | — | ≤ 0 | — |
+| ESLint Warnings | — | ≤ 0 | — |
+| Unit Test Failures | — | ≤ 0 | — |
+| E2E Test Failures | — | ≤ 0 | — |
+| Accessibility Violations | — | ≤ 0 | — |
+| Bundle (app JS) | — | ≤ 250 KB | — |
+| Bundle (vendor JS) | — | ≤ 350 KB | — |
+| Perf (TTCI) | — | ≤ 2,500 ms | — |
+```
+<!-- SSOT:END -->
+
 ## 🧪 Test Commands
 
 ### Core Specs Only

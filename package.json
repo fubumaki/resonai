@@ -26,6 +26,7 @@
     "test:privacy": "npx playwright test tests/privacy_a11y.spec.ts --project=firefox",
     "test:all": "npm run test:unit && npm run test:e2e",
     "ci": "npm run typecheck && npm run lint && npm run test:unit && npm run test:e2e",
+    "ci-summary": "tsx scripts/ci-summary.ts",
     "playwright:install": "npx playwright install",
     "playwright:ui": "npx playwright test --ui",
     "playwright:report": "npx playwright show-report",
@@ -56,6 +57,7 @@
     "eslint": "^8",
     "eslint-config-next": "14.0.4",
     "tailwindcss": "^4.1.13",
+    "tsx": "^4.20.5",
     "typescript": "^5",
     "vitest": "^1.0.0"
   },
