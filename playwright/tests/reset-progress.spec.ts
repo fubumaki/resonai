@@ -32,7 +32,8 @@ test.describe('Practice session progress resets', () => {
       window.__setPracticeProgress?.(4);
     });
 
-    const progressBar = page.getByTestId('progress-bar');
+    // Use the role-based selector to avoid strict mode violation with duplicate testids
+    const progressBar = page.getByRole('progressbar');
     await expect(progressBar).toBeVisible();
 
     const status = page.locator('#session-progress-status');

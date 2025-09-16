@@ -88,7 +88,6 @@ export async function useStubbedAnalytics(
 
     window.addEventListener('analytics:track', (event: Event) => {
       const detail = (event as CustomEvent).detail;
-      console.log('Analytics stub captured custom event:', detail);
       stub.record(detail);
     });
 

@@ -61,9 +61,7 @@ export default function InstantPractice() {
     }
 
     // Track screen view
-    console.log('Calling trackScreenView...');
     trackScreenView('instant_practice');
-    console.log('trackScreenView called');
 
     // Set TTV start time
     ttvStartTime.current = Date.now();
@@ -85,9 +83,7 @@ export default function InstantPractice() {
 
   const requestMicPermission = async () => {
     try {
-      console.log('Calling trackPermissionRequested...');
       trackPermissionRequested('microphone', 'instant_practice');
-      console.log('trackPermissionRequested called');
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaStreamRef.current = stream;
