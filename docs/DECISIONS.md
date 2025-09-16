@@ -2,6 +2,20 @@
 
 Chronological record of decisions and rationale for future reference.
 
+## 2025-09-16 — QA governance and PR linking policy
+
+- QA ownership expanded
+  - Decision: Codex curates quality plans, while both agents maintain QA artifacts (`README_QA.md`, `QA_PLAYBOOK.md`, `QA_SNAPSHOT_TEMPLATE.md`) and document exploratory coverage for new UI.
+  - Rationale: Keeps testing procedures synchronized with implementation cadence and avoids stale checklists.
+
+- Gating policies codified
+  - Decision: Treat `pnpm run ci`, manual user-facing sign-off, and security/performance guardrails as non-negotiable merge gates; flake handling requires DECISIONS entry before bypass.
+  - Rationale: Prevents ad-hoc gate skipping and provides auditability when exceptions are needed.
+
+- PR links-or-retract rule
+  - Decision: All PRs must link to a `TASKS.md` item or decision entry; missing linkage triggers closure/draft conversion within 24 hours, and hotfix rationale is logged post-merge.
+  - Rationale: Ensures traceability between implementation and governance artifacts.
+
 ## 2025-09-14 — Security posture and testing workflow
 
 - COOP/COEP required
