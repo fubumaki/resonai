@@ -101,6 +101,59 @@ _Review and reprioritize this section once P0 gating items and **10) Stabilize P
   - Acceptance: No identifiers persisted beyond hashed install ID; hashing implementation documented and tested.
   - Acceptance: Privacy guard tests fail if network requests originate from analytics module; CI gate added.
 
+## Completed Tasks ✅
+
+### Core CI Stabilization (feat/tests-stabilization-readiness)
+- Owner: Cursor • Labels: ci, tests, stability
+- Status: ✅ COMPLETED
+- Acceptance: All TypeScript compilation passes, ESLint checks pass (0 errors), all 111 unit tests pass, session progress helpers working via page.addInitScript
+- Changes: Added @typescript-eslint/eslint-plugin, fixed quote escaping, replaced inline styles with data-hue, fixed React imports, resolved rules-of-hooks violations
+- Result: Core CI pipeline now stable and green. E2E test failures reduced from structural issues to feature-specific problems.
+
+## Follow-up E2E Test Fixes (Priority Order)
+
+### 1. Dialog Visibility Issues (4 tests)
+- Owner: Cursor • Labels: e2e, dialogs, a11y
+- Tests: a11y_min.spec.ts, accessible_dialog.spec.ts, primer_flows.spec.ts
+- Issue: Permission dialogs and confirmation dialogs not appearing in headless mode
+- Acceptance: All dialog tests pass, proper ARIA roles and focus management
+
+### 2. Analytics Event Tracking (2 tests)  
+- Owner: Cursor • Labels: e2e, analytics, events
+- Tests: analytics_beacon.spec.ts, mic_flow.spec.ts
+- Issue: sendBeacon events not being flushed, recording state not updating
+- Acceptance: Analytics events properly tracked and flushed during tests
+
+### 3. Offline/Caching Functionality (4 tests)
+- Owner: Cursor • Labels: e2e, offline, service-worker
+- Tests: isolation-offline-drills.spec.ts, isolation-offline-fix.spec.ts, isolation.spec.ts
+- Issue: Service worker and worklet caching not working properly
+- Acceptance: Offline functionality works, worklets load from cache
+
+### 4. Accessibility Features (5 tests)
+- Owner: Cursor • Labels: e2e, a11y, accessibility
+- Tests: privacy_a11y.spec.ts, chrome-comparison.spec.ts
+- Issue: Missing role="status" elements, focus management problems
+- Acceptance: Proper ARIA roles, keyboard navigation, screen reader announcements
+
+### 5. UI Component Rendering (4 tests)
+- Owner: Cursor • Labels: e2e, ui, components
+- Tests: smoke.spec.ts (CTA links, progress bars, meters)
+- Issue: UI elements not rendering or not visible
+- Acceptance: All UI components render correctly in headless mode
+
+### 6. Reduced Motion & Mic Flow (2 tests)
+- Owner: Cursor • Labels: e2e, css, audio
+- Tests: reduce_motion.spec.ts, mic_flow.spec.ts
+- Issue: CSS transition timing, microphone recording state
+- Acceptance: Reduced motion preferences respected, mic state updates correctly
+
+### 7. Feature Flags & Experiments (1 test)
+- Owner: Cursor • Labels: e2e, experiments, feature-flags
+- Tests: experiments.spec.ts
+- Issue: E1/E2 variant assignment not working
+- Acceptance: Feature flags properly assigned and persisted
+
 ## Research Backlog (Mini-specs)
 
 1) Mic calibration flow (Device → Level → Environment)
