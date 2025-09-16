@@ -23,7 +23,7 @@ export default function DataPrivacy() {
           <ul>
             <li><strong>No audio recordings.</strong> We do not save or upload audio.</li>
             <li><strong>No account data.</strong> No sign-up, passwords, or email.</li>
-            <li><strong>No analytics beacons.</strong> The app doesn't transmit usage data.</li>
+            <li><strong>No analytics beacons.</strong> The app doesn&apos;t transmit usage data.</li>
           </ul>
         </div>
 

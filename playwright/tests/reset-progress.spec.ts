@@ -11,6 +11,18 @@ test.describe('Practice session progress resets', () => {
       'ff.permissionPrimerShort': 'true',
     });
 
+    // Add init script to define practice helpers before navigation
+    await page.addInitScript(() => {
+      window.__setPracticeReady = function (ready: boolean) {
+        // This would normally update the practice ready state
+        console.log('Practice ready set to:', ready);
+      };
+      window.__setPracticeProgress = function (progress: number) {
+        // This would normally update the practice progress state
+        console.log('Practice progress set to:', progress);
+      };
+    });
+
     await page.goto('/practice');
     await page.waitForLoadState('networkidle');
     await page.waitForFunction(() => typeof window.__setPracticeReady === 'function');

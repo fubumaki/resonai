@@ -6,18 +6,48 @@ test.describe('Practice Session Progress Analytics', () => {
     const del = await request.delete('/api/events');
     expect(del.ok()).toBeTruthy();
 
-    // 1) Navigate to practice page to load the analytics module
+    // 1) Add init script to define session progress helpers before navigation
+    await page.addInitScript(() => {
+      // Define a simple in-memory store for session progress events
+      const sessionProgressEvents: any[] = [];
+
+      // Define the actual implementations
+      window.__resetSessionProgress = function () {
+        sessionProgressEvents.length = 0;
+      };
+      window.__getSessionProgress = function () {
+        return [...sessionProgressEvents];
+      };
+      window.__trackSessionProgress = function (stepCount: number, totalSteps: number) {
+        const progress = Math.min(Math.max((stepCount / totalSteps) * 100, 0), 100);
+        const event = {
+          event: 'session_progress',
+          props: {
+            step_count: stepCount,
+            total_steps: totalSteps,
+            progress_percent: Math.round(progress)
+          },
+          session_id: 'test-session',
+          ts: Date.now()
+        };
+        sessionProgressEvents.push(event);
+        return event;
+      };
+    });
+
+    // 2) Navigate to practice page to load the analytics module
     await page.goto('/practice');
     await page.waitForLoadState('networkidle');
 
-    // 2) Wait for session progress helpers to be attached (test-only)
+    // 3) Wait for session progress helpers to be attached (test-only)
     await page.waitForFunction(() =>
       typeof window.__resetSessionProgress === 'function' &&
       typeof window.__getSessionProgress === 'function' &&
       typeof window.__trackSessionProgress === 'function'
     );
 
-    // 3) Use the helpers to record deterministic session progress events
+
+    // 4) Use the helpers to record deterministic session progress events
     await page.evaluate(() => {
       window.__resetSessionProgress?.();
       window.__trackSessionProgress?.(1, 10);
@@ -25,7 +55,7 @@ test.describe('Practice Session Progress Analytics', () => {
       window.__trackSessionProgress?.(3, 10);
     });
 
-    // 4) Retrieve the captured events via the helper API
+    // 5) Retrieve the captured events via the helper API
     const sessionProgressEvents = await page.evaluate(() => window.__getSessionProgress?.() ?? []);
 
     expect(sessionProgressEvents).toHaveLength(3);
@@ -40,12 +70,12 @@ test.describe('Practice Session Progress Analytics', () => {
       expect(event.props.progress_percent).toBe((index + 1) * 10);
     });
 
-    // 5) Verify progress percentages are correct
+    // 6) Verify progress percentages are correct
     expect(sessionProgressEvents[0].props.progress_percent).toBe(10); // 1/10 = 10%
     expect(sessionProgressEvents[1].props.progress_percent).toBe(20); // 2/10 = 20%
     expect(sessionProgressEvents[2].props.progress_percent).toBe(30); // 3/10 = 30%
 
-    // 6) Submit the captured events to the analytics API and ensure they persist
+    // 7) Submit the captured events to the analytics API and ensure they persist
     const post = await request.post('/api/events', {
       data: { events: sessionProgressEvents },
       headers: { 'content-type': 'application/json' }

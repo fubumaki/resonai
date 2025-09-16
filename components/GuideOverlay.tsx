@@ -94,14 +94,14 @@ export default function GuideOverlay({ text, speakingRate = 1.0, pitch = 1.0 }: 
               <svg viewBox="0 0 100 20" width="200" height="40" aria-hidden="true">
                 <linearGradient id="gv" x1="0" x2="1" y1="0" y2="0">
                   <stop offset="0%" stopColor={`hsl(${hue},80%,60%)`} />
-                  <stop offset="100%" stopColor={`hsl(${hue+40},80%,50%)`} />
+                  <stop offset="100%" stopColor={`hsl(${hue + 40},80%,50%)`} />
                 </linearGradient>
                 <rect x="2" y="2" width="96" height="16" rx="8" fill="url(#gv)" opacity={isSpeaking ? 1 : 0.3} />
               </svg>
             </div>
 
             <p className="text-xs text-slate-600" role="note">
-              "{text.slice(0, 80)}{text.length > 80 ? '…' : ''}"
+              &quot;{text.slice(0, 80)}{text.length > 80 ? '…' : ''}&quot;
             </p>
           </div>
         </div>

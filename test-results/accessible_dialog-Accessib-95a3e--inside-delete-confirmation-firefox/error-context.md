@@ -1,0 +1,52 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=e3]:
+    - navigation "Primary" [ref=e5]:
+      - link "Resonai home" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - text: Resonai
+      - list [ref=e7]:
+        - listitem [ref=e8]:
+          - link "Listen" [ref=e9] [cursor=pointer]:
+            - /url: /listen
+        - listitem [ref=e10]:
+          - link "Practice" [ref=e11] [cursor=pointer]:
+            - /url: /practice
+        - listitem [ref=e12]:
+          - link "About" [ref=e13] [cursor=pointer]:
+            - /url: /about
+      - link "Start practice" [ref=e14] [cursor=pointer]:
+        - /url: /practice
+  - main [ref=e15]:
+    - main [ref=e16]:
+      - generic [ref=e17]:
+        - heading "Settings" [level=1] [ref=e18]
+        - generic [ref=e19]:
+          - heading "Session Data" [level=2] [ref=e20]
+          - paragraph [ref=e21]: Your practice sessions are stored locally in your browser. You can export them for backup or delete them for privacy.
+          - generic [ref=e22]:
+            - button "Export Sessions (JSON)" [ref=e23]
+            - generic [ref=e24]:
+              - text: Import Sessions (JSON)
+              - button "Import Sessions (JSON)" [ref=e25]
+            - button "Delete All Sessions" [active] [ref=e26]
+        - generic [ref=e27]:
+          - heading "Navigation" [level=2] [ref=e28]
+          - generic [ref=e29]:
+            - link "Start Practice Flow" [ref=e30] [cursor=pointer]:
+              - /url: /flow
+            - link "Dev Status" [ref=e31] [cursor=pointer]:
+              - /url: /dev/status
+            - link "Pitch Engine Dev" [ref=e32] [cursor=pointer]:
+              - /url: /dev/pitch
+  - contentinfo [ref=e33]:
+    - generic [ref=e34]:
+      - text: © 2025 Resonai - Local-first. No cloud audio.
+      - link "Data & Privacy" [ref=e35] [cursor=pointer]:
+        - /url: /data
+      - generic [ref=e36]: vdev
+```

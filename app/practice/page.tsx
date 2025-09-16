@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo, useReducer, useCallback } from "react";
+// Side-effect import to ensure session progress helpers attach to window early
+import '@/src/sessionProgress';
 import Trials from "./Trials";
 import { db, defaultSettings } from '@/lib/db';
 import { useSettings } from './useSettings';
@@ -21,6 +23,8 @@ import {
   sessionProgressAnnouncementReducer,
   SESSION_PROGRESS_RESET_EVENT,
   type SessionProgressResetDetail,
+  resetSessionProgressEvents,
+  getSessionProgressEvents,
 } from '@/src/sessionProgress';
 import type { TrialResult } from './Trials';
 
@@ -304,6 +308,13 @@ export default function Practice() {
         updatePracticeHooksReady(false);
       }
     })();
+    // Attach test helpers for Playwright deterministically
+    if (typeof window !== 'undefined') {
+      const globalAny = window as any;
+      globalAny.__resetSessionProgress = () => resetSessionProgressEvents();
+      globalAny.__getSessionProgress = () => getSessionProgressEvents();
+      globalAny.__trackSessionProgress = (step: number, total: number) => trackSessionProgress(step, total);
+    }
     return () => {
       mediaStream.current?.getTracks().forEach(t => t.stop());
       audioCtx.current?.close();
@@ -415,11 +426,11 @@ export default function Practice() {
 
   const rafLevel = () => {
     const data = new Uint8Array(analyser.current!.fftSize);
-    const lastRef = useRef(0);
+    let last = 0;
     const tick = () => {
       const now = performance.now();
       const interval = lowPower ? 100 : 16; // 10 fps vs ~60 fps
-      if (now - lastRef.current >= interval) {
+      if (now - last >= interval) {
         analyser.current!.getByteTimeDomainData(data);
         let sum = 0;
         for (let i = 0; i < data.length; i++) { const v = (data[i] - 128) / 128; sum += v * v; }
@@ -429,7 +440,7 @@ export default function Practice() {
         // Calculate dBFS
         const db = 20 * Math.log10(rms + 1e-7);
         setDbfs(Math.max(-60, Math.min(-6, db)));
-        lastRef.current = now;
+        last = now;
       }
       requestAnimationFrame(tick);
     };
@@ -575,7 +586,7 @@ export default function Practice() {
         {err && <div role="alert" className="panel panel-danger">{err}</div>}
         {needsUnlock && (
           <div className="panel panel-danger" role="alert">
-            <p>Tap "Enable audio" to begin analysis.</p>
+            <p>Tap &quot;Enable audio&quot; to begin analysis.</p>
             <button className="button" onClick={unlock}>Enable audio</button>
           </div>
         )}

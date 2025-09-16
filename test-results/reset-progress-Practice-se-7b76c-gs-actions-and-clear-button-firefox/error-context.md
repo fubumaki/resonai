@@ -1,0 +1,47 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=e3]:
+    - navigation "Primary" [ref=e5]:
+      - link "Resonai home" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - text: Resonai
+      - list [ref=e7]:
+        - listitem [ref=e8]:
+          - link "Listen" [ref=e9] [cursor=pointer]:
+            - /url: /listen
+        - listitem [ref=e10]:
+          - link "Practice" [ref=e11] [cursor=pointer]:
+            - /url: /practice
+        - listitem [ref=e12]:
+          - link "About" [ref=e13] [cursor=pointer]:
+            - /url: /about
+      - link "Start practice" [ref=e14] [cursor=pointer]:
+        - /url: /practice
+  - main [ref=e15]:
+    - generic [ref=e16]:
+      - heading "Practice" [level=1] [ref=e17]
+      - generic [ref=e18]:
+        - generic [ref=e19]: MEZZO • Pitch 180-220 Hz • Bright 1800-2800 Hz
+        - button "Settings" [ref=e21] [cursor=pointer]
+      - generic [ref=e22]:
+        - generic [ref=e23]:
+          - generic [ref=e24]:
+            - generic [ref=e25]: Profile
+            - combobox "Target profile" [ref=e26]:
+              - option "Alto"
+              - option "Mezzo" [selected]
+              - option "Soprano"
+              - option "Custom"
+          - generic [ref=e27]: Balanced focus
+        - paragraph [ref=e28]: Allow microphone to begin.
+  - contentinfo [ref=e29]:
+    - generic [ref=e30]:
+      - text: © 2025 Resonai - Local-first. No cloud audio.
+      - link "Data & Privacy" [ref=e31] [cursor=pointer]:
+        - /url: /data
+      - generic [ref=e32]: vdev
+```
