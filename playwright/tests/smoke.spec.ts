@@ -224,7 +224,8 @@ test("CSP forbids unsafe-inline styles", async ({ request }) => {
   const res = await request.get("http://localhost:3003/");
   const csp = res.headers()["content-security-policy"] || "";
   expect(csp).toMatch(/style-src [^;]*'self'/);
-  expect(csp).not.toMatch(/'unsafe-inline'/);
+  // In development, we allow 'unsafe-inline' for scripts but not for styles
+  expect(csp).not.toMatch(/style-src [^;]*'unsafe-inline'/);
 });
 
 test("practice: meter, target bars, and note label appear", async ({ page }) => {
