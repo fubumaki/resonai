@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { hudAnalytics } from '../lib/analytics/hud';
 
 export interface PracticeMetrics {
   pitch: number | null; // Hz

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { deviceManager } from '../audio/deviceManager';
+import { calibrationAnalytics } from '../lib/analytics/calibration';
 
 interface MicCalibrationFlowProps {
   onComplete: (config: MicCalibrationConfig) => void;
@@ -38,6 +39,9 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
 
   // Load available devices
   useEffect(() => {
+    // Track calibration start
+    calibrationAnalytics.calibrationStarted();
+    
     const loadDevices = async () => {
       try {
         setIsLoading(true);
@@ -45,6 +49,7 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
         
         if (!deviceStatus.hasAudio) {
           setError('No audio input devices found');
+          calibrationAnalytics.calibrationError('No audio input devices found', 'device_enumeration');
           return;
         }
 
