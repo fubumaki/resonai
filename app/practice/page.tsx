@@ -13,6 +13,7 @@ import Meter from './ui/Meter';
 import TargetBar from './ui/TargetBar';
 import ProgressBar from '@/components/ProgressBar';
 import { hzToNote } from '@/lib/pitch';
+import { trackSessionProgress } from '@/src/sessionProgress';
 import type { TrialResult } from './Trials';
 
 type PresetKey = "alto" | "mezzo" | "soprano" | "custom";
@@ -261,7 +262,13 @@ export default function Practice() {
       }
 
       // Update session progress (increment by 1 for each completed trial)
-      setSessionProgress(prev => Math.min(prev + 1, 10)); // Cap at 10 trials
+      setSessionProgress(prev => {
+        const next = Math.min(prev + 1, 10); // Cap at 10 trials
+        if (next !== prev) {
+          trackSessionProgress(next, 10);
+        }
+        return next;
+      });
     } catch {/* offline/no-op */ }
   };
 
