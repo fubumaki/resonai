@@ -1,12 +1,30 @@
 import { test, expect } from '@playwright/test';
-import { useLocalStorageFlags, useStubbedAnalytics } from './helpers';
+import { useStubbedAnalytics } from './helpers';
 
 test('debug analytics events', async ({ page }) => {
   const analytics = await useStubbedAnalytics(page);
-  await useLocalStorageFlags(page, { 'ff.permissionPrimerShort': 'true' });
-
+  
+  // Set pilot cohort cookie to allow access to /try page
+  await page.context().addCookies([{
+    name: 'pilot_cohort',
+    value: 'pilot',
+    domain: 'localhost',
+    path: '/',
+  }]);
+  
+  // Set localStorage after navigation but before React initializes
   await page.goto('/try');
+  
+  // Set the flags immediately after navigation
+  await page.evaluate(() => {
+    localStorage.setItem('ff.permissionPrimerShort', 'true');
+    localStorage.setItem('ff.instantPractice', 'true');
+  });
+  
+  // Reload the page to ensure React reads the new flags
+  await page.reload();
   await page.waitForLoadState('networkidle');
+  await page.waitForSelector('button', { timeout: 10000 });
 
   // Check if analytics is available
   const analyticsAvailable = await page.evaluate(() => {
