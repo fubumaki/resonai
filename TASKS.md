@@ -11,7 +11,7 @@ Legend: [codex] coordinator • [cursor] UI implementor • [either] any
 - [codex] COOP/COEP in headers (done)
   - next.config.js updated with COOP/COEP; run isolation tests.
 
-- [codex] Inline style removals (wave 1) (in progress)
+- [codex] Inline style removals (wave 1) (done)
   - app/layout.tsx footer → classes (done)
   - app/SwRegister.tsx toast → DOM nodes/classes (done)
   - app/PerfHUD.tsx → `perf-hud` class (done)
@@ -21,9 +21,7 @@ Legend: [codex] coordinator • [cursor] UI implementor • [either] any
 - [cursor] Inline style removals (wave 2)
   - components/ProgressBar.tsx: remove `style={{ width: ... }}`
     - Acceptance: width without inline styles (SVG or CSS classes); keep a11y attributes.
-  - app/analytics/page.tsx: convert `styles` object to classes/SVG; preserve layout.
-    - Acceptance: no `style=`, passes existing e2e tests.
-  - app/dev/status/page.tsx, app/dev/env/page.tsx: remove inline styles with utility classes.
+  - app/dev/env/page.tsx: remove inline styles with utility classes.
   - labs/_components (PerfOverlay, ProsodyHud, Recorder): remove inline styles; add minimal utilities to `app/ui.css` if needed.
 
 - [either] PWA icons
@@ -65,21 +63,13 @@ Legend: [codex] coordinator • [cursor] UI implementor • [either] any
 
 ## P0.5 - Practice UI CSP (wave 3)
 
-- [codex] Inline style removals (practice)
-  - app/practice/page.tsx: remaining inline styles → utilities (in progress)
-  - app/practice/ExportButton.tsx
-  - app/practice/SessionSummary.tsx
-  - app/practice/Trials.tsx
-  - components/DiagnosticsHUD.tsx
-  - components/drills/ProsodyDrill.tsx
+- [codex] Inline style removals (practice) (done)
   - Acceptance: no `style=`, visuals preserved, Playwright tests pass.
 
 ## P0.6 - Misc UI CSP (wave 4)
 
 - [cursor] Remove lingering inline styles
-  - app/analytics/page.tsx: replace row `style` borderBottom with a utility (e.g., `.row-divider`)
   - app/data/page.tsx: convert grid/gap and dashed panel inline styles to utilities
-  - app/listen/page.tsx: replace audio width style with class (e.g., `w-full`)
   - Acceptance: no `style=` in changed files; visuals and a11y preserved.
 
 ## Roadmap Candidates (post-gating review)
