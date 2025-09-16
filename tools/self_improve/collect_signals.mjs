@@ -17,6 +17,19 @@ const readTxt = (p) => {
   catch { return ''; }
 };
 
+const pickNumber = (...values) => {
+  for (const value of values) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+  }
+  return null;
+};
+
+const toPercent = (numerator, denominator) => {
+  if (!denominator || !Number.isFinite(denominator) || denominator <= 0) return null;
+  if (!Number.isFinite(numerator) || numerator < 0) return null;
+  return Number(((numerator / denominator) * 100).toFixed(1));
+};
+
 function summarizeESLint() {
   const j = readJson('eslint.json');
   const out = { errors: 0, warnings: 0, topRules: [] };
@@ -50,9 +63,56 @@ function summarizeTS() {
 }
 
 function summarizeUnit() {
-  const j = readJson('unit.json') || {};
-  const failures = j.numFailedTests ?? j.failed ?? j.summary?.numFailedTests ?? 0;
-  return { failures };
+  const j = readJson('unit.json');
+  if (!j) {
+    return {
+      failures: 0,
+      total: 0,
+      passed: 0,
+      failed: 0,
+      skipped: 0,
+      todo: 0,
+      passRate: null,
+      durationMs: null,
+      status: 'unknown'
+    };
+  }
+
+  const summary = (typeof j.summary === 'object' && j.summary) ? j.summary : {};
+  const total = pickNumber(summary.numTotalTests, j.numTotalTests, summary.totalTests, j.totalTests) ?? 0;
+  const passed = pickNumber(summary.numPassedTests, j.numPassedTests, summary.passed, j.numPassedTests ?? j.passed) ?? 0;
+  const failed = pickNumber(summary.numFailedTests, j.numFailedTests, summary.failed, j.numFailedTests ?? j.failed) ?? 0;
+  const skipped = pickNumber(
+    summary.numPendingTests,
+    j.numPendingTests,
+    summary.skipped,
+    j.skipped,
+    summary.numSkippedTests,
+    j.numSkippedTests
+  ) ?? 0;
+  const todo = pickNumber(summary.numTodoTests, j.numTodoTests, summary.todo, j.todo) ?? 0;
+  const durationMs = pickNumber(
+    summary.duration,
+    summary.duration_ms,
+    summary.durationMs,
+    j.duration,
+    j.duration_ms,
+    j.durationMs
+  );
+  const passRate = toPercent(passed, total);
+  const status = failed > 0 ? 'failed' : (total > 0 ? 'passed' : 'unknown');
+
+  return {
+    failures: failed,
+    total,
+    passed,
+    failed,
+    skipped,
+    todo,
+    passRate,
+    durationMs: Number.isFinite(durationMs) ? durationMs : null,
+    status
+  };
 }
 
 function countPlaywrightFailures(node) {
@@ -70,9 +130,44 @@ function countPlaywrightFailures(node) {
 }
 function summarizeE2E() {
   const j = readJson('e2e.json');
-  if (!j) return { failures: 0 };
+  if (!j) {
+    return {
+      failures: 0,
+      total: 0,
+      passed: 0,
+      failed: 0,
+      flaky: 0,
+      skipped: 0,
+      passRate: null,
+      durationMs: null,
+      status: 'unknown'
+    };
+  }
+
+  const stats = (typeof j.stats === 'object' && j.stats) ? j.stats : {};
+  const passed = pickNumber(stats.expected) ?? 0;
+  const failed = pickNumber(stats.unexpected) ?? 0;
+  const flaky = pickNumber(stats.flaky) ?? 0;
+  const skipped = pickNumber(stats.skipped) ?? 0;
+  let total = pickNumber(stats.total);
+  if (total == null) total = passed + failed + flaky + skipped;
+  const considered = passed + failed + flaky;
+  const passRate = toPercent(passed, considered || total);
+  const durationMs = pickNumber(stats.duration, j.duration, j.duration_ms, j.durationMs);
   const failures = (j.status && j.status !== 'passed') ? 1 : countPlaywrightFailures(j);
-  return { failures };
+  const status = (j.status && typeof j.status === 'string') ? j.status : (failed > 0 ? 'failed' : 'passed');
+
+  return {
+    failures,
+    total,
+    passed,
+    failed,
+    flaky,
+    skipped,
+    passRate,
+    durationMs: Number.isFinite(durationMs) ? durationMs : null,
+    status
+  };
 }
 
 function summarizeA11y() {
