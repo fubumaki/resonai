@@ -2,8 +2,8 @@
 
 ## CI Single Source of Truth (SSOT)
 
-**Last green commit:** _pending — current run has failures (Playwright (firefox): 22 failed)._ 
-**Current commit:** `b22e630` (2025-09-16 05:57 UTC)
+**Last green commit:** `548ca7e` (2025-09-13 04:03 UTC)
+**Current commit:** `b22e630` (2025-09-16 05:57 UTC — Playwright (firefox): 22 failed)
 Generated: 2025-09-16 06:33 UTC — see [.artifacts/SSOT.md](.artifacts/SSOT.md) for full artifact details.
 
 | Suite | Passed | Failed | Skipped | Flaky | Duration |
