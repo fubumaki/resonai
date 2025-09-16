@@ -9,5 +9,10 @@ declare global {
       stepCount: number,
       totalSteps: number
     ) => import('../../src/sessionProgress').SessionProgressEvent;
+    __setPracticeReady?: (value: boolean) => void;
+    __setPracticeProgress?: (
+      value: number,
+      options?: { totalSteps?: number; announcementPrefix?: string }
+    ) => void;
   }
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { db } from '@/lib/db';
+import { dispatchSessionProgressReset } from '@/src/sessionProgress';
 
 type ImportedPayload = {
   version: number;
@@ -62,7 +63,11 @@ export default function ExportButton() {
   };
 
   const onClear = async () => {
-    try { await (db as any).trials.clear(); toast('Cleared saved trials.'); }
+    try {
+      await (db as any).trials.clear();
+      dispatchSessionProgressReset({ reason: 'trials-cleared', announcementPrefix: 'Trials cleared.' });
+      toast('Trials cleared.');
+    }
     catch { toast('Could not clear trials.'); }
   };
 

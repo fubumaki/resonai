@@ -1,6 +1,121 @@
 import { analytics, type AnalyticsEvent } from '@/lib/analytics';
 import { calculateTrainingSessionProgress } from '@/lib/progress';
 
+export const SESSION_PROGRESS_RESET_EVENT = 'resonai:session-progress-reset';
+
+export interface SessionProgressResetDetail {
+  reason?: string;
+  announcementPrefix?: string;
+  totalSteps?: number;
+}
+
+export type SessionProgressResetEvent = CustomEvent<SessionProgressResetDetail>;
+
+const DEFAULT_TOTAL_STEPS = 10;
+
+function sanitizeTotalSteps(totalSteps: number | undefined, fallback: number): number {
+  const total = Number(totalSteps ?? fallback);
+  if (!Number.isFinite(total) || total <= 0) {
+    return fallback;
+  }
+  return Math.max(1, Math.round(total));
+}
+
+function clampCompletedSteps(completed: number, totalSteps: number): number {
+  const value = Number(completed);
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  const rounded = Math.round(value);
+  return Math.min(Math.max(rounded, 0), totalSteps);
+}
+
+function ensureSentence(text?: string): string | undefined {
+  if (!text) return undefined;
+  const trimmed = text.trim();
+  if (!trimmed) return undefined;
+  return trimmed.endsWith('.') ? trimmed : `${trimmed}.`;
+}
+
+function buildProgressMessage(completed: number, totalSteps: number): string {
+  return `Practice session progress: ${completed} of ${totalSteps} trials completed`;
+}
+
+function buildPrefixedProgressMessage(prefix: string | undefined, completed: number, totalSteps: number): string {
+  const base = buildProgressMessage(completed, totalSteps);
+  const normalizedPrefix = ensureSentence(prefix);
+  return normalizedPrefix ? `${normalizedPrefix} ${base}` : base;
+}
+
+function buildResetMessage(totalSteps: number, prefix?: string): string {
+  return buildPrefixedProgressMessage(prefix ?? 'Practice session progress reset.', 0, totalSteps);
+}
+
+export interface SessionProgressAnnouncementState {
+  completed: number;
+  totalSteps: number;
+  message: string;
+}
+
+export type SessionProgressAnnouncementAction =
+  | { type: 'progress'; completed: number; totalSteps?: number; announcementPrefix?: string }
+  | { type: 'reset'; totalSteps?: number; announcementPrefix?: string };
+
+export function createSessionProgressState(
+  totalSteps: number = DEFAULT_TOTAL_STEPS,
+  completed: number = 0
+): SessionProgressAnnouncementState {
+  const safeTotal = sanitizeTotalSteps(totalSteps, DEFAULT_TOTAL_STEPS);
+  const safeCompleted = clampCompletedSteps(completed, safeTotal);
+  return {
+    completed: safeCompleted,
+    totalSteps: safeTotal,
+    message: buildProgressMessage(safeCompleted, safeTotal),
+  };
+}
+
+export function sessionProgressAnnouncementReducer(
+  state: SessionProgressAnnouncementState,
+  action: SessionProgressAnnouncementAction
+): SessionProgressAnnouncementState {
+  switch (action.type) {
+    case 'progress': {
+      const totalSteps = sanitizeTotalSteps(action.totalSteps, state.totalSteps);
+      const completed = clampCompletedSteps(action.completed, totalSteps);
+      return {
+        completed,
+        totalSteps,
+        message: buildPrefixedProgressMessage(action.announcementPrefix, completed, totalSteps),
+      };
+    }
+    case 'reset': {
+      const totalSteps = sanitizeTotalSteps(action.totalSteps, state.totalSteps);
+      return {
+        completed: 0,
+        totalSteps,
+        message: buildResetMessage(totalSteps, action.announcementPrefix),
+      };
+    }
+    default:
+      return state;
+  }
+}
+
+export function createSessionProgressResetEvent(
+  detail: SessionProgressResetDetail = {}
+): SessionProgressResetEvent {
+  return new CustomEvent<SessionProgressResetDetail>(SESSION_PROGRESS_RESET_EVENT, { detail });
+}
+
+export function dispatchSessionProgressReset(
+  detail: SessionProgressResetDetail = {}
+): SessionProgressResetEvent | null {
+  if (typeof window === 'undefined') return null;
+  const event = createSessionProgressResetEvent(detail);
+  window.dispatchEvent(event);
+  return event;
+}
+
 export type SessionProgressProps = Record<'step_count' | 'total_steps' | 'progress_percent', number>;
 
 export type SessionProgressEvent = AnalyticsEvent & { props: SessionProgressProps };
