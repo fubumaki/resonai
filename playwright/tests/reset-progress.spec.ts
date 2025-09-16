@@ -1,9 +1,19 @@
 import { test, expect } from '@playwright/test';
+import { useFakeMic, usePermissionMock, useLocalStorageFlags } from './helpers';
 
 test.describe('Practice session progress resets', () => {
   test('resets progress via settings actions and clear button', async ({ page }) => {
+    await useFakeMic(page);
+    await usePermissionMock(page, { microphone: 'granted' });
+    await useLocalStorageFlags(page, {
+      'ff.instantPractice': 'true',
+      'ff.signUpFirst': 'false',
+      'ff.permissionPrimerShort': 'true',
+    });
+
     await page.goto('/practice');
     await page.waitForLoadState('networkidle');
+    await page.waitForFunction(() => typeof window.__setPracticeReady === 'function');
 
     await page.evaluate(() => {
       window.__setPracticeReady?.(true);
