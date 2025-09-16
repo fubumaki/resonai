@@ -32,16 +32,19 @@ export default function SessionSummary() {
     el.style.width = "100%";
     el.style.height = `${H}px`;
     const rect = el.getBoundingClientRect();
-    const w = Math.max(320, rect.width || W);
-    el.width = Math.floor(w * dpr);
+    el.width = Math.floor(Math.max(320, rect.width || W) * dpr);
     el.height = Math.floor(H * dpr);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
 
+    const width = el.width / dpr;
+    const height = el.height / dpr;
+
     // background
-    ctx.clearRect(0, 0, w, H);
+    ctx.clearRect(0, 0, width, height);
     const m = { l: 36, r: 12, t: 8, b: 22 };
-    const gw = w - m.l - m.r;
-    const gh = H - m.t - m.b;
+    const gw = width - m.l - m.r;
+    const gh = height - m.t - m.b;
 
     // grid
     ctx.strokeStyle = "rgba(255,255,255,.1)";
@@ -50,7 +53,7 @@ export default function SessionSummary() {
       const y = m.t + gh - (val / 100) * gh;
       ctx.beginPath();
       ctx.moveTo(m.l, y);
-      ctx.lineTo(w - m.r, y);
+      ctx.lineTo(width - m.r, y);
       ctx.stroke();
       ctx.fillStyle = "var(--muted)";
       ctx.font = "11px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
@@ -95,7 +98,7 @@ export default function SessionSummary() {
     ctx.strokeStyle = "rgba(255,255,255,.4)";
     ctx.beginPath();
     ctx.moveTo(m.l, ys(avg));
-    ctx.lineTo(w - m.r, ys(avg));
+    ctx.lineTo(width - m.r, ys(avg));
     ctx.stroke();
     ctx.setLineDash([]);
 
