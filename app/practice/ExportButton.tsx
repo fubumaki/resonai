@@ -65,6 +65,7 @@ export default function ExportButton() {
   const onClear = async () => {
     try {
       await (db as any).trials.clear();
+      window.dispatchEvent(new CustomEvent('resonai:trials-cleared'));
       dispatchSessionProgressReset({ reason: 'trials-cleared', announcementPrefix: 'Trials cleared.' });
       toast('Trials cleared.');
     }
