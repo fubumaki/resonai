@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/test';
 import {
   useFakeMic,
-  useLocalStorageFlags,
   usePermissionMock,
   useStubbedAnalytics,
 } from './helpers';
@@ -11,9 +10,30 @@ test('one-tap mic toggles recording and emits analytics', async ({ page }) => {
   const analytics = await useStubbedAnalytics(page);
   await useFakeMic(page);
   await usePermissionMock(page, { microphone: 'granted' });
-  await useLocalStorageFlags(page, { 'ff.permissionPrimerShort': 'true' });
-
+  
+  // Set pilot cohort cookie to allow access to /try page
+  await page.context().addCookies([{
+    name: 'pilot_cohort',
+    value: 'pilot',
+    domain: 'localhost',
+    path: '/',
+  }]);
+  
+  // Set localStorage after navigation but before React initializes
   await page.goto('/try');
+  
+  // Set the flags immediately after navigation
+  await page.evaluate(() => {
+    localStorage.setItem('ff.permissionPrimerShort', 'true');
+    localStorage.setItem('ff.instantPractice', 'true');
+  });
+  
+  // Reload the page to ensure React reads the new flags
+  await page.reload();
+  
+  // Wait for React to hydrate and the page to be interactive
+  await page.waitForLoadState('networkidle');
+  await page.waitForSelector('button', { timeout: 10000 });
 
   // First click: request mic permission
   const startBtn = page.getByRole('button', { name: /start|enable microphone/i });
