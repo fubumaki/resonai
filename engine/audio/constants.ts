@@ -1,3 +1,17 @@
+export type StrainThresholds = {
+  maxSessionMinutes: number;
+  maxContinuousSeconds: number;
+  restSeconds: number;
+  maxDailyMinutes: number;
+};
+
+export const DEFAULT_STRAIN_THRESHOLDS: StrainThresholds = {
+  maxSessionMinutes: 10,
+  maxContinuousSeconds: 75,
+  restSeconds: 30,
+  maxDailyMinutes: 40,
+};
+
 // src/engine/audio/constants.ts
 // Centralized audio processing constants for easy tuning
 
