@@ -11,14 +11,6 @@ export interface PermissionController {
   snapshot(): Promise<PermissionOverrides>;
 }
 
-const createStatus = (state: PermissionState): PermissionStatus => ({
-  state,
-  onchange: null,
-  addEventListener: () => undefined,
-  removeEventListener: () => undefined,
-  dispatchEvent: () => false,
-});
-
 /**
  * Overrides navigator.permissions.query so tests can simulate browser consent
  * flows without invoking real permission prompts. The controller can be used
@@ -29,6 +21,72 @@ export async function usePermissionMock(
   overrides: PermissionOverrides = {}
 ): Promise<PermissionController> {
   await page.addInitScript(initialOverrides => {
+    const createStatus = (
+      name: PermissionName,
+      state: PermissionState
+    ): PermissionStatus => {
+      const target = new EventTarget() as PermissionStatus;
+
+      Object.defineProperty(target, 'state', {
+        configurable: true,
+        enumerable: true,
+        value: state,
+        writable: false,
+      });
+
+      Object.defineProperty(target, 'onchange', {
+        configurable: true,
+        enumerable: true,
+        value: null,
+        writable: true,
+      });
+
+      Object.defineProperty(target, 'name', {
+        configurable: true,
+        enumerable: true,
+        value: name,
+        writable: false,
+      });
+
+      return target;
+    };
+
+    const ensureName = (
+      status: PermissionStatus,
+      name: PermissionName
+    ): PermissionStatus => {
+      if (status && typeof status === 'object') {
+        const statusWithName = status as PermissionStatus & {
+          name?: PermissionName;
+        };
+
+        if (statusWithName.name !== name) {
+          try {
+            Object.defineProperty(statusWithName, 'name', {
+              configurable: true,
+              enumerable: true,
+              value: name,
+              writable: false,
+            });
+          } catch {
+            // Ignore environments that expose non-configurable PermissionStatus.name.
+          }
+        }
+      }
+
+      return status;
+    };
+
+    const descriptorToName = (
+      descriptor: PermissionDescriptor | any
+    ): PermissionName | '*' => {
+      if (descriptor && typeof descriptor === 'object' && 'name' in descriptor) {
+        return descriptor.name as PermissionName | '*';
+      }
+
+      return descriptor as PermissionName | '*';
+    };
+
     const globalAny = window as any;
     const navAny = navigator as any;
     const permissions: any = navAny.permissions || {};
@@ -38,27 +96,39 @@ export async function usePermissionMock(
       overrides: { ...initialOverrides },
     };
 
-    const resolveState = (
+    const resolveState = async (
       descriptor: PermissionDescriptor | any
-    ): Promise<PermissionStatus> | PermissionStatus => {
-      const name = (descriptor?.name || descriptor) as PermissionName | '*';
-      const override = state.overrides[name] ?? state.overrides['*'];
+    ): Promise<PermissionStatus> => {
+      const descriptorKey = descriptorToName(descriptor);
+      const permissionName: PermissionName =
+        descriptorKey === '*'
+          ? ((descriptor && typeof descriptor === 'object' && 'name' in descriptor
+              ? (descriptor.name as PermissionName)
+              : undefined) ?? 'geolocation')
+          : (descriptorKey as PermissionName);
+      const override =
+        descriptorKey === '*'
+          ? state.overrides['*']
+          : state.overrides[permissionName] ?? state.overrides['*'];
 
       if (override) {
-        return createStatus(override);
+        return createStatus(permissionName, override);
       }
 
-      if (originalQuery) {
-        return originalQuery(descriptor).catch(() => createStatus('denied'));
+      if (!originalQuery || descriptorKey === '*') {
+        return createStatus(permissionName, 'prompt');
       }
 
-      return Promise.resolve(createStatus('prompt'));
+      try {
+        const status = await originalQuery(descriptor);
+        return ensureName(status, permissionName);
+      } catch {
+        return createStatus(permissionName, 'denied');
+      }
     };
 
-    const query = (descriptor: PermissionDescriptor | any) => {
-      const result = resolveState(descriptor);
-      return result instanceof Promise ? result : Promise.resolve(result);
-    };
+    const query = (descriptor: PermissionDescriptor | any) =>
+      resolveState(descriptor);
 
     permissions.query = query;
     navAny.permissions = permissions;
