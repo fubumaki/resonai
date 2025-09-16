@@ -44,6 +44,35 @@ npx playwright test playwright/tests/health.spec.ts --config=playwright/playwrig
 npx playwright test --config=playwright/playwright.noweb.config.ts --project=firefox --ui
 ```
 
+## 📁 JSON Reports & SSOT Checks
+
+Automated runs emit machine-readable artifacts under `reports/` so CI and QA can share a single source of truth.
+
+1. **Generate local JSON reporters**
+   ```bash
+   pnpm run test:unit:json || true
+   pnpm run test:e2e:json || true
+   pnpm run a11y:json || true
+   ```
+2. **Inspect artifacts**
+   ```bash
+   # Vitest details
+   jq '.numFailedTests' reports/unit.json
+
+   # Playwright run statistics
+   jq '.stats' reports/e2e.json
+   ```
+3. **Rebuild the SSOT snapshot**
+   ```bash
+   node tools/self_improve/collect_signals.mjs
+   jq '.' reports/signals.json
+   diff -u reports/signals.json tools/self_improve/signals.json
+   ```
+   `reports/signals.json` (mirrored at `tools/self_improve/signals.json`) powers CI budgets and summaries—verify it before sign-off.
+4. **Review CI artifacts**
+   - Download the `reports` artifact from the GitHub Actions run to view the same `unit.json`, `e2e.json`, and aggregated `signals.json` files.
+   - The workflow summary highlights pass rates and gate metrics sourced from those JSON files.
+
 ## 🔧 Common Fixes
 
 ### Port Already in Use

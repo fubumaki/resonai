@@ -65,6 +65,10 @@ jobs:
       - name: Enforce budgets
         run: node tools/self_improve/check_budgets.mjs QUALITY-GATES/budgets.json reports/signals.json
 
+      - name: Publish CI summary
+        if: always()
+        run: node tools/self_improve/write_summary.mjs "$GITHUB_STEP_SUMMARY"
+
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v4
