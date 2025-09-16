@@ -16,9 +16,11 @@ import {
 import { getCoachMessage, getProgressMessage } from '@/lib/coach-copy';
 import MicPrimerDialog from '@/components/MicPrimerDialog';
 import MicCalibrationFlow from '@/components/MicCalibrationFlow';
+import PracticeHUD from '@/components/PracticeHUD';
 import ProgressBar from '@/components/ProgressBar';
 import MicroInteraction from '@/components/MicroInteraction';
 import { useMicCalibration } from '@/hooks/useMicCalibration';
+import { usePracticeMetrics } from '@/hooks/usePracticeMetrics';
 
 export default function InstantPractice() {
   const [micReady, setMicReady] = useState(false);
@@ -33,6 +35,21 @@ export default function InstantPractice() {
 
   // Calibration state management
   const { config, isConfigured, saveConfig, retestMic } = useMicCalibration();
+
+  // Practice metrics for HUD
+  const { metrics, isActive: metricsActive, error: metricsError, start: startMetrics, stop: stopMetrics } = usePracticeMetrics(
+    mediaStreamRef.current,
+    {
+      targetRanges: {
+        pitchMin: 200, // G3
+        pitchMax: 400, // G4
+        brightnessMin: 0.3,
+        brightnessMax: 0.7,
+      },
+      updateInterval: 16.67, // 60fps
+      historyLength: 600, // 10 seconds at 60fps
+    }
+  );
 
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -247,6 +264,19 @@ export default function InstantPractice() {
         />
       </div>
 
+      {/* Practice HUD */}
+      {micReady && recording && (
+        <section className="fixed top-4 left-4 right-4 z-40">
+          <div className="max-w-md mx-auto">
+            <PracticeHUD 
+              metrics={metrics}
+              isVisible={recording && metricsActive}
+              className="shadow-xl"
+            />
+          </div>
+        </section>
+      )}
+
       {/* Visual feedback area */}
       <section className="flex-1 flex items-center justify-center p-8" aria-live="polite">
         <div className="text-center space-y-6">
@@ -281,6 +311,11 @@ export default function InstantPractice() {
             {error && (
               <p className="text-red-600 dark:text-red-400 text-sm" role="alert">
                 {error}
+              </p>
+            )}
+            {metricsError && (
+              <p className="text-yellow-600 dark:text-yellow-400 text-sm" role="alert">
+                Metrics: {metricsError}
               </p>
             )}
           </div>

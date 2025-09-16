@@ -1,0 +1,50 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=e3]:
+    - navigation "Primary" [ref=e5]:
+      - link "Resonai home" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - text: Resonai
+      - list [ref=e7]:
+        - listitem [ref=e8]:
+          - link "Listen" [ref=e9] [cursor=pointer]:
+            - /url: /listen
+        - listitem [ref=e10]:
+          - link "Practice" [ref=e11] [cursor=pointer]:
+            - /url: /practice
+        - listitem [ref=e12]:
+          - link "About" [ref=e13] [cursor=pointer]:
+            - /url: /about
+      - link "Start practice" [ref=e14] [cursor=pointer]:
+        - /url: /practice
+  - main [ref=e15]:
+    - main [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - heading "Mic Calibration Demo" [level=1] [ref=e19]
+          - paragraph [ref=e20]: Test the 3-step microphone calibration flow
+        - 'dialog "Step 1: Select Microphone" [ref=e22]':
+          - 'heading "Step 1: Select Microphone" [level=2] [ref=e23]'
+          - generic [ref=e24]:
+            - generic [ref=e25]:
+              - generic [ref=e26]: "Choose your microphone:"
+              - combobox "Microphone selection" [ref=e27]:
+                - option "System default" [selected]
+                - option "Microphone"
+            - paragraph [ref=e28]: "Tip: Choose a USB microphone if available for steadier pitch tracking."
+          - generic [ref=e29]:
+            - button "Cancel" [ref=e30] [cursor=pointer]
+            - button "Test Microphone" [disabled] [ref=e31] [cursor=pointer]
+  - contentinfo [ref=e32]:
+    - generic [ref=e33]:
+      - text: © 2025 Resonai - Local-first. No cloud audio.
+      - link "Data & Privacy" [ref=e34] [cursor=pointer]:
+        - /url: /data
+      - generic [ref=e35]: vdev
+  - alert [ref=e36]
+  - generic "Performance indicators" [ref=e37]: FCP 207ms - INP 0ms - CLS 0.000
+```
