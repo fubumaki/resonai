@@ -1,15 +1,18 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
+type EnergyProcessorMessage = {
+  rms: number;
+  hfLf: number;
+};
+
 class EnergyProcessor extends AudioWorkletProcessor {
-  static get parameterDescriptors() {
+  static get parameterDescriptors(): ReadonlyArray<AudioParamDescriptor> {
     return [];
   }
 
-  constructor() {
-    super();
-  }
-
-  process(inputs: Float32Array[][]) {
+  process(
+    inputs: AudioWorkletProcessorInputs,
+    _outputs: AudioWorkletProcessorOutputs,
+    _parameters: AudioWorkletProcessorParameters
+  ): boolean {
     const input = inputs[0];
     if (!input || input.length === 0) return true;
     const channel = input[0];
@@ -37,7 +40,8 @@ class EnergyProcessor extends AudioWorkletProcessor {
     const lf = nEven ? sumEven / nEven : 0;
     const hfLf = lf > 0 ? hf / lf : 0;
 
-    this.port.postMessage({ rms, hfLf });
+    const message: EnergyProcessorMessage = { rms, hfLf };
+    this.port.postMessage(message);
     return true;
   }
 }
