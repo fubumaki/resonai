@@ -98,11 +98,33 @@ localStorage.setItem('ff.permissionPrimerShort', 'true'); // Enable primer
 - Browser console shows feature flag states
 - Playwright traces in `test-results/`
 
+### CI Artifacts
+When tests fail in CI, check the artifacts:
+- **Playwright HTML Report**: Interactive test results with traces and videos
+- **Test Artifacts**: Screenshots, videos, and traces for failed tests
+- **JSON Reports**: Machine-readable test results for analysis
+
+See [CI_ARTIFACTS.md](./CI_ARTIFACTS.md) for detailed artifact access instructions.
+
+### Local Debugging
+```bash
+# View local Playwright report
+pnpm exec playwright show-report
+
+# Run tests with UI for debugging
+pnpm run test:e2e:ui
+
+# Generate JSON reports locally
+pnpm run test:e2e:json
+pnpm run test:unit:json
+```
+
 ### Common Issues
 1. **Dialog not showing**: Check E2 variant is 'A' and primer flag is enabled
 2. **Analytics not working**: Check `/api/events` endpoint is responding
 3. **Tests timing out**: Increase timeout in config or check server health
 4. **COOP/COEP errors**: Verify headers are set in `next.config.ts`
+5. **CI test failures**: Download and review Playwright artifacts from GitHub Actions
 
 ## 🚀 Production Checklist
 
