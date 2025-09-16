@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { PresetKey } from '@/lib/db';
+import { ConfirmDialog, useConfirmDialog } from '@/components/ui/confirm-dialog';
 
 export default function SettingsChip({
   preset,
@@ -22,6 +23,7 @@ export default function SettingsChip({
   const panelRef = useRef<HTMLDivElement | null>(null);
   const firstFocus = useRef<HTMLElement | null>(null);
   const lastFocus = useRef<HTMLElement | null>(null);
+  const { confirm, ConfirmDialog } = useConfirmDialog();
 
   useEffect(() => {
     if (!open) return;
@@ -97,7 +99,20 @@ export default function SettingsChip({
             <div className="col gap-8 mt-6">
               <button className="button" onClick={() => { onResetToPresetDefaults(); setOpen(false); }}>Reset to preset defaults</button>
               <button className="button button-danger"
-                onClick={() => { if (confirm('Reset settings and clear saved trials?')) { onResetAll(); setOpen(false); } }}>
+                onClick={async () => {
+                  const confirmed = await confirm({
+                    title: 'Reset Everything',
+                    description: 'Reset settings and clear saved trials?',
+                    confirmText: 'Reset everything',
+                    cancelText: 'Cancel',
+                    confirmVariant: 'destructive',
+                    onConfirm: () => {}
+                  });
+                  if (confirmed) {
+                    onResetAll();
+                    setOpen(false);
+                  }
+                }}>
                 Reset everything
               </button>
             </div>
@@ -112,6 +127,7 @@ export default function SettingsChip({
           </div>
         </div>
       )}
+      {ConfirmDialog}
     </div>
   );
 }

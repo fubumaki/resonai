@@ -3,7 +3,7 @@ import path from 'path';
 
 export default defineConfig({
   test: {
-    include: ['tests/unit/**/*.spec.ts'],
+    include: ['tests/unit/**/*.spec.{ts,tsx}'],
     reporters: ['default'],
     coverage: { enabled: false },
     setupFiles: ['tests/unit/setup.ts'],

@@ -2,11 +2,13 @@
 
 import { useState } from 'react';
 import { exportSessions, deleteAllSessions, importSessions } from '@/flow/sessionStore';
+import { ConfirmDialog, useConfirmDialog } from '@/components/ui/confirm-dialog';
 
 export default function SettingsPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const { confirm, ConfirmDialog } = useConfirmDialog();
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -46,9 +48,16 @@ export default function SettingsPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete all session data? This cannot be undone.')) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: 'Delete All Sessions',
+      description: 'Are you sure you want to delete all session data? This cannot be undone.',
+      confirmText: 'Delete all data',
+      cancelText: 'Cancel',
+      confirmVariant: 'destructive',
+      onConfirm: () => {}
+    });
+    
+    if (!confirmed) return;
     
     setIsDeleting(true);
     try {
@@ -118,6 +127,7 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+      {ConfirmDialog}
     </main>
   );
 }
