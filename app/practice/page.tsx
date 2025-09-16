@@ -545,23 +545,21 @@ export default function Practice() {
       </div>
 
       {/* Session Progress */}
-      {(ready || hasCachedPracticeHooksState()) && (
-        <div className="mb-4">
-          <div className="flex items-center justify-between text-sm mb-2">
-            <span data-testid="progress-count">{sessionProgress} / {TOTAL_TRIALS}</span>
-          </div>
-          <div data-testid="progress-bar" data-progress={sessionProgress}>
-            <ProgressBar
-              currentStep={sessionProgress}
-              totalSteps={TOTAL_TRIALS}
-              ariaDescribedBy="session-progress-status"
-            />
-          </div>
-          <div id="session-progress-status" data-testid="session-progress-status" className="sr-only" aria-live="polite">
-            {sessionProgressAnnouncement.message}
-          </div>
+      <div className="mb-4">
+        <div className="flex items-center justify-between text-sm mb-2">
+          <span data-testid="progress-count">{sessionProgress} / {TOTAL_TRIALS}</span>
         </div>
-      )}
+        <div data-testid="progress-bar" data-progress={sessionProgress}>
+          <ProgressBar
+            currentStep={sessionProgress}
+            totalSteps={TOTAL_TRIALS}
+            ariaDescribedBy="session-progress-status"
+          />
+        </div>
+        <div id="session-progress-status" data-testid="session-progress-status" className="sr-only" aria-live="polite">
+          {sessionProgressAnnouncement.message}
+        </div>
+      </div>
 
       <div className="panel col gap-8">
         <div className="flex gap-12 items-center wrap">
@@ -591,104 +589,102 @@ export default function Practice() {
           </div>
         )}
 
-        {ready && (
-          <>
-            <div>
-              <strong>Mic level</strong>
-              <Meter level={level} />
-              <div className="flex gap-12 align-base mt-6">
-                <span className="badge">Sample rate {audioCtx.current?.sampleRate ?? 0} Hz</span>
-                {dbfs != null && <span className="badge">Level {Math.round(dbfs)} dBFS</span>}
-              </div>
+        <div>
+          <strong>Mic level</strong>
+          <Meter level={level} />
+          {ready && (
+            <div className="flex gap-12 align-base mt-6">
+              <span className="badge">Sample rate {audioCtx.current?.sampleRate ?? 0} Hz</span>
+              {dbfs != null && <span className="badge">Level {Math.round(dbfs)} dBFS</span>}
             </div>
+          )}
+        </div>
 
-            {/* Worklet Health */}
-            <WorkletHealth intervalsRef={intervalsRef} />
+        {/* Worklet Health */}
+        <WorkletHealth intervalsRef={intervalsRef} />
 
-            {/* Device Picker */}
-            <DevicePicker
-              value={inputDeviceId}
-              onChange={setInputDeviceId}
-              ec={echoCancellation} ns={noiseSuppression} agc={autoGainControl}
-              onChangeConstraints={({ ec, ns, agc }) => {
-                if (ec !== undefined) setEchoCancellation(ec);
-                if (ns !== undefined) setNoiseSuppression(ns);
-                if (agc !== undefined) setAutoGainControl(agc);
-              }}
+        {/* Device Picker */}
+        <DevicePicker
+          value={inputDeviceId}
+          onChange={setInputDeviceId}
+          ec={echoCancellation} ns={noiseSuppression} agc={autoGainControl}
+          onChangeConstraints={({ ec, ns, agc }) => {
+            if (ec !== undefined) setEchoCancellation(ec);
+            if (ns !== undefined) setNoiseSuppression(ns);
+            if (agc !== undefined) setAutoGainControl(agc);
+          }}
+        />
+
+        {/* Pitch */}
+        <div className="col gap-6">
+          <div className="flex items-center gap-6">
+            <Orb
+              hueDeg={centroid != null ? Math.max(120, Math.min(280, 120 + (centroid - 1600) * 0.05)) : 180}
+              tiltDeg={pitch != null ? Math.max(-20, Math.min(20, (pitch - 220) * 0.2)) : 0}
+              size={80}
+              trends={[
+                { label: 'Pitch', value: pitch != null ? `${pitch} Hz` : '--' },
+                { label: 'Bright', value: centroid != null ? `${centroid} Hz` : '--' },
+              ]}
+              ariaLabel="Resonance indicator"
             />
-
-            {/* Pitch */}
-            <div className="col gap-6">
-              <div className="flex items-center gap-6">
-                <Orb
-                  hueDeg={centroid != null ? Math.max(120, Math.min(280, 120 + (centroid - 1600) * 0.05)) : 180}
-                  tiltDeg={pitch != null ? Math.max(-20, Math.min(20, (pitch - 220) * 0.2)) : 0}
-                  size={80}
-                  trends={[
-                    { label: 'Pitch', value: pitch != null ? `${pitch} Hz` : '--' },
-                    { label: 'Bright', value: centroid != null ? `${centroid} Hz` : '--' },
-                  ]}
-                  ariaLabel="Resonance indicator"
-                />
-                <div className="flex gap-12 align-base">
-                  <span className="badge">Pitch (Hz)</span>
-                  <strong className="text-2xl">{pitch ?? "-"}</strong>
-                  {pitch && <span className="badge">{hzToNote(pitch)}</span>}
-                  {pitch && <span className="badge" aria-live="polite">{inPitch ? "In range ✓" : "Adjust..."}</span>}
-                  <span className="badge" title="Autocorrelation clarity">clarity {Math.round(clarity * 100)}</span>
-                </div>
-              </div>
-              <TargetBar value={pitch} min={120} max={320} tmin={pitchTarget.min} tmax={pitchTarget.max} />
-              <div className="col gap-4">
-                <Slider label="Min pitch" min={120} max={250} value={pitchTarget.min}
-                  onChange={(v) => onCustom(setPitchTarget, { ...pitchTarget, min: v })} />
-                <Slider label="Max pitch" min={170} max={340} value={pitchTarget.max}
-                  onChange={(v) => onCustom(setPitchTarget, { ...pitchTarget, max: v })} />
-              </div>
+            <div className="flex gap-12 align-base">
+              <span className="badge">Pitch (Hz)</span>
+              <strong className="text-2xl">{pitch ?? "-"}</strong>
+              {pitch && <span className="badge">{hzToNote(pitch)}</span>}
+              {pitch && <span className="badge" aria-live="polite">{inPitch ? "In range ✓" : "Adjust..."}</span>}
+              <span className="badge" title="Autocorrelation clarity">clarity {Math.round(clarity * 100)}</span>
             </div>
+          </div>
+          <TargetBar value={pitch} min={120} max={320} tmin={pitchTarget.min} tmax={pitchTarget.max} />
+          <div className="col gap-4">
+            <Slider label="Min pitch" min={120} max={250} value={pitchTarget.min}
+              onChange={(v) => onCustom(setPitchTarget, { ...pitchTarget, min: v })} />
+            <Slider label="Max pitch" min={170} max={340} value={pitchTarget.max}
+              onChange={(v) => onCustom(setPitchTarget, { ...pitchTarget, max: v })} />
+          </div>
+        </div>
 
-            {/* Brightness */}
-            <div className="col gap-6">
-              <div className="flex gap-12 align-base">
-                <span className="badge">Brightness (centroid Hz)</span>
-                <strong className="text-2xl">{centroid ?? "-"}</strong>
-                {centroid && <span className="badge" aria-live="polite">{inBright ? "In range ✓" : "Add/soften"}</span>}
-                {h1h2 != null && <span className="badge" title="H1-H2 dB (lower = brighter)">H1-H2 {h1h2.toFixed(1)} dB</span>}
-              </div>
-              <TargetBar value={centroid} min={800} max={4000} tmin={brightTarget.min} tmax={brightTarget.max} />
-              <div className="col gap-4">
-                <Slider label="Min brightness" min={1000} max={2800} value={brightTarget.min}
-                  onChange={(v) => onCustom(setBrightTarget, { ...brightTarget, min: v })} />
-                <Slider label="Max brightness" min={1800} max={3800} value={brightTarget.max}
-                  onChange={(v) => onCustom(setBrightTarget, { ...brightTarget, max: v })} />
-              </div>
-            </div>
+        {/* Brightness */}
+        <div className="col gap-6">
+          <div className="flex gap-12 align-base">
+            <span className="badge">Brightness (centroid Hz)</span>
+            <strong className="text-2xl">{centroid ?? "-"}</strong>
+            {centroid && <span className="badge" aria-live="polite">{inBright ? "In range ✓" : "Add/soften"}</span>}
+            {h1h2 != null && <span className="badge" title="H1-H2 dB (lower = brighter)">H1-H2 {h1h2.toFixed(1)} dB</span>}
+          </div>
+          <TargetBar value={centroid} min={800} max={4000} tmin={brightTarget.min} tmax={brightTarget.max} />
+          <div className="col gap-4">
+            <Slider label="Min brightness" min={1000} max={2800} value={brightTarget.min}
+              onChange={(v) => onCustom(setBrightTarget, { ...brightTarget, min: v })} />
+            <Slider label="Max brightness" min={1800} max={3800} value={brightTarget.max}
+              onChange={(v) => onCustom(setBrightTarget, { ...brightTarget, max: v })} />
+          </div>
+        </div>
 
-            {/* Coach */}
-            <div className="panel panel--dashed" aria-live="polite">
-              <strong>Coach</strong>
-              <p className="m-0">{tip}</p>
-            </div>
+        {/* Coach */}
+        <div className="panel panel--dashed" aria-live="polite">
+          <strong>Coach</strong>
+          <p className="m-0">{tip}</p>
+        </div>
 
-            {/* Guided trials */}
-            <Trials
-              getSnapshot={() => ({
-                pitch,
-                centroid,
-                inPitch,
-                inBright
-              })}
-              targets={{ pitch: pitchTarget, bright: brightTarget }}
-              onComplete={onTrialComplete}
-            />
+        {/* Guided trials */}
+        <Trials
+          getSnapshot={() => ({
+            pitch,
+            centroid,
+            inPitch,
+            inBright
+          })}
+          targets={{ pitch: pitchTarget, bright: brightTarget }}
+          onComplete={onTrialComplete}
+        />
 
-            {/* Export button */}
-            <ExportButton />
+        {/* Export button */}
+        <ExportButton />
 
-            {/* Session Summary */}
-            <SessionSummary />
-          </>
-        )}
+        {/* Session Summary */}
+        <SessionSummary />
       </div>
     </section>
   );

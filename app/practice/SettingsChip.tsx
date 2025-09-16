@@ -22,39 +22,8 @@ export default function SettingsChip({
 }) {
   const [open, setOpen] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
-  const panelRef = useRef<HTMLDivElement | null>(null);
   const firstFocus = useRef<HTMLElement | null>(null);
-  const lastFocus = useRef<HTMLElement | null>(null);
   const resetCancelButtonRef = useRef<HTMLButtonElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const panel = panelRef.current!;
-    // Focus first focusable
-    const focusables = panel.querySelectorAll<HTMLElement>(FOCUS_SELECTOR);
-    firstFocus.current = focusables[0] || null;
-    lastFocus.current = focusables[focusables.length - 1] || null;
-    firstFocus.current?.focus();
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.preventDefault(); setOpen(false); }
-      if (e.key === 'Tab' && focusables.length > 1) {
-        const active = document.activeElement as HTMLElement | null;
-        if (e.shiftKey && active === firstFocus.current) { e.preventDefault(); lastFocus.current?.focus(); }
-        else if (!e.shiftKey && active === lastFocus.current) { e.preventDefault(); firstFocus.current?.focus(); }
-      }
-    };
-    const onClick = (e: MouseEvent) => {
-      if (!panel.contains(e.target as Node)) setOpen(false);
-    };
-
-    document.addEventListener('keydown', onKey);
-    document.addEventListener('mousedown', onClick);
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.removeEventListener('mousedown', onClick);
-    };
-  }, [open]);
 
   const handleConfirmReset = () => {
     onResetAll();
@@ -112,12 +81,12 @@ export default function SettingsChip({
         </button>
 
         {open && (
-          <div
-            id="settings-popover"
-            ref={panelRef}
-            role="dialog"
-            aria-label="Settings"
-            className="panel popover-panel"
+          <AccessibleDialog
+            isOpen={open}
+            onClose={() => setOpen(false)}
+            title="Settings"
+            contentClassName="popover-panel"
+            initialFocusRef={firstFocus}
           >
             <label className="col gap-6">
               <span className="badge">Profile</span>
@@ -157,15 +126,10 @@ export default function SettingsChip({
             <div className="row justify-end">
               <button className="button" onClick={() => setOpen(false)}>Close</button>
             </div>
-          </div>
+          </AccessibleDialog>
         )}
       </div>
     </>
   );
 }
 
-const FOCUS_SELECTOR = [
-  'a[href]', 'button:not([disabled])', 'input:not([disabled])',
-  'select:not([disabled])', 'textarea:not([disabled])',
-  '[tabindex]:not([tabindex="-1"])'
-].join(',');
