@@ -14,7 +14,8 @@ const nextConfig = {
       "frame-ancestors 'none'",
       "img-src 'self' data: blob:",
       "font-src 'self'",
-      "script-src 'self'",
+      // Allow 'unsafe-eval' and 'unsafe-inline' in development for Next.js HMR, React DevTools, and test stubs
+      isProd ? "script-src 'self'" : "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
       "style-src 'self'",                 // strict: no 'unsafe-inline'
       "connect-src 'self' https://*.vercel.app https://*.vercel-insights.com",
       "worker-src 'self' blob:",
@@ -26,9 +27,11 @@ const nextConfig = {
       { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
       { key: "Cross-Origin-Embedder-Policy", value: "require-corp" },
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-      { key: "Permissions-Policy",
+      {
+        key: "Permissions-Policy",
         value: "camera=(), geolocation=(), gyroscope=(), microphone=(), " +
-               "payment=(), usb=()" },
+          "payment=(), usb=()"
+      },
       { key: "X-Content-Type-Options", value: "nosniff" },
       { key: "X-Frame-Options", value: "DENY" },
       { key: "Cross-Origin-Resource-Policy", value: "same-origin" },

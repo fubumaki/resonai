@@ -159,10 +159,22 @@ declare global {
     __resetSessionProgress?: () => void;
     __getSessionProgress?: () => SessionProgressEvent[];
     __trackSessionProgress?: (stepCount: number, totalSteps: number) => SessionProgressEvent;
+    __resetSessionProgressImpl?: () => void;
+    __getSessionProgressImpl?: () => SessionProgressEvent[];
+    __trackSessionProgressImpl?: (stepCount: number, totalSteps: number) => SessionProgressEvent;
   }
 }
 
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'test') {
+// Expose lightweight test helpers in the browser so E2E can drive analytics deterministically
+// These are no-ops on the server and only attach when a window object exists.
+if (typeof window !== 'undefined') {
+  // Attach implementations to window for the beforeInteractive script to use
+  window.__resetSessionProgressImpl = () => resetSessionProgressEvents();
+  window.__getSessionProgressImpl = () => getSessionProgressEvents();
+  window.__trackSessionProgressImpl = (stepCount: number, totalSteps: number) =>
+    trackSessionProgress(stepCount, totalSteps);
+
+  // Also attach directly for backward compatibility
   window.__resetSessionProgress = () => resetSessionProgressEvents();
   window.__getSessionProgress = () => getSessionProgressEvents();
   window.__trackSessionProgress = (stepCount: number, totalSteps: number) =>

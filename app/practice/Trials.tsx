@@ -17,9 +17,9 @@ type StreamSample = { t: number; pitch: number | null; centroid: number | null; 
 
 function median(xs: number[]) {
   if (xs.length === 0) return null;
-  const a = xs.slice().sort((a,b)=>a-b);
-  const m = Math.floor(a.length/2);
-  return a.length%2? a[m] : (a[m-1]+a[m])/2;
+  const a = xs.slice().sort((a, b) => a - b);
+  const m = Math.floor(a.length / 2);
+  return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
 }
 
 function mad(xs: number[]) { // median absolute deviation
@@ -39,12 +39,12 @@ export default function Trials({
 }: {
   phrase?: string;
   getSnapshot: () => { pitch: number | null; centroid: number | null; inPitch: boolean; inBright: boolean };
-  targets: { pitch:{min:number,max:number}, bright:{min:number,max:number} };
+  targets: { pitch: { min: number, max: number }, bright: { min: number, max: number } };
   onComplete?: (res: TrialResult) => void;
 }) {
   const [active, setActive] = useState(false);
   const [results, setResults] = useState<TrialResult[]>([]);
-  const [countdown, setCountdown] = useState<0|1|2|3>(0);
+  const [countdown, setCountdown] = useState<0 | 1 | 2 | 3>(0);
 
   const buf = useRef<StreamSample[]>([]);
   const startedAt = useRef<number | null>(null);
@@ -127,7 +127,7 @@ export default function Trials({
     <div className="panel col gap-2">
       <div className="flex gap-2 align-base wrap">
         <strong>Phrase trial</strong>
-        <span className="badge">Say: "{phrase}"</span>
+        <span className="badge">Say: &quot;{phrase}&quot;</span>
       </div>
 
       <div className="flex gap-2 items-center">
@@ -146,7 +146,7 @@ export default function Trials({
             <div key={i} className="panel col gap-1">
               <div className="flex gap-2 align-base justify-between">
                 <div><strong>Score</strong> {r.score}/100</div>
-                <div className="text-muted">{Math.round(r.durationMs/100)/10}s</div>
+                <div className="text-muted">{Math.round(r.durationMs / 100) / 10}s</div>
               </div>
               <div className="flex gap-3 wrap text-muted">
                 <span className="badge">Pitch {r.medianPitch ?? "-"} Hz</span>
@@ -163,5 +163,5 @@ export default function Trials({
   );
 }
 
-function wait(ms: number){ return new Promise(r => setTimeout(r, ms)); }
-function norm(x:number, a:number, b:number){ return clamp((x - a) / (b - a), 0, 1); }
+function wait(ms: number) { return new Promise(r => setTimeout(r, ms)); }
+function norm(x: number, a: number, b: number) { return clamp((x - a) / (b - a), 0, 1); }

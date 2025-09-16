@@ -48,11 +48,7 @@ export default function Orb({ hueDeg, tiltDeg = 0, size = 120, trends = [], aria
             <span
               key={`${t.label}-${i}`}
               className="px-2 py-1 text-xs rounded-full border"
-              style={{
-                borderColor: `hsl(${clampedHue}, 70%, 40%)`,
-                color: `hsl(${clampedHue}, 80%, 30%)`,
-                background: `hsla(${clampedHue}, 90%, 90%, 0.4)`
-              }}
+              data-hue={clampedHue}
               aria-label={`${t.label}: ${t.value}`}
             >
               {t.label}: {t.value}
