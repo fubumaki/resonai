@@ -88,7 +88,23 @@ interface FlakySpecSummary {
 const ARTIFACTS_DIR = path.resolve(process.cwd(), '.artifacts');
 const VITEST_PATH = path.join(ARTIFACTS_DIR, 'vitest.json');
 const PLAYWRIGHT_PATH = path.join(ARTIFACTS_DIR, 'playwright.json');
+const PLAYWRIGHT_FLAKY_PATH = path.join(ARTIFACTS_DIR, 'playwright', 'flaky.json');
 const OUTPUT_PATH = path.join(ARTIFACTS_DIR, 'SSOT.md');
+
+interface PlaywrightFlakyArtifact {
+  generatedAt?: string;
+  commit?: string;
+  specs?: FlakySpecSummary[];
+  stats?: PlaywrightReport['stats'];
+  error?: string;
+}
+
+interface FlakyContext {
+  type: 'artifact' | 'report';
+  generatedAt?: string;
+  commit?: string;
+  error?: string;
+}
 
 async function loadJson<T>(filePath: string): Promise<T> {
   const raw = await readFile(filePath, 'utf8');
@@ -98,6 +114,18 @@ async function loadJson<T>(filePath: string): Promise<T> {
   }
   const payload = raw.slice(braceIndex);
   return JSON.parse(payload) as T;
+}
+
+async function loadOptionalJson<T>(filePath: string): Promise<T | undefined> {
+  try {
+    return await loadJson<T>(filePath);
+  } catch (error) {
+    const maybeErrno = error as NodeJS.ErrnoException;
+    if (maybeErrno?.code === 'ENOENT') {
+      return undefined;
+    }
+    throw error;
+  }
 }
 
 function formatDuration(milliseconds: number): string {
@@ -299,8 +327,10 @@ function renderSummaryMarkdown(options: {
   playwright: SuiteSummary;
   flakiest: FlakySpecSummary[];
   git: { sha: string; date?: string };
+  sources: string[];
+  flakyContext: FlakyContext;
 }): string {
-  const { vitest, playwright, flakiest, git } = options;
+  const { vitest, playwright, flakiest, git, sources, flakyContext } = options;
   const suites = [vitest, playwright];
   const allGreen = suites.every((suite) => suite.failed === 0 && suite.flaky === 0);
 
@@ -339,6 +369,18 @@ function renderSummaryMarkdown(options: {
   lines.push('## Flakiest specs');
   lines.push('');
 
+  if (flakyContext.type === 'artifact') {
+    const generated = flakyContext.generatedAt
+      ? formatUtcDate(flakyContext.generatedAt) || 'time unavailable'
+      : 'time unavailable';
+    const commit = flakyContext.commit ? ` for commit \`${shortSha(flakyContext.commit)}\`` : '';
+    lines.push(`_Data sourced from nightly artifact generated ${generated}${commit}._`);
+    if (flakyContext.error) {
+      lines.push(`_Warning: ${flakyContext.error}_`);
+    }
+    lines.push('');
+  }
+
   if (flakiest.length === 0) {
     lines.push('_No flaky specs detected in the latest artifacts._');
   } else {
@@ -368,28 +410,47 @@ function renderSummaryMarkdown(options: {
   }
 
   lines.push('');
-  lines.push('_Source: `.artifacts/vitest.json`, `.artifacts/playwright.json`._');
+  if (sources.length > 0) {
+    const formattedSources = sources.map((source) => `\`${source}\``).join(', ');
+    lines.push(`_Source: ${formattedSources}._`);
+  }
   lines.push('');
 
   return lines.join('\n');
 }
 
 async function main(): Promise<void> {
-  const [vitestReport, playwrightReport] = await Promise.all([
+  const [vitestReport, playwrightReport, flakyArtifact] = await Promise.all([
     loadJson<VitestReport>(VITEST_PATH),
     loadJson<PlaywrightReport>(PLAYWRIGHT_PATH),
+    loadOptionalJson<PlaywrightFlakyArtifact>(PLAYWRIGHT_FLAKY_PATH),
   ]);
 
   const vitestSummary = summarizeVitest(vitestReport);
   const playwrightSummary = summarizePlaywright(playwrightReport);
-  const flakiest = collectFlakySpecs(playwrightReport);
+  const usingFlakyArtifact = Array.isArray(flakyArtifact?.specs);
+  const flakiest = usingFlakyArtifact ? flakyArtifact?.specs ?? [] : collectFlakySpecs(playwrightReport);
   const git = getGitMetadata();
+  const sources = ['.artifacts/vitest.json', '.artifacts/playwright.json'];
+  if (usingFlakyArtifact) {
+    sources.push('.artifacts/playwright/flaky.json');
+  }
+  const flakyContext: FlakyContext = usingFlakyArtifact
+    ? {
+        type: 'artifact',
+        generatedAt: flakyArtifact?.generatedAt,
+        commit: flakyArtifact?.commit,
+        error: flakyArtifact?.error,
+      }
+    : { type: 'report' };
 
   const markdown = renderSummaryMarkdown({
     vitest: vitestSummary,
     playwright: playwrightSummary,
     flakiest,
     git,
+    sources,
+    flakyContext,
   });
 
   await writeFile(OUTPUT_PATH, `${markdown}\n`, 'utf8');

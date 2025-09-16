@@ -1,0 +1,186 @@
+name: Playwright Flaky Nightly
+
+on:
+  schedule:
+    - cron: "0 7 * * *" # 07:00 UTC nightly
+  workflow_dispatch:
+
+jobs:
+  detect-flaky-specs:
+    name: Detect Playwright flakes
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright (Firefox only)
+        run: npx playwright install --with-deps firefox
+
+      - name: Run Playwright retries sweep
+        env:
+          CI: "true"
+        run: npx playwright test --config=playwright.config.ts --project=firefox
+
+      - name: Build flaky summary artifact
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .artifacts/playwright
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+
+          function normalizePath(filePath) {
+            return filePath.split(path.sep).join('/');
+          }
+
+          function cleanErrorMessage(message) {
+            if (!message) {
+              return undefined;
+            }
+            const lines = message
+              .split(/\r?\n/)
+              .map((line) => line.trim())
+              .filter((line) => line.length > 0);
+
+            const dependencyLine = lines.find((line) => /missing dependencies/i.test(line));
+            if (dependencyLine) {
+              const normalized = dependencyLine.replace(/[╔║╚═]/g, '').trim().replace(/\s+/g, ' ');
+              return normalized.length > 160 ? `${normalized.slice(0, 157)}…` : normalized;
+            }
+
+            const filtered = lines.filter((line) => !/^[╔║╚═]+/.test(line));
+            const preferredLine =
+              filtered.find((line) => !line.toLowerCase().startsWith('error:')) ??
+              filtered[0] ??
+              lines[0];
+
+            if (!preferredLine) {
+              return undefined;
+            }
+
+            const sanitized = preferredLine.replace(/[╔║╚═]/g, '').trim().replace(/\s+/g, ' ');
+            return sanitized.length > 160 ? `${sanitized.slice(0, 157)}…` : sanitized;
+          }
+
+          function resolveProjectTestDir(report) {
+            const project = report?.config?.projects?.[0];
+            return project?.testDir;
+          }
+
+          function collectFlakySpecs(report) {
+            const specs = [];
+            const suites = report?.suites ?? [];
+            const testDir = resolveProjectTestDir(report);
+
+            for (const suite of suites) {
+              for (const spec of suite?.specs ?? []) {
+                let failures = 0;
+                let flaky = 0;
+                let retries = 0;
+                let durationMs = 0;
+                let message;
+
+                for (const test of spec?.tests ?? []) {
+                  for (const result of test?.results ?? []) {
+                    const status = result?.status ?? 'passed';
+                    durationMs += result?.duration ?? 0;
+                    retries += result?.retry ?? 0;
+                    if (status !== 'passed' && status !== 'skipped') {
+                      failures += 1;
+                      if (!message) {
+                        const primaryError =
+                          result?.error?.message ??
+                          (result?.errors && result.errors[0]?.message) ??
+                          result?.error?.value ??
+                          (result?.errors && result.errors[0]?.value);
+                        message = cleanErrorMessage(primaryError);
+                      }
+                    }
+                    if (status === 'flaky') {
+                      flaky += 1;
+                    }
+                  }
+                }
+
+                if (failures > 0 || flaky > 0) {
+                  const candidatePath = spec?.file ?? suite?.file ?? '';
+                  const absoluteCandidate = testDir ? path.join(testDir, candidatePath) : candidatePath;
+                  const relativePath = normalizePath(path.relative(process.cwd(), absoluteCandidate));
+                  specs.push({
+                    path: relativePath,
+                    title: spec?.title ?? '',
+                    failures,
+                    flaky,
+                    retries,
+                    durationMs,
+                    message,
+                  });
+                }
+              }
+            }
+
+            specs.sort((a, b) => {
+              if (b.flaky !== a.flaky) {
+                return b.flaky - a.flaky;
+              }
+              if (b.failures !== a.failures) {
+                return b.failures - a.failures;
+              }
+              if (b.retries !== a.retries) {
+                return b.retries - a.retries;
+              }
+              if (b.durationMs !== a.durationMs) {
+                return b.durationMs - a.durationMs;
+              }
+              return a.title.localeCompare(b.title);
+            });
+
+            return specs;
+          }
+
+          const resultsPath = path.join(process.cwd(), 'playwright-report', 'results.json');
+          const artifactPath = path.join(process.cwd(), '.artifacts', 'playwright', 'flaky.json');
+
+          const artifact = {
+            generatedAt: new Date().toISOString(),
+            commit: process.env.GITHUB_SHA || undefined,
+            specs: [],
+          };
+
+          try {
+            const raw = fs.readFileSync(resultsPath, 'utf8');
+            const report = JSON.parse(raw);
+            artifact.specs = collectFlakySpecs(report);
+            if (report?.stats) {
+              artifact.stats = report.stats;
+            }
+            if (report?.config?.projects?.[0]?.name) {
+              artifact.project = report.config.projects[0].name;
+            }
+          } catch (error) {
+            artifact.error = error && error.message ? String(error.message) : String(error);
+          }
+
+          fs.writeFileSync(artifactPath, JSON.stringify(artifact, null, 2), 'utf8');
+          console.log(`[flaky-artifact] wrote ${artifactPath} with ${artifact.specs.length} entries`);
+          NODE
+
+      - name: Upload flaky summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-flaky-nightly
+          path: .artifacts/playwright/flaky.json
+          retention-days: 14
+          if-no-files-found: warn
