@@ -82,6 +82,25 @@ Legend: [codex] coordinator • [cursor] UI implementor • [either] any
   - app/listen/page.tsx: replace audio width style with class (e.g., `w-full`)
   - Acceptance: no `style=` in changed files; visuals and a11y preserved.
 
+## Roadmap Candidates (post-gating review)
+
+_Review and reprioritize this section once P0 gating items and **10) Stabilize Playwright (flake)** are complete._
+
+- [codex] Local-first adaptive practice mode (spec)
+  - Acceptance: Flow diagram and session schema stored in IndexedDB with migration notes; zero remote fetches during practice.
+  - Acceptance: Mode toggles degrade gracefully when isolation fails; offline-first fallback documented in `docs/DECISIONS.md`.
+  - Acceptance: Privacy checklist signed off (no PII, wipe action clears local store).
+
+- [cursor] Practice mode UI shells
+  - Acceptance: Mode switcher and onboarding screens function offline; no network calls introduced by UI changes.
+  - Acceptance: A/B of “Solo drill” vs “Adaptive loop” uses shared components, respects existing accessibility assertions.
+  - Acceptance: Local session summaries readable with screen readers; `Clear data` button triggers local wipe flow.
+
+- [codex] Local analytics insights (privacy-preserving)
+  - Acceptance: Analytics summaries computed client-side from local ring buffer; export limited to CSV saved locally.
+  - Acceptance: No identifiers persisted beyond hashed install ID; hashing implementation documented and tested.
+  - Acceptance: Privacy guard tests fail if network requests originate from analytics module; CI gate added.
+
 ## Research Backlog (Mini-specs)
 
 1) Mic calibration flow (Device → Level → Environment)
