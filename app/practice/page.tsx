@@ -14,7 +14,6 @@ import TargetBar from './ui/TargetBar';
 import ProgressBar from '@/components/ProgressBar';
 import Orb from '@/components/Orb';
 import { hzToNote } from '@/lib/pitch';
-import Script from 'next/script';
 import {
   trackSessionProgress,
   createSessionProgressState,
@@ -37,32 +36,102 @@ const PRESETS: Record<PresetKey, Preset> = {
 
 const TOTAL_TRIALS = 10;
 
+type PracticeProgressOptions = {
+  totalSteps?: number;
+  announcementPrefix?: string;
+};
+
+type PracticeHookCache = {
+  ready?: boolean;
+  progress?: number;
+  progressOptions?: PracticeProgressOptions;
+};
+
 declare global {
   interface Window {
     __setPracticeReady?: (value: boolean) => void;
     __setPracticeProgress?: (
       value: number,
-      options?: { totalSteps?: number; announcementPrefix?: string }
+      options?: PracticeProgressOptions
     ) => void;
+    __practiceHookCache?: PracticeHookCache;
   }
 }
 
-// Pending test state captured before React effects attach
-let __pendingPracticeReady: boolean | undefined;
-let __pendingPracticeProgress: number | undefined;
+const clampProgressValue = (value: unknown, totalSteps: number = TOTAL_TRIALS): number => {
+  const numericValue = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numericValue)) {
+    return 0;
+  }
+  const rounded = Math.round(numericValue);
+  const nonNegative = Math.max(0, rounded);
+  return Math.min(nonNegative, totalSteps);
+};
+
+const getPracticeHookCache = (): PracticeHookCache | undefined => {
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+  if (!window.__practiceHookCache) {
+    window.__practiceHookCache = {};
+  }
+  return window.__practiceHookCache;
+};
+
+const cacheReadyValue = (value: boolean) => {
+  const cache = getPracticeHookCache();
+  if (!cache) {
+    return;
+  }
+  cache.ready = value;
+};
+
+const cacheProgressValue = (value: unknown, options?: PracticeProgressOptions): number => {
+  const totalSteps =
+    typeof options?.totalSteps === 'number' && Number.isFinite(options.totalSteps)
+      ? Math.max(0, Math.round(options.totalSteps))
+      : TOTAL_TRIALS;
+  const safeValue = clampProgressValue(value, totalSteps);
+  const cache = getPracticeHookCache();
+  if (cache) {
+    cache.progress = safeValue;
+    if (options && (typeof options.announcementPrefix === 'string' || typeof options.totalSteps === 'number')) {
+      cache.progressOptions = {
+        totalSteps,
+        announcementPrefix: options.announcementPrefix,
+      };
+    } else {
+      delete cache.progressOptions;
+    }
+  }
+  return safeValue;
+};
+
+const readCachedReady = (): boolean | undefined => {
+  const cache = getPracticeHookCache();
+  return cache?.ready;
+};
+
+const readCachedProgress = (): number | undefined => {
+  const cache = getPracticeHookCache();
+  return cache?.progress;
+};
 
 // Expose test hooks as early as possible so Playwright can call them right after navigation
 if (typeof window !== 'undefined') {
+  getPracticeHookCache();
+
   if (!window.__setPracticeReady) {
     window.__setPracticeReady = (value: boolean) => {
-      __pendingPracticeReady = !!value;
-      try { window.dispatchEvent(new CustomEvent('practice:set-ready', { detail: !!value })); } catch { }
+      const safeValue = !!value;
+      cacheReadyValue(safeValue);
+      try { window.dispatchEvent(new CustomEvent('practice:set-ready', { detail: safeValue })); } catch { }
     };
   }
+
   if (!window.__setPracticeProgress) {
-    window.__setPracticeProgress = (value: number) => {
-      const safeValue = Math.min(Math.max(Math.round(value), 0), TOTAL_TRIALS);
-      __pendingPracticeProgress = safeValue;
+    window.__setPracticeProgress = (value: number, options?: PracticeProgressOptions) => {
+      const safeValue = cacheProgressValue(value, options);
       try { window.dispatchEvent(new CustomEvent('practice:set-progress', { detail: safeValue })); } catch { }
     };
   }
@@ -95,7 +164,10 @@ export default function Practice() {
   const [brightTarget, setBrightTarget] = useState<Range>(PRESETS.mezzo.bright);
 
   const [ready, setReady] = useState<boolean>(() => {
-    try { return typeof __pendingPracticeReady === 'boolean' ? !!__pendingPracticeReady : false; } catch { return false; }
+    try {
+      const cached = readCachedReady();
+      return typeof cached === 'boolean' ? cached : false;
+    } catch { return false; }
   });
   const [err, setErr] = useState<string | null>(null);
 
@@ -108,9 +180,8 @@ export default function Practice() {
   const [lowPower, setLowPower] = useState(false);
   const [sessionProgress, setSessionProgress] = useState<number>(() => {
     try {
-      return typeof __pendingPracticeProgress === 'number'
-        ? Math.min(Math.max(Math.round(__pendingPracticeProgress), 0), TOTAL_TRIALS)
-        : 0;
+      const cached = readCachedProgress();
+      return typeof cached === 'number' ? clampProgressValue(cached) : 0;
     } catch { return 0; }
   });
   const [sessionProgressAnnouncement, dispatchSessionProgressAnnouncement] = useReducer(
@@ -239,10 +310,10 @@ export default function Practice() {
   };
 
   useEffect(() => {
-    // Apply any pending ready flag set before listeners attached
     try {
-      if (typeof __pendingPracticeReady === 'boolean') {
-        setReady(!!__pendingPracticeReady);
+      const cachedReady = readCachedReady();
+      if (typeof cachedReady === 'boolean') {
+        setReady(cachedReady);
       }
     } catch { }
 
@@ -250,10 +321,9 @@ export default function Practice() {
       try {
         await startAudio();
         setReady(true);
-        // Apply any pending test state immediately after first ready
-        if (typeof __pendingPracticeProgress === 'number') {
-          const v = Math.min(Math.max(Math.round(__pendingPracticeProgress), 0), TOTAL_TRIALS);
-          setSessionProgress(v);
+        const cachedProgress = readCachedProgress();
+        if (typeof cachedProgress === 'number') {
+          setSessionProgress(clampProgressValue(cachedProgress));
         }
       } catch (e: any) { setErr(e?.message ?? "Microphone permission denied."); }
     })();
@@ -305,12 +375,13 @@ export default function Practice() {
 
     const onReady = (e: Event) => setReady(!!(e as CustomEvent<boolean>).detail);
     const onProgress = (e: Event) => {
-      const safeValue = Math.min(Math.max(Math.round((e as CustomEvent<number>).detail ?? 0), 0), TOTAL_TRIALS);
+      const safeValue = clampProgressValue((e as CustomEvent<number>).detail ?? 0);
       setSessionProgress(safeValue);
       dispatchSessionProgressAnnouncement({ type: 'progress', completed: safeValue, totalSteps: TOTAL_TRIALS });
     };
     window.addEventListener('practice:set-ready', onReady as EventListener);
     window.addEventListener('practice:set-progress', onProgress as EventListener);
+    try { window.dispatchEvent(new Event('practice:request-cache')); } catch { }
     return () => {
       window.removeEventListener('practice:set-ready', onReady as EventListener);
       window.removeEventListener('practice:set-progress', onProgress as EventListener);
@@ -417,9 +488,17 @@ export default function Practice() {
     toast('Practice data reset');
   };
 
+  const hasCachedPracticeState = (() => {
+    try {
+      const cache = getPracticeHookCache();
+      return !!cache && (typeof cache.ready === 'boolean' || typeof cache.progress === 'number');
+    } catch {
+      return false;
+    }
+  })();
+
   return (
     <section className="hero">
-      <Script src="/practice-hooks.js" strategy="beforeInteractive" />
       <h1>Practice</h1>
 
       <div className="flex gap-12 items-center justify-between wrap mb-4">
@@ -437,7 +516,7 @@ export default function Practice() {
       </div>
 
       {/* Session Progress */}
-      {(ready || (typeof (window as any).__practicePendingReady === 'boolean') || (typeof (window as any).__practicePendingProgress === 'number')) && (
+      {(ready || hasCachedPracticeState) && (
         <div className="mb-4">
           <div className="flex items-center justify-between text-sm mb-2">
             <span data-testid="progress-count">{sessionProgress} / {TOTAL_TRIALS}</span>

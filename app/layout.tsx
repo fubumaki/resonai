@@ -1,6 +1,7 @@
 import "./globals.css";
 import "./ui.css";
 import Link from "next/link";
+import Script from "next/script";
 import SwRegister from "./SwRegister";
 import PerfHUD from "./PerfHUD";
 // import CspDevLogger from "./CspDevLogger";
@@ -49,6 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {process.env.NODE_ENV !== "production" && <PerfHUD />}
         <CommitHud />
         {/* {process.env.NODE_ENV !== "production" && <CspDevLogger />} */}
+        <Script id="practice-test-hooks" strategy="beforeInteractive" src="/practice-hooks.js" />
       </body>
     </html>
   );

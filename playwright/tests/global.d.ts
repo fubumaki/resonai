@@ -14,5 +14,10 @@ declare global {
       value: number,
       options?: { totalSteps?: number; announcementPrefix?: string }
     ) => void;
+    __practiceHookCache?: {
+      ready?: boolean;
+      progress?: number;
+      progressOptions?: { totalSteps?: number; announcementPrefix?: string };
+    };
   }
 }
