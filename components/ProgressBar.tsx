@@ -7,18 +7,20 @@ interface ProgressBarProps {
 }
 
 export default function ProgressBar({ currentStep, totalSteps, className = '' }: ProgressBarProps) {
-  const progress = Math.min((currentStep / totalSteps) * 100, 100);
+  const safeTotalSteps = Math.max(1, totalSteps);
+  const clampedCurrent = Math.min(Math.max(1, currentStep), safeTotalSteps);
+  const progress = (clampedCurrent / safeTotalSteps) * 100;
   
   return (
     <div
       className={`w-full ${className}`}
       role="progressbar"
-      aria-valuenow={currentStep}
+      aria-valuenow={clampedCurrent}
       aria-valuemin={1}
-      aria-valuemax={totalSteps}
+      aria-valuemax={safeTotalSteps}
     >
       <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 mb-2">
-        <span>Step {currentStep} of {totalSteps}</span>
+        <span>Step {clampedCurrent} of {safeTotalSteps}</span>
         <span>{Math.round(progress)}%</span>
       </div>
 
@@ -35,7 +37,7 @@ export default function ProgressBar({ currentStep, totalSteps, className = '' }:
           y="0"
           height="8"
           rx="4"
-          width={Math.max(0, Math.min(100, progress))}
+          width={progress}
         />
       </svg>
     </div>
