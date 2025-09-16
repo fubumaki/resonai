@@ -14,6 +14,10 @@ export interface AnalyticsStub {
    * Clears captured events and beacon payloads.
    */
   reset(): Promise<void>;
+  /**
+   * Forces immediate flush of buffered analytics events.
+   */
+  forceFlush(): Promise<void>;
 }
 
 export interface StubbedAnalyticsOptions {
@@ -257,6 +261,14 @@ export async function useStubbedAnalytics(
     },
     async reset() {
       await exec('reset');
+    },
+    async forceFlush() {
+      await page.evaluate(() => {
+        const analytics = (window as any).__analytics;
+        if (analytics && analytics.forceFlush) {
+          return analytics.forceFlush();
+        }
+      });
     },
   };
 }

@@ -120,6 +120,16 @@ class AnalyticsClient {
       this.flush();
     });
   }
+
+  // Force flush for testing
+  async forceFlush(): Promise<void> {
+    await this.flush();
+  }
+
+  // Get current buffer for testing
+  getBuffer(): AnalyticsEvent[] {
+    return [...this.buffer];
+  }
 }
 
 // Singleton instance
@@ -128,6 +138,12 @@ export const analytics = new AnalyticsClient();
 // Initialize on client side
 if (typeof window !== 'undefined') {
   analytics.flushOnUnload();
+  
+  // Expose analytics methods for testing
+  (window as any).__analytics = {
+    forceFlush: () => analytics.forceFlush(),
+    getBuffer: () => analytics.getBuffer(),
+  };
 }
 
 // Core event tracking functions

@@ -36,6 +36,9 @@ test('one-tap mic toggles recording and emits analytics', async ({ page }) => {
   await stopBtn.click();
   await expect(meter).toHaveAttribute('data-active', 'false');
 
+  // Force flush analytics events
+  await analytics.forceFlush();
+
   // Verify we got some analytics traffic in order
   const events = await analytics.getEvents();
   const names = events.map((e: any) => e.event);

@@ -27,6 +27,8 @@ test('analytics events are posted (sendBeacon stub + forced flush)', async ({ pa
   await page.waitForTimeout(1000);
 
   // 3) Force-flush any client-side buffered events to /api/events
+  await analytics.forceFlush();
+  
   await expect.poll(async () => {
     const names = (await analytics.getEvents()).map((event: any) => event.event);
     return names;

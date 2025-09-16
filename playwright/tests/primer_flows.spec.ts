@@ -3,6 +3,14 @@ import { useLocalStorageFlags } from './helpers';
 
 test.describe('Primer Flows', () => {
   test('E2A variant shows primer dialog', async ({ page }) => {
+    // Set pilot cohort cookie to allow access to /try page
+    await page.context().addCookies([{
+      name: 'pilot_cohort',
+      value: 'pilot',
+      domain: 'localhost',
+      path: '/',
+    }]);
+    
     await useLocalStorageFlags(page, {
       'ab:E2': 'A',
       'ff.permissionPrimerShort': 'true',
@@ -31,6 +39,14 @@ test.describe('Primer Flows', () => {
   });
 
   test('E2B variant skips primer dialog', async ({ page }) => {
+    // Set pilot cohort cookie to allow access to /try page
+    await page.context().addCookies([{
+      name: 'pilot_cohort',
+      value: 'pilot',
+      domain: 'localhost',
+      path: '/',
+    }]);
+    
     await useLocalStorageFlags(page, {
       'ab:E2': 'B',
       'ff.permissionPrimerShort': 'true',
