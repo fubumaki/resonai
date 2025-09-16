@@ -45,21 +45,27 @@ export async function usePermissionMock(
     const resolveState = (
       descriptor: PermissionDescriptor | any
     ): Promise<PermissionStatus> | PermissionStatus => {
-      const descriptorName = (descriptor?.name || descriptor) as PermissionName;
+      const descriptorKey = (descriptor?.name || descriptor) as
+        | PermissionName
+        | '*';
+      const permissionName: PermissionName =
+        descriptorKey === '*'
+          ? 'geolocation'
+          : (descriptorKey as PermissionName);
       const override =
-        state.overrides[descriptorName] ?? state.overrides['*'];
+        state.overrides[descriptorKey] ?? state.overrides['*'];
 
       if (override) {
-        return createStatus(descriptorName, override);
+        return createStatus(permissionName, override);
       }
 
-      if (originalQuery) {
-        return originalQuery(descriptor).catch(() =>
-          createStatus(descriptorName, 'denied')
-        );
+      if (!originalQuery || descriptorKey === '*') {
+        return createStatus(permissionName, 'prompt');
       }
 
-      return Promise.resolve(createStatus(descriptorName, 'prompt'));
+      return originalQuery(descriptor).catch(() =>
+        createStatus(permissionName, 'denied')
+      );
     };
 
     const query = (descriptor: PermissionDescriptor | any) => {
