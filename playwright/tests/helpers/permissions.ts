@@ -11,6 +11,8 @@ export interface PermissionController {
   snapshot(): Promise<PermissionOverrides>;
 }
 
+const DEFAULT_PERMISSION_NAME: PermissionName = 'geolocation';
+
 const createStatus = (
   name: PermissionName,
   state: PermissionState
@@ -50,7 +52,7 @@ export async function usePermissionMock(
         | '*';
       const permissionName: PermissionName =
         descriptorKey === '*'
-          ? 'geolocation'
+          ? DEFAULT_PERMISSION_NAME
           : (descriptorKey as PermissionName);
       const override =
         descriptorKey === '*'
@@ -72,8 +74,7 @@ export async function usePermissionMock(
       }
     };
 
-    const query = (descriptor: PermissionDescriptor | any) =>
-      resolveState(descriptor);
+    const query = (descriptor: PermissionDescriptor | any) => resolveState(descriptor);
 
     permissions.query = query;
     navAny.permissions = permissions;
