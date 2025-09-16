@@ -2,22 +2,25 @@
 
 ## CI Single Source of Truth (SSOT)
 
-**Last green commit:** _pending — current run has failures (Playwright (firefox): 22 failed)._ 
-**Current commit:** `b22e630` (2025-09-16 05:57 UTC)
-Generated: 2025-09-16 06:33 UTC — see [.artifacts/SSOT.md](.artifacts/SSOT.md) for full artifact details.
+**Last green commit:** _pending — current run has failures (Playwright (firefox): 58 failed)._
+**Current commit:** `02f7ece` (2025-09-16 06:55 UTC)
+
+Generated: 2025-09-16 07:16 UTC
 
 | Suite | Passed | Failed | Skipped | Flaky | Duration |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Vitest | 85 | 0 | 0 | 0 | 0.08s |
-| Playwright (firefox) | 34 | 22 | 12 | 0 | 6m 5.42s |
+| Playwright (firefox) | 5 | 58 | 5 | 0 | 1m 6.27s |
 
-**Flakiest specs**
+## Flakiest specs
 
-1. `playwright/tests/a11y_min.spec.ts` — permission primer dialog is accessible when shown (failed ×1) — 10.8s — Locator: getByRole('dialog')
-2. `playwright/tests/analytics_beacon.spec.ts` — analytics events are posted (sendBeacon stub + forced flush) (failed ×1) — 10.4s — Expected: ArrayContaining ["screen_view", "permission_requested"]
-3. `playwright/tests/smoke.spec.ts` — fallback to default mic shows toast (failed ×1) — 8.95s — Locator: locator('#toasts')
-4. `playwright/tests/smoke.spec.ts` — data privacy page is accessible (failed ×1) — 8.01s — Locator: getByText('Local‑first by design')
-5. `playwright/tests/mic_flow.spec.ts` — one-tap mic toggles recording and emits analytics (failed ×1) — 7.24s — Locator: locator('.pitch-meter')
+1. `playwright/tests/a11y_min.spec.ts` — permission primer dialog is accessible when shown (failed ×1) — 0.01s — Error: browserType.launch: Executable doesn't exist at /root/.cache/ms-playwright/firefox-1490/firefox/firefox
+2. `playwright/tests/smoke.spec.ts` — data privacy page is accessible (failed ×1) — 0.01s — Error: browserType.launch: Executable doesn't exist at /root/.cache/ms-playwright/firefox-1490/firefox/firefox
+3. `playwright/tests/smoke.spec.ts` — export/import/clear controls are visible (failed ×1) — 0.01s — Error: browserType.launch: Executable doesn't exist at /root/.cache/ms-playwright/firefox-1490/firefox/firefox
+4. `playwright/tests/manifest-link.spec.ts` — home page includes web app manifest link (failed ×1) — 0.01s — Error: browserType.launch: Executable doesn't exist at /root/.cache/ms-playwright/firefox-1490/firefox/firefox
+5. `playwright/tests/smoke.spec.ts` — fallback to default mic shows toast (failed ×1) — 0.01s — Error: browserType.launch: Executable doesn't exist at /root/.cache/ms-playwright/firefox-1490/firefox/firefox
+
+_Source: `.artifacts/vitest.json`, `.artifacts/playwright.json`._
 
 Quick commands to run the Instant Practice feature and verify everything works.
 
