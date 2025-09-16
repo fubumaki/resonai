@@ -11,7 +11,8 @@ export interface PermissionController {
   snapshot(): Promise<PermissionOverrides>;
 }
 
-const createStatus = (state: PermissionState): PermissionStatus => ({
+const createStatus = (name: PermissionName, state: PermissionState): PermissionStatus => ({
+  name,
   state,
   onchange: null,
   addEventListener: () => undefined,
@@ -41,18 +42,18 @@ export async function usePermissionMock(
     const resolveState = (
       descriptor: PermissionDescriptor | any
     ): Promise<PermissionStatus> | PermissionStatus => {
-      const name = (descriptor?.name || descriptor) as PermissionName | '*';
-      const override = state.overrides[name] ?? state.overrides['*'];
+      const descriptorName = (descriptor?.name || descriptor) as PermissionName;
+      const override = state.overrides[descriptorName] ?? state.overrides['*'];
 
       if (override) {
-        return createStatus(override);
+        return createStatus(descriptorName, override);
       }
 
       if (originalQuery) {
-        return originalQuery(descriptor).catch(() => createStatus('denied'));
+        return originalQuery(descriptor).catch(() => createStatus(descriptorName, 'denied'));
       }
 
-      return Promise.resolve(createStatus('prompt'));
+      return Promise.resolve(createStatus(descriptorName, 'prompt'));
     };
 
     const query = (descriptor: PermissionDescriptor | any) => {
