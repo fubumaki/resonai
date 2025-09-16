@@ -37,7 +37,7 @@ test('manual dialog test', async ({ page }) => {
   console.log('Button text after click:', buttonText);
 
   // Check for any console errors
-  const consoleLogs = [];
+  const consoleLogs: string[] = [];
   page.on('console', msg => consoleLogs.push(msg.text()));
 
   // Wait a bit more and check console logs

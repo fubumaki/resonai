@@ -15,20 +15,20 @@ test('analytics events are posted (sendBeacon stub + forced flush)', async ({ pa
   // Start flow: first click requests mic
   const startBtn = page.getByRole('button', { name: /start|enable microphone/i });
   await startBtn.click();
-  
+
   // Wait for mic to be ready and button to change
   await expect(page.getByRole('button', { name: /start/i })).toBeVisible();
-  
+
   // Second click: start recording
   const recordBtn = page.getByRole('button', { name: /start/i });
   await recordBtn.click();
-  
+
   // Wait a moment for events to be generated
   await page.waitForTimeout(1000);
 
   // 3) Force-flush any client-side buffered events to /api/events
   await analytics.forceFlush();
-  
+
   await expect.poll(async () => {
     const names = (await analytics.getEvents()).map((event: any) => event.event);
     return names;

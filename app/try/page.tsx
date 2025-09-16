@@ -37,7 +37,7 @@ export default function InstantPractice() {
   const hapticsEnabled = getFeatureFlag('ff.haptics');
   const primerShort = getFeatureFlag('ff.permissionPrimerShort');
   const signUpFirst = getFeatureFlag('ff.signUpFirst');
-  
+
   const e1Variant = getExperimentVariant('E1');
   const e2Variant = getExperimentVariant('E2');
 
@@ -61,7 +61,9 @@ export default function InstantPractice() {
     }
 
     // Track screen view
+    console.log('Calling trackScreenView...');
     trackScreenView('instant_practice');
+    console.log('trackScreenView called');
 
     // Set TTV start time
     ttvStartTime.current = Date.now();
@@ -83,7 +85,9 @@ export default function InstantPractice() {
 
   const requestMicPermission = async () => {
     try {
+      console.log('Calling trackPermissionRequested...');
       trackPermissionRequested('microphone', 'instant_practice');
+      console.log('trackPermissionRequested called');
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaStreamRef.current = stream;
@@ -197,8 +201,8 @@ export default function InstantPractice() {
         <div className="text-center space-y-6">
           <div
             className={`w-32 h-32 mx-auto rounded-full flex items-center justify-center transition-all duration-300 ${recording
-                ? 'bg-blue-100 dark:bg-blue-900/20 scale-110'
-                : 'bg-slate-100 dark:bg-slate-800'
+              ? 'bg-blue-100 dark:bg-blue-900/20 scale-110'
+              : 'bg-slate-100 dark:bg-slate-800'
               }`}
             data-active={recording}
           >
@@ -246,8 +250,8 @@ export default function InstantPractice() {
           ) : (
             <button
               className={`w-full py-4 px-6 font-semibold rounded-lg shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-900 active:scale-95 ${recording
-                  ? 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-500'
-                  : 'bg-green-600 hover:bg-green-700 text-white focus:ring-green-500'
+                ? 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-500'
+                : 'bg-green-600 hover:bg-green-700 text-white focus:ring-green-500'
                 }`}
               onClick={startStop}
               aria-pressed={recording}

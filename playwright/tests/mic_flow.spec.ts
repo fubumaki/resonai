@@ -22,7 +22,7 @@ test('one-tap mic toggles recording and emits analytics', async ({ page }) => {
 
   // Wait for mic to be ready and button to change to recording button
   await expect(page.getByRole('button', { name: /start/i })).toBeVisible();
-  
+
   // Second click: start recording
   const recordBtn = page.getByRole('button', { name: /start/i });
   await recordBtn.click();

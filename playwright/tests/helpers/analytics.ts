@@ -118,8 +118,8 @@ export async function useStubbedAnalytics(
             typeof entry.body === 'string'
               ? entry.body
               : entry.json
-              ? JSON.stringify(entry.json)
-              : undefined;
+                ? JSON.stringify(entry.json)
+                : undefined;
 
           if (payload !== undefined) {
             window
@@ -209,8 +209,8 @@ export async function useStubbedAnalytics(
           const url = typeof input === 'string'
             ? input
             : input instanceof URL
-            ? input.toString()
-            : (input as Request).url;
+              ? input.toString()
+              : (input as Request).url;
 
           if (url && url.includes('/api/events') && init?.body && typeof init.body === 'string') {
             stub.recordBeacon({
