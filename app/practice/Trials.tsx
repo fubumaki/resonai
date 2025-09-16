@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type TrialResult = {
   phrase: string;
@@ -50,51 +50,20 @@ export default function Trials({
   const startedAt = useRef<number | null>(null);
   const raf = useRef<number | null>(null);
 
-  // capture loop while trial is active
-  useEffect(() => {
-    if (!active) return;
-
-    const tick = (t: number) => {
-      const s = getSnapshot();
-      buf.current.push({ t: performance.now(), pitch: s.pitch, centroid: s.centroid, inPitch: s.inPitch, inBright: s.inBright });
-      if (startedAt.current && performance.now() - startedAt.current >= 2000) { // 2s trial
-        finish();
-        return;
-      }
-      raf.current = requestAnimationFrame(tick);
-    };
-    raf.current = requestAnimationFrame(tick);
-    return () => { if (raf.current) cancelAnimationFrame(raf.current); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active]);
-
-  const start = async () => {
-    if (active) return;
-    buf.current = [];
-    startedAt.current = null;
-    // 3..1..go micro-countdown (visual rhythm)
-    setCountdown(3); await wait(350);
-    setCountdown(2); await wait(350);
-    setCountdown(1); await wait(350);
-    setCountdown(0);
-    startedAt.current = performance.now();
-    setActive(true);
-  };
-
-  const finish = () => {
+  const finish = useCallback(() => {
     setActive(false);
     const samples = buf.current;
-    const durationMs = samples.length ? (samples[samples.length-1].t - samples[0].t) : 0;
+    const durationMs = samples.length ? (samples[samples.length - 1].t - samples[0].t) : 0;
 
     const voiced = samples.filter(s => s.pitch != null && s.centroid != null);
     const pitchVals = voiced.map(s => s.pitch!) as number[];
-    const centVals  = voiced.map(s => s.centroid!) as number[];
+    const centVals = voiced.map(s => s.centroid!) as number[];
     const inPitchPct = samples.length ? (samples.filter(s => s.inPitch).length / samples.length) * 100 : 0;
-    const inBrightPct= samples.length ? (samples.filter(s => s.inBright).length / samples.length) * 100 : 0;
+    const inBrightPct = samples.length ? (samples.filter(s => s.inBright).length / samples.length) * 100 : 0;
 
     const medPitch = median(pitchVals);
-    const medCent  = median(centVals);
-    const stab     = mad(pitchVals); // Hz
+    const medCent = median(centVals);
+    const stab = mad(pitchVals); // Hz
 
     // Simple scoring: range (60%), stability (25%), voiced presence (15%)
     const rangeScore = 0.6 * (0.5 * norm(inPitchPct, 0, 100) + 0.5 * norm(inBrightPct, 0, 100));
@@ -116,6 +85,42 @@ export default function Trials({
     onComplete?.(res);
     // Notify other components (SessionSummary) without coupling
     window.dispatchEvent(new CustomEvent("resonai:trial-complete", { detail: res }));
+  }, [onComplete, phrase]);
+
+  const tick = useCallback((_time: number) => {
+    const s = getSnapshot();
+    buf.current.push({ t: performance.now(), pitch: s.pitch, centroid: s.centroid, inPitch: s.inPitch, inBright: s.inBright });
+    if (startedAt.current && performance.now() - startedAt.current >= 2000) { // 2s trial
+      finish();
+      return;
+    }
+    raf.current = requestAnimationFrame(tick);
+  }, [finish, getSnapshot]);
+
+  // capture loop while trial is active
+  useEffect(() => {
+    if (!active) return;
+
+    raf.current = requestAnimationFrame(tick);
+    return () => {
+      if (raf.current != null) {
+        cancelAnimationFrame(raf.current);
+        raf.current = null;
+      }
+    };
+  }, [active, tick]);
+
+  const start = async () => {
+    if (active) return;
+    buf.current = [];
+    startedAt.current = null;
+    // 3..1..go micro-countdown (visual rhythm)
+    setCountdown(3); await wait(350);
+    setCountdown(2); await wait(350);
+    setCountdown(1); await wait(350);
+    setCountdown(0);
+    startedAt.current = performance.now();
+    setActive(true);
   };
 
   return (
