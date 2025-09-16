@@ -4,6 +4,7 @@ class PitchProcessor extends AudioWorkletProcessor {
   }
   constructor() {
     super();
+    this._sampleRate = globalThis.sampleRate ?? 48000;
     const windowSize = 1024;
     this._buffer = new Float32Array(windowSize);
     this._hop = Math.floor(windowSize / 2);
@@ -11,7 +12,7 @@ class PitchProcessor extends AudioWorkletProcessor {
   }
   estimatePitch(frame) {
     const N = frame.length;
-    const sr = sampleRate || 48000;
+    const sr = this._sampleRate;
     let maxLag = Math.floor(sr / 60);
     let minLag = Math.floor(sr / 500);
     if (minLag < 2) minLag = 2;
