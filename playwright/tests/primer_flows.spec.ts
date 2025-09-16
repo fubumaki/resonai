@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { PERMISSION_PRIMER_COPY } from '../../lib/permission-primer';
 
 test.describe('Primer Flows', () => {
   test('E2A variant shows primer dialog', async ({ page }) => {
@@ -18,10 +19,10 @@ test.describe('Primer Flows', () => {
     await expect(dialog).toBeVisible();
     
     // Check dialog content
-    await expect(dialog.locator('h2')).toContainText('Microphone Access');
+    await expect(dialog.locator('h2')).toContainText(PERMISSION_PRIMER_COPY.title);
     
     // Continue button should be present
-    const continueBtn = dialog.getByRole('button', { name: /continue/i });
+    const continueBtn = dialog.getByRole('button', { name: PERMISSION_PRIMER_COPY.actions.primary });
     await expect(continueBtn).toBeVisible();
     
     // Click continue

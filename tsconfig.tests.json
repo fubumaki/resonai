@@ -3,7 +3,8 @@
   "compilerOptions": {
     "types": [
       "vitest/globals",
-      "@testing-library/jest-dom"
+      "@testing-library/jest-dom",
+      "@testing-library/jest-dom/vitest"
     ],
     "noEmit": true
   },

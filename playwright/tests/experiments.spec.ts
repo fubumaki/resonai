@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { PERMISSION_PRIMER_COPY } from '../../lib/permission-primer';
 
 test.describe('Experiments', () => {
   test.describe.configure({ mode: 'serial' }); // variant persistence relies on localStorage
@@ -52,12 +53,12 @@ test.describe('Experiments', () => {
     await expect(dialog).toBeVisible();
     
     // Check dialog content
-    await expect(dialog.locator('h2')).toContainText('Microphone Access');
-    await expect(dialog.locator('p')).toContainText('We use your mic to give you instant feedback');
-    
+    await expect(dialog.locator('h2')).toContainText(PERMISSION_PRIMER_COPY.title);
+    await expect(dialog.locator('p')).toContainText(PERMISSION_PRIMER_COPY.body[0]);
+
     // Check buttons
-    await expect(dialog.locator('button:has-text("Not now")')).toBeVisible();
-    await expect(dialog.locator('button:has-text("Continue")')).toBeVisible();
+    await expect(dialog.getByRole('button', { name: PERMISSION_PRIMER_COPY.actions.secondary })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: PERMISSION_PRIMER_COPY.actions.primary })).toBeVisible();
   });
 
   test('should skip primer dialog for E2B variant', async ({ page }) => {
@@ -102,7 +103,7 @@ test.describe('Experiments', () => {
     await page.click('button:has-text("Start with voice")');
     
     // Click continue in primer
-    await page.click('dialog button:has-text("Continue")');
+    await page.click(`dialog button:has-text("${PERMISSION_PRIMER_COPY.actions.primary}")`);
     
     // Get analytics events
     const analyticsEvents = await page.evaluate(() => (window as any).analyticsEvents || []);
@@ -131,7 +132,7 @@ test.describe('Experiments', () => {
     await expect(dialog).toBeVisible();
     
     // Check that continue button has focus
-    const continueButton = dialog.locator('button:has-text("Continue")');
+    const continueButton = dialog.getByRole('button', { name: PERMISSION_PRIMER_COPY.actions.primary });
     await expect(continueButton).toBeFocused();
     
     // Test escape key
