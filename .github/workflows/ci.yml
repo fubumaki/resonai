@@ -28,7 +28,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Prepare reports dir
-        run: mkdir -p reports
+        run: mkdir -p reports .artifacts
 
       - name: Typecheck (to text)
         run: pnpm run typecheck | tee reports/tsc.txt
@@ -51,10 +51,28 @@ jobs:
       - name: Unit tests (JSON)
         run: pnpm run test:unit:json || true
 
+      - name: Write Vitest artifact
+        if: always()
+        run: |
+          if [ -f reports/unit.json ]; then
+            cp reports/unit.json .artifacts/vitest.json
+          else
+            echo '{}' > .artifacts/vitest.json
+          fi
+
       - name: E2E tests (JSON)
         env:
           CI: "true"
         run: pnpm run test:e2e:json || true
+
+      - name: Write Playwright artifact
+        if: always()
+        run: |
+          if [ -f reports/e2e.json ]; then
+            cp reports/e2e.json .artifacts/playwright.json
+          else
+            echo '{}' > .artifacts/playwright.json
+          fi
 
       - name: A11y (optional JSON)
         run: pnpm run a11y:json || true
