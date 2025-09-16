@@ -167,6 +167,7 @@ export default function Practice() {
   const [h1h2, setH1H2] = useState<number | null>(null);
   const [clarity, setClarity] = useState(0);
   const [lowPower, setLowPower] = useState(false);
+  const [analyserVersion, setAnalyserVersion] = useState(0);
   const [sessionProgress, setSessionProgress] = useState<number>(() => readInitialPracticeProgress(TOTAL_TRIALS));
   const [sessionProgressAnnouncement, dispatchSessionProgressAnnouncement] = useReducer(
     sessionProgressAnnouncementReducer,
@@ -192,6 +193,9 @@ export default function Practice() {
   const source = useRef<MediaStreamAudioSourceNode | null>(null);
   const worklet = useRef<AudioWorkletNode | null>(null);
   const mute = useRef<GainNode | null>(null);
+  const levelDataRef = useRef<Uint8Array | null>(null);
+  const lastLevelSampleRef = useRef(0);
+  const rafIdRef = useRef<number | null>(null);
 
   // Worklet health tracking
   const intervalsRef = useRef<number[]>([]);
@@ -263,6 +267,7 @@ export default function Practice() {
 
     // analyser for level
     analyser.current = audioCtx.current.createAnalyser();
+    setAnalyserVersion((prev) => prev + 1);
     analyser.current.fftSize = 2048;
     source.current.connect(analyser.current);
 
@@ -413,28 +418,49 @@ export default function Practice() {
     };
   }, [dispatchSessionProgressAnnouncement]);
 
-  const rafLevel = () => {
-    const data = new Uint8Array(analyser.current!.fftSize);
-    const lastRef = useRef(0);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const analyserNode = analyser.current;
+    if (!analyserNode) return;
+
+    const sampleInterval = lowPower ? 100 : 16;
+    const dataArray =
+      levelDataRef.current && levelDataRef.current.length === analyserNode.fftSize
+        ? levelDataRef.current
+        : new Uint8Array(analyserNode.fftSize);
+    levelDataRef.current = dataArray;
+
+    lastLevelSampleRef.current = performance.now() - sampleInterval;
+
     const tick = () => {
       const now = performance.now();
-      const interval = lowPower ? 100 : 16; // 10 fps vs ~60 fps
-      if (now - lastRef.current >= interval) {
-        analyser.current!.getByteTimeDomainData(data);
+      if (now - lastLevelSampleRef.current >= sampleInterval) {
+        analyserNode.getByteTimeDomainData(dataArray);
         let sum = 0;
-        for (let i = 0; i < data.length; i++) { const v = (data[i] - 128) / 128; sum += v * v; }
-        const rms = Math.sqrt(sum / data.length);
+        for (let i = 0; i < dataArray.length; i++) {
+          const v = (dataArray[i] - 128) / 128;
+          sum += v * v;
+        }
+        const rms = Math.sqrt(sum / dataArray.length);
         setLevel(Math.min(1, rms * 2));
 
         // Calculate dBFS
         const db = 20 * Math.log10(rms + 1e-7);
         setDbfs(Math.max(-60, Math.min(-6, db)));
-        lastRef.current = now;
+        lastLevelSampleRef.current = now;
       }
-      requestAnimationFrame(tick);
+      rafIdRef.current = window.requestAnimationFrame(tick);
     };
-    requestAnimationFrame(tick);
-  };
+
+    rafIdRef.current = window.requestAnimationFrame(tick);
+
+    return () => {
+      if (rafIdRef.current != null) {
+        window.cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
+    };
+  }, [analyserVersion, lowPower]);
 
   const onTrialComplete = async (r: TrialResult) => {
     try {
