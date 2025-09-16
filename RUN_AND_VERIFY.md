@@ -38,12 +38,18 @@ npm run dev:ci
 ```
 Server runs on http://localhost:3003
 
-### 2. Run E2E Tests (No Web Server)
+### 2. Start Background Agent (Optional)
+```bash
+pnpm agent:start
+```
+This starts a self-perpetuating background worker that monitors and manages automated tasks. The worker respects the `.agent/LOCK` kill-switch file - create this file to stop the agent, remove it to restart.
+
+### 3. Run E2E Tests (No Web Server)
 ```bash
 npx playwright test --config=playwright/playwright.noweb.config.ts --project=firefox
 ```
 
-### 3. Run E2E Tests (Playwright-Managed Server)
+### 4. Run E2E Tests (Playwright-Managed Server)
 ```bash
 npx playwright test --config=playwright.config.ts --project=firefox
 ```
