@@ -18,7 +18,23 @@ test.describe('Experiments', () => {
     await useFakeMic(page);
     await usePermissionMock(page, { microphone: 'granted' });
 
+    // Set pilot cohort cookie to allow access to /try page
+    await page.context().addCookies([{
+      name: 'pilot_cohort',
+      value: 'pilot',
+      domain: 'localhost',
+      path: '/',
+    }]);
+
     await page.goto('/try');
+    
+    // Set the required instantPractice flag
+    await page.evaluate(() => {
+      localStorage.setItem('ff.instantPractice', 'true');
+    });
+    
+    await page.reload();
+    
     await storage.clear();
     await analytics.reset();
   });
@@ -26,7 +42,23 @@ test.describe('Experiments', () => {
   test('E1/E2 variants assign once and persist across reload', async ({ page }) => {
     // Bootstrap a clean bucket
     await page.context().clearCookies();
+    
+    // Re-add the pilot cohort cookie after clearing
+    await page.context().addCookies([{
+      name: 'pilot_cohort',
+      value: 'pilot',
+      domain: 'localhost',
+      path: '/',
+    }]);
+    
     await page.goto('/try');
+    
+    // Set the required instantPractice flag
+    await page.evaluate(() => {
+      localStorage.setItem('ff.instantPractice', 'true');
+    });
+    
+    await page.reload();
 
     // Read variant keys *set by your app code* (ab:E1, ab:E2)
     const variants = await page.evaluate(() => ({
@@ -67,7 +99,7 @@ test.describe('Experiments', () => {
     
     // Check dialog content
     await expect(dialog.locator('h2')).toContainText('Microphone Access');
-    await expect(dialog.locator('p')).toContainText('We use your mic to give you instant feedback');
+    await expect(dialog.locator('p').first()).toContainText('We use your mic to give you instant feedback');
     
     // Check buttons
     await expect(dialog.locator('button:has-text("Not now")')).toBeVisible();
