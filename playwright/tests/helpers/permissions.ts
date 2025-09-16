@@ -11,7 +11,11 @@ export interface PermissionController {
   snapshot(): Promise<PermissionOverrides>;
 }
 
-const createStatus = (state: PermissionState): PermissionStatus => ({
+const createStatus = (
+  name: PermissionName,
+  state: PermissionState
+): PermissionStatus => ({
+  name,
   state,
   onchange: null,
   addEventListener: () => undefined,
@@ -41,18 +45,27 @@ export async function usePermissionMock(
     const resolveState = (
       descriptor: PermissionDescriptor | any
     ): Promise<PermissionStatus> | PermissionStatus => {
-      const name = (descriptor?.name || descriptor) as PermissionName | '*';
-      const override = state.overrides[name] ?? state.overrides['*'];
+      const descriptorKey = (descriptor?.name || descriptor) as
+        | PermissionName
+        | '*';
+      const permissionName: PermissionName =
+        descriptorKey === '*'
+          ? 'geolocation'
+          : (descriptorKey as PermissionName);
+      const override =
+        state.overrides[descriptorKey] ?? state.overrides['*'];
 
-      if (override) {
-        return createStatus(override);
+      if (override !== undefined) {
+        return createStatus(permissionName, override);
       }
 
-      if (originalQuery) {
-        return originalQuery(descriptor).catch(() => createStatus('denied'));
+      if (originalQuery && descriptorKey !== '*') {
+        return originalQuery(descriptor).catch(() =>
+          createStatus(permissionName, 'denied')
+        );
       }
 
-      return Promise.resolve(createStatus('prompt'));
+      return Promise.resolve(createStatus(permissionName, 'prompt'));
     };
 
     const query = (descriptor: PermissionDescriptor | any) => {
