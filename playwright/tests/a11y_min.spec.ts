@@ -1,16 +1,13 @@
 import { test, expect } from '@playwright/test';
+import { useLocalStorageFlags } from './helpers';
 
 test('permission primer dialog is accessible when shown', async ({ page }) => {
-  await page.goto('/try');
-
-  // Trigger primer if your UI gates mic behind a dialog in variant A
-  await page.evaluate(() => {
-    // Force the short primer path if feature-flagged
-    localStorage.setItem('ff.permissionPrimerShort', 'true');
-    // Force E2 variant A to trigger primer dialog
-    localStorage.setItem('ab:E2', 'A');
+  await useLocalStorageFlags(page, {
+    'ff.permissionPrimerShort': 'true',
+    'ab:E2': 'A',
   });
-  await page.reload();
+
+  await page.goto('/try');
 
   const startBtn = page.getByRole('button', { name: /start|enable microphone/i });
   await startBtn.click();

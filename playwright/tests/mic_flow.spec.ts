@@ -1,16 +1,18 @@
 import { test, expect } from '@playwright/test';
-import { useFakeMic } from './helpers/fakeMic';
+import {
+  useFakeMic,
+  useLocalStorageFlags,
+  usePermissionMock,
+  useStubbedAnalytics,
+} from './helpers';
 
 test('one-tap mic toggles recording and emits analytics', async ({ page }) => {
-  // Capture analytics events emitted via CustomEvent('analytics:track', {detail})
-  await page.addInitScript(() => {
-    (window as any).__events = [];
-    window.addEventListener('analytics:track', (e: any) => {
-      (window as any).__events.push(e.detail);
-    });
-  });
-
+  // Helpers centralise cross-browser stubs for audio, analytics, storage and permissions.
+  const analytics = await useStubbedAnalytics(page);
   await useFakeMic(page);
+  await usePermissionMock(page, { microphone: 'granted' });
+  await useLocalStorageFlags(page, { 'ff.permissionPrimerShort': 'true' });
+
   await page.goto('/try');
 
   // First click: request mic permission
@@ -35,7 +37,7 @@ test('one-tap mic toggles recording and emits analytics', async ({ page }) => {
   await expect(meter).toHaveAttribute('data-active', 'false');
 
   // Verify we got some analytics traffic in order
-  const events = await page.evaluate(() => (window as any).__events);
+  const events = await analytics.getEvents();
   const names = events.map((e: any) => e.event);
   expect(names).toContain('mic_session_start');
   expect(names).toContain('mic_session_end');

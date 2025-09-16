@@ -1,14 +1,13 @@
 import { test, expect } from '@playwright/test';
+import { useLocalStorageFlags } from './helpers';
 
 test.describe('Primer Flows', () => {
   test('E2A variant shows primer dialog', async ({ page }) => {
-    // Set up E2A variant (primer dialog)
-    await page.goto('/try');
-    await page.evaluate(() => {
-      localStorage.setItem('ab:E2', 'A');
-      localStorage.setItem('ff.permissionPrimerShort', 'true');
+    await useLocalStorageFlags(page, {
+      'ab:E2': 'A',
+      'ff.permissionPrimerShort': 'true',
     });
-    await page.reload();
+    await page.goto('/try');
 
     const startBtn = page.getByRole('button', { name: /start|enable microphone/i });
     await startBtn.click();
@@ -32,14 +31,12 @@ test.describe('Primer Flows', () => {
   });
 
   test('E2B variant skips primer dialog', async ({ page }) => {
-    // Set up E2B variant (no primer)
-    await page.goto('/try');
-    await page.evaluate(() => {
-      localStorage.setItem('ab:E2', 'B');
-      localStorage.setItem('ff.permissionPrimerShort', 'true');
+    await useLocalStorageFlags(page, {
+      'ab:E2': 'B',
+      'ff.permissionPrimerShort': 'true',
     });
-    await page.reload();
-    
+    await page.goto('/try');
+
     const startBtn = page.getByRole('button', { name: /start|enable microphone/i });
     await startBtn.click();
 
