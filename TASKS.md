@@ -144,6 +144,44 @@ _Review and reprioritize this section once P0 gating items and **10) Stabilize P
 - Issue: E1/E2 variant assignment not working
 - Acceptance: Feature flags properly assigned and persisted
 
+## Agent Watchdog Setup
+
+### Setup Instructions
+
+The agent watchdog is now available for self-perpetuating background task management. Here's how to set it up:
+
+#### 1. Start the Watchdog
+```bash
+pnpm agent:start
+```
+
+#### 2. Control the Agent
+- **Stop the agent**: Create `.agent/LOCK` file
+  ```bash
+  touch .agent/LOCK
+  ```
+- **Restart the agent**: Remove the lock file
+  ```bash
+  rm .agent/LOCK
+  ```
+
+#### 3. Monitor Agent Status
+- Check agent state: `cat .agent/state.json`
+- View agent queue: `cat .agent/agent_queue.json`
+- Agent logs appear in the console where you ran `pnpm agent:start`
+
+#### 4. Agent Behavior
+- Automatically restarts if the runner process crashes
+- Polls every 10 seconds for lock file presence
+- Respects existing job budgets and per-lane PR limits
+- Maintains all existing security guardrails (CSP, no inline styles)
+
+#### 5. Troubleshooting
+- If the agent won't start, check for existing runner processes
+- Ensure `.agent/` directory exists with proper permissions
+- Verify `scripts/agent/runner.ts` is accessible
+- Check console output for detailed error messages
+
 ## Research Backlog (Mini-specs)
 
 1) Mic calibration flow (Device → Level → Environment)
