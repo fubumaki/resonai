@@ -82,9 +82,13 @@ class AnalyticsClient {
     try {
       // Use sendBeacon for reliable delivery
       if (navigator.sendBeacon) {
+        const payload = JSON.stringify({ events });
+        const body = typeof Blob !== 'undefined'
+          ? new Blob([payload], { type: 'application/json' })
+          : payload;
         const success = navigator.sendBeacon(
           '/api/events',
-          JSON.stringify({ events })
+          body
         );
         
         if (!success) {
