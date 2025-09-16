@@ -1,0 +1,37 @@
+name: playwright-flaky-nightly
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  flaky:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright (Firefox only)
+        run: npx playwright install --with-deps firefox
+
+      - name: Run flaky specs
+        run: |
+          mkdir -p .artifacts/playwright
+          npx playwright test --project=firefox --grep @flaky --retries=2 --reporter=json > .artifacts/playwright/flaky.json
+
+      - name: Upload flaky report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-flaky-report
+          path: .artifacts/playwright/flaky.json

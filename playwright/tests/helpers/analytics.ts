@@ -1,4 +1,5 @@
 import { Page } from '@playwright/test';
+import { stubBeacon } from './stubBeacon';
 
 export interface AnalyticsStub {
   /**
@@ -33,11 +34,16 @@ export async function useStubbedAnalytics(
   page: Page,
   { interceptBeacon = true }: StubbedAnalyticsOptions = {}
 ): Promise<AnalyticsStub> {
+  await stubBeacon(page, { intercept: interceptBeacon });
   await page.addInitScript(({ intercept }) => {
     const globalAny = window as any;
 
     if (globalAny.__ANALYTICS_STUB__) {
       globalAny.__ANALYTICS_STUB__.options.interceptBeacon = intercept;
+      const beaconStub = globalAny.__BEACON_STUB__;
+      if (beaconStub) {
+        beaconStub.options.intercept = intercept;
+      }
       return;
     }
 
@@ -54,7 +60,7 @@ export async function useStubbedAnalytics(
     };
 
     const recordBeacon = (entry: any) => {
-      beacons.push(entry);
+      beacons.push(clone(entry));
     };
 
     const stub = {
@@ -63,6 +69,7 @@ export async function useStubbedAnalytics(
       options: {
         interceptBeacon: intercept,
       },
+      detachBeacon: undefined as undefined | (() => void),
       record(event: any) {
         if (!event) return;
         events.push(clone(event));
@@ -71,6 +78,11 @@ export async function useStubbedAnalytics(
       reset() {
         events.length = 0;
         beacons.length = 0;
+        try {
+          globalAny.__BEACON_STUB__?.reset?.();
+        } catch (error) {
+          console.warn('analytics beacon reset failed', error);
+        }
       },
       snapshot() {
         return {
@@ -87,114 +99,54 @@ export async function useStubbedAnalytics(
       stub.record(detail);
     });
 
-    const navAny = navigator as any;
-    const originalSendBeacon = navAny.sendBeacon?.bind(navigator);
+    const attachBeaconListener = () => {
+      const beaconStub = globalAny.__BEACON_STUB__;
+      if (!beaconStub) {
+        return;
+      }
 
-    navAny.sendBeacon = (url: string, data?: BodyInit | null) => {
-      const entry: Record<string, any> = { url };
-      stub.recordBeacon(entry);
-
-      let forwarded = false;
-      const forwardWhenReady = () => {
-        if (forwarded) {
-          return true;
-        }
-        forwarded = true;
-
-        if (stub.options.interceptBeacon) {
-          return true;
-        }
-
-        if (originalSendBeacon) {
-          return originalSendBeacon(url, data);
-        }
-
-        if (typeof window.fetch === 'function') {
-          const payload =
-            typeof entry.body === 'string'
-              ? entry.body
-              : entry.json
-              ? JSON.stringify(entry.json)
-              : undefined;
-
-          if (payload !== undefined) {
-            window
-              .fetch(url, {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: payload,
-              })
-              .catch(() => undefined);
-          }
-        }
-
-        return true;
-      };
-
-      const assign = (text: string) => {
-        entry.body = text;
+      if (typeof stub.detachBeacon === 'function') {
         try {
-          entry.json = JSON.parse(text);
+          stub.detachBeacon();
         } catch (error) {
-          entry.text = text;
+          console.warn('analytics beacon detach failed', error);
+        }
+        stub.detachBeacon = undefined;
+      }
+
+      beaconStub.options = beaconStub.options || {};
+      beaconStub.options.intercept = intercept;
+
+      const listener = (entry: any) => {
+        try {
+          stub.recordBeacon(entry);
+        } catch (error) {
+          console.warn('analytics beacon listener failed', error);
         }
       };
 
-      if (typeof data === 'string') {
-        assign(data);
-        return forwardWhenReady();
-      }
-
-      if (data instanceof Blob) {
-        data.text().then(text => {
-          assign(text);
-          forwardWhenReady();
-        });
-
-        if (!stub.options.interceptBeacon && originalSendBeacon) {
-          forwarded = true;
-          return originalSendBeacon(url, data);
+      try {
+        const snapshot = beaconStub.snapshot?.();
+        if (Array.isArray(snapshot)) {
+          snapshot.forEach((entry: any) => {
+            try {
+              stub.recordBeacon(entry);
+            } catch (error) {
+              console.warn('analytics beacon snapshot push failed', error);
+            }
+          });
         }
-
-        return true;
+      } catch (error) {
+        console.warn('analytics beacon snapshot failed', error);
       }
 
-      if (data instanceof ArrayBuffer || ArrayBuffer.isView(data)) {
-        const buffer = data instanceof ArrayBuffer ? data : data.buffer;
-        try {
-          const decoder = new TextDecoder();
-          assign(decoder.decode(buffer));
-        } catch {
-          entry.body = buffer;
-        }
-        return forwardWhenReady();
-      }
-
-      if (data instanceof FormData) {
-        const snapshot: Record<string, any> = {};
-        data.forEach((value, key) => {
-          snapshot[key] = typeof value === 'string' ? value : '[object Blob]';
-        });
-        entry.json = snapshot;
-        entry.body = JSON.stringify(snapshot);
-        return forwardWhenReady();
-      }
-
-      if (data != null) {
-        try {
-          if (typeof data === 'string') {
-            assign(data);
-          } else {
-            assign(JSON.stringify(data));
-          }
-        } catch {
-          entry.body = data;
-        }
-        return forwardWhenReady();
-      }
-
-      return forwardWhenReady();
+      beaconStub.addListener?.(listener);
+      stub.detachBeacon = () => {
+        beaconStub.removeListener?.(listener);
+      };
     };
+
+    attachBeaconListener();
 
     if (typeof window.fetch === 'function') {
       const originalFetch = window.fetch.bind(window);

@@ -1,44 +1,48 @@
 import { test, expect } from '@playwright/test';
 import {
+  stubBeacon,
   useFakeMic,
   useLocalStorageFlags,
   usePermissionMock,
   useStubbedAnalytics,
 } from './helpers';
 
-test('one-tap mic toggles recording and emits analytics', async ({ page }) => {
-  // Helpers centralise cross-browser stubs for audio, analytics, storage and permissions.
-  const analytics = await useStubbedAnalytics(page);
-  await useFakeMic(page);
-  await usePermissionMock(page, { microphone: 'granted' });
-  await useLocalStorageFlags(page, { 'ff.permissionPrimerShort': 'true' });
+test.describe('Mic flow @flaky', () => {
+  test('one-tap mic toggles recording and emits analytics', async ({ page }) => {
+    // Helpers centralise cross-browser stubs for audio, analytics, storage and permissions.
+    await stubBeacon(page);
+    const analytics = await useStubbedAnalytics(page);
+    await useFakeMic(page);
+    await usePermissionMock(page, { microphone: 'granted' });
+    await useLocalStorageFlags(page, { 'ff.permissionPrimerShort': 'true' });
 
-  await page.goto('/try');
+    await page.goto('/try');
 
-  // First click: request mic permission
-  const startBtn = page.getByRole('button', { name: /start|enable microphone/i });
-  await expect(startBtn).toBeVisible();
-  await startBtn.click();
+    // First click: request mic permission
+    const startBtn = page.getByRole('button', { name: /start|enable microphone/i });
+    await expect(startBtn).toBeVisible();
+    await startBtn.click();
 
-  // Wait for mic to be ready and button to change to recording button
-  await expect(page.getByRole('button', { name: /start/i })).toBeVisible();
-  
-  // Second click: start recording
-  const recordBtn = page.getByRole('button', { name: /start/i });
-  await recordBtn.click();
+    // Wait for mic to be ready and button to change to recording button
+    await expect(page.getByRole('button', { name: /start/i })).toBeVisible();
 
-  // The UI should reflect "recording" state (example uses data-active on a pitch meter)
-  const meter = page.locator('.pitch-meter');
-  await expect(meter).toHaveAttribute('data-active', 'true');
+    // Second click: start recording
+    const recordBtn = page.getByRole('button', { name: /start/i });
+    await recordBtn.click();
 
-  // Stop - button text changes to "Stop" when recording
-  const stopBtn = page.getByRole('button', { name: /stop/i });
-  await stopBtn.click();
-  await expect(meter).toHaveAttribute('data-active', 'false');
+    // The UI should reflect "recording" state (example uses data-active on a pitch meter)
+    const meter = page.locator('.pitch-meter');
+    await expect(meter).toHaveAttribute('data-active', 'true');
 
-  // Verify we got some analytics traffic in order
-  const events = await analytics.getEvents();
-  const names = events.map((e: any) => e.event);
-  expect(names).toContain('mic_session_start');
-  expect(names).toContain('mic_session_end');
+    // Stop - button text changes to "Stop" when recording
+    const stopBtn = page.getByRole('button', { name: /stop/i });
+    await stopBtn.click();
+    await expect(meter).toHaveAttribute('data-active', 'false');
+
+    // Verify we got some analytics traffic in order
+    const events = await analytics.getEvents();
+    const names = events.map((e: any) => e.event);
+    expect(names).toContain('mic_session_start');
+    expect(names).toContain('mic_session_end');
+  });
 });

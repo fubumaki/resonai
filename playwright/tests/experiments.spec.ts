@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import {
+  stubBeacon,
   useFakeMic,
   useLocalStorageFlags,
   usePermissionMock,
@@ -7,13 +8,14 @@ import {
 } from './helpers';
 import type { AnalyticsStub, LocalStorageController } from './helpers';
 
-test.describe('Experiments', () => {
+test.describe('Experiments @flaky', () => {
   test.describe.configure({ mode: 'serial' }); // variant persistence relies on localStorage
   let storage: LocalStorageController;
   let analytics: AnalyticsStub;
 
   test.beforeEach(async ({ page }) => {
     storage = await useLocalStorageFlags(page);
+    await stubBeacon(page);
     analytics = await useStubbedAnalytics(page);
     await useFakeMic(page);
     await usePermissionMock(page, { microphone: 'granted' });

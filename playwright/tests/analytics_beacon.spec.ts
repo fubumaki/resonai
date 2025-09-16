@@ -1,13 +1,15 @@
 import { test, expect } from '@playwright/test';
-import { useLocalStorageFlags, useStubbedAnalytics } from './helpers';
+import { useFakeMic, useLocalStorageFlags, useStubbedAnalytics, stubBeacon } from './helpers';
 
-test('analytics events are posted (sendBeacon stub + forced flush)', async ({ page, request }) => {
+test('analytics events are posted (sendBeacon stub + forced flush) @flaky', async ({ page, request }) => {
   // 0) start with a clean store
   const del = await request.delete('/api/events');
   expect(del.ok()).toBeTruthy();
 
   // 1) Use shared helpers so analytics/localStorage stubs behave consistently cross-browser
+  await stubBeacon(page);
   const analytics = await useStubbedAnalytics(page);
+  await useFakeMic(page);
   await useLocalStorageFlags(page, { 'ff.permissionPrimerShort': 'true' });
 
   await page.goto('/try');
