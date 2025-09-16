@@ -264,7 +264,11 @@ export default function Practice() {
     } catch (e: any) {
       // Typical when device unplugged or permission changes
       mediaStream.current = await navigator.mediaDevices.getUserMedia(build(true));
-      toast("Selected mic unavailable - using system default.");
+      const hadCustomInput = inputDeviceId !== null;
+      setInputDeviceId(null);
+      if (hadCustomInput) {
+        toast("Selected mic unavailable - using system default.");
+      }
     }
 
     source.current = audioCtx.current.createMediaStreamSource(mediaStream.current);
