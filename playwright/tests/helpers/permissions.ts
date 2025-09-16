@@ -11,7 +11,11 @@ export interface PermissionController {
   snapshot(): Promise<PermissionOverrides>;
 }
 
-const createStatus = (state: PermissionState): PermissionStatus => ({
+const createStatus = (
+  name: PermissionName,
+  state: PermissionState
+): PermissionStatus => ({
+  name,
   state,
   onchange: null,
   addEventListener: () => undefined,
@@ -38,27 +42,38 @@ export async function usePermissionMock(
       overrides: { ...initialOverrides },
     };
 
-    const resolveState = (
+    const resolveState = async (
       descriptor: PermissionDescriptor | any
-    ): Promise<PermissionStatus> | PermissionStatus => {
-      const name = (descriptor?.name || descriptor) as PermissionName | '*';
-      const override = state.overrides[name] ?? state.overrides['*'];
+    ): Promise<PermissionStatus> => {
+      const descriptorKey = (descriptor?.name || descriptor) as
+        | PermissionName
+        | '*';
+      const permissionName: PermissionName =
+        descriptorKey === '*'
+          ? 'geolocation'
+          : (descriptorKey as PermissionName);
+      const override =
+        descriptorKey === '*'
+          ? state.overrides['*']
+          : state.overrides[permissionName] ?? state.overrides['*'];
 
       if (override) {
-        return createStatus(override);
+        return createStatus(permissionName, override);
       }
 
-      if (originalQuery) {
-        return originalQuery(descriptor).catch(() => createStatus('denied'));
+      if (!originalQuery || descriptorKey === '*') {
+        return createStatus(permissionName, 'prompt');
       }
 
-      return Promise.resolve(createStatus('prompt'));
+      try {
+        return await originalQuery(descriptor);
+      } catch {
+        return createStatus(permissionName, 'denied');
+      }
     };
 
-    const query = (descriptor: PermissionDescriptor | any) => {
-      const result = resolveState(descriptor);
-      return result instanceof Promise ? result : Promise.resolve(result);
-    };
+    const query = (descriptor: PermissionDescriptor | any) =>
+      resolveState(descriptor);
 
     permissions.query = query;
     navAny.permissions = permissions;
