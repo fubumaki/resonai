@@ -11,7 +11,7 @@ It ensures RUN_AND_VERIFY.md reflects the newest green commit and updates the br
 
 ## Checklist
 
-- [x] SSOT block updated with commit `b3ccd98` and latest metrics
+- [x] SSOT block updated with commit `4498af8` and latest metrics
 - [x] `.artifacts/SSOT.md` committed
 - [x] CI green (unit, lint, Playwright PR lane)
 - [x] `AGENTS.md` unchanged
