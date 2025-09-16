@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+
+import AccessibleDialog from '@/components/AccessibleDialog';
 
 interface DiagnosticData {
   isolation: {
@@ -40,6 +42,8 @@ export default function DiagnosticsPage() {
   const [data, setData] = useState<DiagnosticData | null>(null);
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
+  const [isClearLogsDialogOpen, setIsClearLogsDialogOpen] = useState(false);
+  const clearLogsCancelRef = useRef<HTMLButtonElement | null>(null);
 
   const addLog = (message: string) => {
     const timestamp = new Date().toLocaleTimeString();
@@ -199,7 +203,12 @@ export default function DiagnosticsPage() {
   };
 
   const clearLogs = () => {
+    setIsClearLogsDialogOpen(true);
+  };
+
+  const confirmClearLogs = () => {
     setLogs([]);
+    setIsClearLogsDialogOpen(false);
   };
 
   useEffect(() => {
@@ -207,7 +216,39 @@ export default function DiagnosticsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
+    <>
+      <AccessibleDialog
+        isOpen={isClearLogsDialogOpen}
+        onClose={() => setIsClearLogsDialogOpen(false)}
+        title="Clear activity logs?"
+        description="Removes all diagnostic log entries from this session."
+        initialFocusRef={clearLogsCancelRef}
+        closeOnBackdropClick={false}
+        contentClassName="max-w-sm"
+      >
+        <div className="space-y-2">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            Clearing logs will not impact ongoing monitoring or collected metrics.
+          </p>
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              ref={clearLogsCancelRef}
+              className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 transition-colors"
+              onClick={() => setIsClearLogsDialogOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 transition-colors"
+              onClick={confirmClearLogs}
+            >
+              Clear logs
+            </button>
+          </div>
+        </div>
+      </AccessibleDialog>
+
+      <div className="min-h-screen bg-gray-100 p-8">
       <div className="max-w-6xl mx-auto">
         <h1 className="text-3xl font-bold mb-8">Resonai Diagnostics</h1>
         
@@ -396,7 +437,8 @@ export default function DiagnosticsPage() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 

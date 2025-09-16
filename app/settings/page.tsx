@@ -1,12 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+
+import AccessibleDialog from '@/components/AccessibleDialog';
 import { exportSessions, deleteAllSessions, importSessions } from '@/flow/sessionStore';
 
 export default function SettingsPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const deleteCancelButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -45,11 +49,12 @@ export default function SettingsPage() {
     }
   };
 
-  const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete all session data? This cannot be undone.')) {
-      return;
-    }
-    
+  const handleDelete = () => {
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    setIsDeleteDialogOpen(false);
     setIsDeleting(true);
     try {
       await deleteAllSessions();
@@ -63,7 +68,40 @@ export default function SettingsPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 p-8">
+    <>
+      <AccessibleDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        title="Delete session data?"
+        description="Removes all stored practice sessions from this browser. This cannot be undone."
+        initialFocusRef={deleteCancelButtonRef}
+        closeOnBackdropClick={false}
+        contentClassName="max-w-sm"
+      >
+        <div className="space-y-2">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            Deleting will permanently erase practice history saved on this device.
+          </p>
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              ref={deleteCancelButtonRef}
+              className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 transition-colors"
+              onClick={() => setIsDeleteDialogOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 transition-colors"
+              onClick={confirmDelete}
+              disabled={isDeleting}
+            >
+              Delete all sessions
+            </button>
+          </div>
+        </div>
+      </AccessibleDialog>
+
+      <main className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-2xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Settings</h1>
         
@@ -118,6 +156,7 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
-    </main>
+      </main>
+    </>
   );
 }
