@@ -1,8 +1,12 @@
 // public/sw.js
 const V = "resonai-v1";
 const APP_SHELL = [
-  "/", "/manifest.webmanifest",
-  // tailor to your actual built asset paths (Next will serve chunks under /_next)
+  "/",
+  "/manifest.webmanifest",
+  "/practice",
+  "/labs/pitch-band",
+  "/worklets/lpc-processor.js",
+  "/worklets/pitch-processor.js",
 ];
 
 self.addEventListener("install", (e) => {
