@@ -36,7 +36,7 @@ class AnalyticsClient {
     }, this.flushInterval);
   }
 
-  track(event: string, props: Record<string, unknown> = {}): void {
+  track(event: string, props: Record<string, unknown> = {}): AnalyticsEvent {
     const analyticsEvent: AnalyticsEvent = {
       event,
       props,
@@ -54,10 +54,12 @@ class AnalyticsClient {
 
     // Dispatch custom event for debugging
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('analytics:track', { 
-        detail: analyticsEvent 
+      window.dispatchEvent(new CustomEvent('analytics:track', {
+        detail: analyticsEvent
       }));
     }
+
+    return analyticsEvent;
   }
 
   setUserId(userId: string): void {
