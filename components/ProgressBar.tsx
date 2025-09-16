@@ -1,5 +1,7 @@
 'use client';
 
+import React from 'react';
+
 import { calculateTrainingSessionProgress, type TrainingSessionProgress } from '@/lib/progress';
 
 interface ProgressBarProps {
@@ -9,14 +11,14 @@ interface ProgressBarProps {
   ariaDescribedBy?: string;
 }
 
-export default function ProgressBar({ 
-  currentStep, 
-  totalSteps, 
+export default function ProgressBar({
+  currentStep,
+  totalSteps,
   className = '',
   ariaDescribedBy
 }: ProgressBarProps) {
   const progress: TrainingSessionProgress = calculateTrainingSessionProgress(currentStep, totalSteps);
-  
+
   return (
     <div
       className={`w-full ${className}`}
