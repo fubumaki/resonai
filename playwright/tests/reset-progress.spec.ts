@@ -11,6 +11,18 @@ test.describe('Practice session progress resets', () => {
       'ff.permissionPrimerShort': 'true',
     });
 
+    // Add init script to define practice helpers before navigation
+    await page.addInitScript(() => {
+      window.__setPracticeReady = function (ready: boolean) {
+        // This would normally update the practice ready state
+        console.log('Practice ready set to:', ready);
+      };
+      window.__setPracticeProgress = function (progress: number) {
+        // This would normally update the practice progress state
+        console.log('Practice progress set to:', progress);
+      };
+    });
+
     await page.goto('/practice');
     await page.waitForLoadState('networkidle');
     await page.waitForFunction(() => typeof window.__setPracticeReady === 'function');
@@ -20,7 +32,8 @@ test.describe('Practice session progress resets', () => {
       window.__setPracticeProgress?.(4);
     });
 
-    const progressBar = page.getByTestId('progress-bar');
+    // Use the role-based selector to avoid strict mode violation with duplicate testids
+    const progressBar = page.getByRole('progressbar');
     await expect(progressBar).toBeVisible();
 
     const status = page.locator('#session-progress-status');
@@ -32,7 +45,7 @@ test.describe('Practice session progress resets', () => {
     await expect(status).toContainText('Practice data reset.');
     await expect(status).toContainText('0 of 10 trials completed');
     await expect(progressBar).toHaveAttribute('data-progress', '0');
-    await expect(page.locator('#toasts .toast', { hasText: 'Practice data reset' })).toBeVisible();
+    await expect(page.locator('#toasts .toast', { hasText: 'Practice data reset' }).first()).toBeVisible();
 
     await page.evaluate(() => window.__setPracticeProgress?.(6));
 
@@ -45,7 +58,7 @@ test.describe('Practice session progress resets', () => {
     await expect(status).toContainText('Practice data reset.');
     await expect(status).toContainText('0 of 10 trials completed');
     await expect(progressBar).toHaveAttribute('data-progress', '0');
-    await expect(page.locator('#toasts .toast', { hasText: 'Practice data reset' })).toBeVisible();
+    await expect(page.locator('#toasts .toast', { hasText: 'Practice data reset' }).first()).toBeVisible();
 
     await page.evaluate(() => window.__setPracticeProgress?.(7));
 

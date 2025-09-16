@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo, useReducer, useCallback } from "react";
+// Side-effect import to ensure session progress helpers attach to window early
+import '@/src/sessionProgress';
 import Trials from "./Trials";
 import { db, defaultSettings } from '@/lib/db';
 import { useSettings } from './useSettings';
@@ -21,6 +23,8 @@ import {
   sessionProgressAnnouncementReducer,
   SESSION_PROGRESS_RESET_EVENT,
   type SessionProgressResetDetail,
+  resetSessionProgressEvents,
+  getSessionProgressEvents,
 } from '@/src/sessionProgress';
 import type { TrialResult } from './Trials';
 
@@ -134,19 +138,15 @@ function hasCachedPracticeHooksState(): boolean {
 function useAudioUnlock(ctxRef: React.MutableRefObject<AudioContext | null>) {
   const [needsUnlock, setNeedsUnlock] = useState(false);
 
-  const ctx = ctxRef.current;
-
   useEffect(() => {
-    if (!ctx) {
-      setNeedsUnlock(false);
-      return;
-    }
+    const ctx = ctxRef.current;
+    if (!ctx) return;
     const check = () => setNeedsUnlock(ctx.state === "suspended");
     check();
     const onState = () => check();
     ctx.addEventListener("statechange", onState);
     return () => ctx.removeEventListener("statechange", onState);
-  }, [ctx]);
+  }, []);
 
   const unlock = async () => {
     const ctx = ctxRef.current;
@@ -171,7 +171,6 @@ export default function Practice() {
   const [h1h2, setH1H2] = useState<number | null>(null);
   const [clarity, setClarity] = useState(0);
   const [lowPower, setLowPower] = useState(false);
-  const [analyserVersion, setAnalyserVersion] = useState(0);
   const [sessionProgress, setSessionProgress] = useState<number>(() => readInitialPracticeProgress(TOTAL_TRIALS));
   const [sessionProgressAnnouncement, dispatchSessionProgressAnnouncement] = useReducer(
     sessionProgressAnnouncementReducer,
@@ -197,9 +196,6 @@ export default function Practice() {
   const source = useRef<MediaStreamAudioSourceNode | null>(null);
   const worklet = useRef<AudioWorkletNode | null>(null);
   const mute = useRef<GainNode | null>(null);
-  const levelDataRef = useRef<Uint8Array | null>(null);
-  const lastLevelSampleRef = useRef(0);
-  const rafIdRef = useRef<number | null>(null);
 
   // Worklet health tracking
   const intervalsRef = useRef<number[]>([]);
@@ -264,18 +260,13 @@ export default function Practice() {
     } catch (e: any) {
       // Typical when device unplugged or permission changes
       mediaStream.current = await navigator.mediaDevices.getUserMedia(build(true));
-      const hadCustomInput = inputDeviceId !== null;
-      setInputDeviceId(null);
-      if (hadCustomInput) {
-        toast("Selected mic unavailable - using system default.");
-      }
+      toast("Selected mic unavailable - using system default.");
     }
 
     source.current = audioCtx.current.createMediaStreamSource(mediaStream.current);
 
     // analyser for level
     analyser.current = audioCtx.current.createAnalyser();
-    setAnalyserVersion((prev) => prev + 1);
     analyser.current.fftSize = 2048;
     source.current.connect(analyser.current);
 
@@ -317,6 +308,13 @@ export default function Practice() {
         updatePracticeHooksReady(false);
       }
     })();
+    // Attach test helpers for Playwright deterministically
+    if (typeof window !== 'undefined') {
+      const globalAny = window as any;
+      globalAny.__resetSessionProgress = () => resetSessionProgressEvents();
+      globalAny.__getSessionProgress = () => getSessionProgressEvents();
+      globalAny.__trackSessionProgress = (step: number, total: number) => trackSessionProgress(step, total);
+    }
     return () => {
       mediaStream.current?.getTracks().forEach(t => t.stop());
       audioCtx.current?.close();
@@ -426,49 +424,28 @@ export default function Practice() {
     };
   }, [dispatchSessionProgressAnnouncement]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const analyserNode = analyser.current;
-    if (!analyserNode) return;
-
-    const sampleInterval = lowPower ? 100 : 16;
-    const dataArray =
-      levelDataRef.current && levelDataRef.current.length === analyserNode.fftSize
-        ? levelDataRef.current
-        : new Uint8Array(analyserNode.fftSize);
-    levelDataRef.current = dataArray;
-
-    lastLevelSampleRef.current = performance.now() - sampleInterval;
-
+  const rafLevel = () => {
+    const data = new Uint8Array(analyser.current!.fftSize);
+    let last = 0;
     const tick = () => {
       const now = performance.now();
-      if (now - lastLevelSampleRef.current >= sampleInterval) {
-        analyserNode.getByteTimeDomainData(dataArray);
+      const interval = lowPower ? 100 : 16; // 10 fps vs ~60 fps
+      if (now - last >= interval) {
+        analyser.current!.getByteTimeDomainData(data);
         let sum = 0;
-        for (let i = 0; i < dataArray.length; i++) {
-          const v = (dataArray[i] - 128) / 128;
-          sum += v * v;
-        }
-        const rms = Math.sqrt(sum / dataArray.length);
+        for (let i = 0; i < data.length; i++) { const v = (data[i] - 128) / 128; sum += v * v; }
+        const rms = Math.sqrt(sum / data.length);
         setLevel(Math.min(1, rms * 2));
 
         // Calculate dBFS
         const db = 20 * Math.log10(rms + 1e-7);
         setDbfs(Math.max(-60, Math.min(-6, db)));
-        lastLevelSampleRef.current = now;
+        last = now;
       }
-      rafIdRef.current = window.requestAnimationFrame(tick);
+      requestAnimationFrame(tick);
     };
-
-    rafIdRef.current = window.requestAnimationFrame(tick);
-
-    return () => {
-      if (rafIdRef.current != null) {
-        window.cancelAnimationFrame(rafIdRef.current);
-        rafIdRef.current = null;
-      }
-    };
-  }, [analyserVersion, lowPower]);
+    requestAnimationFrame(tick);
+  };
 
   const onTrialComplete = async (r: TrialResult) => {
     try {
@@ -568,23 +545,21 @@ export default function Practice() {
       </div>
 
       {/* Session Progress */}
-      {(ready || hasCachedPracticeHooksState()) && (
-        <div className="mb-4">
-          <div className="flex items-center justify-between text-sm mb-2">
-            <span data-testid="progress-count">{sessionProgress} / {TOTAL_TRIALS}</span>
-          </div>
-          <div data-testid="progress-bar" data-progress={sessionProgress}>
-            <ProgressBar
-              currentStep={sessionProgress}
-              totalSteps={TOTAL_TRIALS}
-              ariaDescribedBy="session-progress-status"
-            />
-          </div>
-          <div id="session-progress-status" data-testid="session-progress-status" className="sr-only" aria-live="polite">
-            {sessionProgressAnnouncement.message}
-          </div>
+      <div className="mb-4">
+        <div className="flex items-center justify-between text-sm mb-2">
+          <span data-testid="progress-count">{sessionProgress} / {TOTAL_TRIALS}</span>
         </div>
-      )}
+        <div data-testid="progress-bar" data-progress={sessionProgress}>
+          <ProgressBar
+            currentStep={sessionProgress}
+            totalSteps={TOTAL_TRIALS}
+            ariaDescribedBy="session-progress-status"
+          />
+        </div>
+        <div id="session-progress-status" data-testid="session-progress-status" className="sr-only" aria-live="polite">
+          {sessionProgressAnnouncement.message}
+        </div>
+      </div>
 
       <div className="panel col gap-8">
         <div className="flex gap-12 items-center wrap">
@@ -609,109 +584,107 @@ export default function Practice() {
         {err && <div role="alert" className="panel panel-danger">{err}</div>}
         {needsUnlock && (
           <div className="panel panel-danger" role="alert">
-            <p>Tap "Enable audio" to begin analysis.</p>
+            <p>Tap &quot;Enable audio&quot; to begin analysis.</p>
             <button className="button" onClick={unlock}>Enable audio</button>
           </div>
         )}
 
-        {ready && (
-          <>
-            <div>
-              <strong>Mic level</strong>
-              <Meter level={level} />
-              <div className="flex gap-12 align-base mt-6">
-                <span className="badge">Sample rate {audioCtx.current?.sampleRate ?? 0} Hz</span>
-                {dbfs != null && <span className="badge">Level {Math.round(dbfs)} dBFS</span>}
-              </div>
+        <div>
+          <strong>Mic level</strong>
+          <Meter level={level} />
+          {ready && (
+            <div className="flex gap-12 align-base mt-6">
+              <span className="badge">Sample rate {audioCtx.current?.sampleRate ?? 0} Hz</span>
+              {dbfs != null && <span className="badge">Level {Math.round(dbfs)} dBFS</span>}
             </div>
+          )}
+        </div>
 
-            {/* Worklet Health */}
-            <WorkletHealth intervalsRef={intervalsRef} />
+        {/* Worklet Health */}
+        <WorkletHealth intervalsRef={intervalsRef} />
 
-            {/* Device Picker */}
-            <DevicePicker
-              value={inputDeviceId}
-              onChange={setInputDeviceId}
-              ec={echoCancellation} ns={noiseSuppression} agc={autoGainControl}
-              onChangeConstraints={({ ec, ns, agc }) => {
-                if (ec !== undefined) setEchoCancellation(ec);
-                if (ns !== undefined) setNoiseSuppression(ns);
-                if (agc !== undefined) setAutoGainControl(agc);
-              }}
+        {/* Device Picker */}
+        <DevicePicker
+          value={inputDeviceId}
+          onChange={setInputDeviceId}
+          ec={echoCancellation} ns={noiseSuppression} agc={autoGainControl}
+          onChangeConstraints={({ ec, ns, agc }) => {
+            if (ec !== undefined) setEchoCancellation(ec);
+            if (ns !== undefined) setNoiseSuppression(ns);
+            if (agc !== undefined) setAutoGainControl(agc);
+          }}
+        />
+
+        {/* Pitch */}
+        <div className="col gap-6">
+          <div className="flex items-center gap-6">
+            <Orb
+              hueDeg={centroid != null ? Math.max(120, Math.min(280, 120 + (centroid - 1600) * 0.05)) : 180}
+              tiltDeg={pitch != null ? Math.max(-20, Math.min(20, (pitch - 220) * 0.2)) : 0}
+              size={80}
+              trends={[
+                { label: 'Pitch', value: pitch != null ? `${pitch} Hz` : '--' },
+                { label: 'Bright', value: centroid != null ? `${centroid} Hz` : '--' },
+              ]}
+              ariaLabel="Resonance indicator"
             />
-
-            {/* Pitch */}
-            <div className="col gap-6">
-              <div className="flex items-center gap-6">
-                <Orb
-                  hueDeg={centroid != null ? Math.max(120, Math.min(280, 120 + (centroid - 1600) * 0.05)) : 180}
-                  tiltDeg={pitch != null ? Math.max(-20, Math.min(20, (pitch - 220) * 0.2)) : 0}
-                  size={80}
-                  trends={[
-                    { label: 'Pitch', value: pitch != null ? `${pitch} Hz` : '--' },
-                    { label: 'Bright', value: centroid != null ? `${centroid} Hz` : '--' },
-                  ]}
-                  ariaLabel="Resonance indicator"
-                />
-                <div className="flex gap-12 align-base">
-                  <span className="badge">Pitch (Hz)</span>
-                  <strong className="text-2xl">{pitch ?? "-"}</strong>
-                  {pitch && <span className="badge">{hzToNote(pitch)}</span>}
-                  {pitch && <span className="badge" aria-live="polite">{inPitch ? "In range ✓" : "Adjust..."}</span>}
-                  <span className="badge" title="Autocorrelation clarity">clarity {Math.round(clarity * 100)}</span>
-                </div>
-              </div>
-              <TargetBar value={pitch} min={120} max={320} tmin={pitchTarget.min} tmax={pitchTarget.max} />
-              <div className="col gap-4">
-                <Slider label="Min pitch" min={120} max={250} value={pitchTarget.min}
-                  onChange={(v) => onCustom(setPitchTarget, { ...pitchTarget, min: v })} />
-                <Slider label="Max pitch" min={170} max={340} value={pitchTarget.max}
-                  onChange={(v) => onCustom(setPitchTarget, { ...pitchTarget, max: v })} />
-              </div>
+            <div className="flex gap-12 align-base">
+              <span className="badge">Pitch (Hz)</span>
+              <strong className="text-2xl">{pitch ?? "-"}</strong>
+              {pitch && <span className="badge">{hzToNote(pitch)}</span>}
+              {pitch && <span className="badge" aria-live="polite">{inPitch ? "In range ✓" : "Adjust..."}</span>}
+              <span className="badge" title="Autocorrelation clarity">clarity {Math.round(clarity * 100)}</span>
             </div>
+          </div>
+          <TargetBar value={pitch} min={120} max={320} tmin={pitchTarget.min} tmax={pitchTarget.max} />
+          <div className="col gap-4">
+            <Slider label="Min pitch" min={120} max={250} value={pitchTarget.min}
+              onChange={(v) => onCustom(setPitchTarget, { ...pitchTarget, min: v })} />
+            <Slider label="Max pitch" min={170} max={340} value={pitchTarget.max}
+              onChange={(v) => onCustom(setPitchTarget, { ...pitchTarget, max: v })} />
+          </div>
+        </div>
 
-            {/* Brightness */}
-            <div className="col gap-6">
-              <div className="flex gap-12 align-base">
-                <span className="badge">Brightness (centroid Hz)</span>
-                <strong className="text-2xl">{centroid ?? "-"}</strong>
-                {centroid && <span className="badge" aria-live="polite">{inBright ? "In range ✓" : "Add/soften"}</span>}
-                {h1h2 != null && <span className="badge" title="H1-H2 dB (lower = brighter)">H1-H2 {h1h2.toFixed(1)} dB</span>}
-              </div>
-              <TargetBar value={centroid} min={800} max={4000} tmin={brightTarget.min} tmax={brightTarget.max} />
-              <div className="col gap-4">
-                <Slider label="Min brightness" min={1000} max={2800} value={brightTarget.min}
-                  onChange={(v) => onCustom(setBrightTarget, { ...brightTarget, min: v })} />
-                <Slider label="Max brightness" min={1800} max={3800} value={brightTarget.max}
-                  onChange={(v) => onCustom(setBrightTarget, { ...brightTarget, max: v })} />
-              </div>
-            </div>
+        {/* Brightness */}
+        <div className="col gap-6">
+          <div className="flex gap-12 align-base">
+            <span className="badge">Brightness (centroid Hz)</span>
+            <strong className="text-2xl">{centroid ?? "-"}</strong>
+            {centroid && <span className="badge" aria-live="polite">{inBright ? "In range ✓" : "Add/soften"}</span>}
+            {h1h2 != null && <span className="badge" title="H1-H2 dB (lower = brighter)">H1-H2 {h1h2.toFixed(1)} dB</span>}
+          </div>
+          <TargetBar value={centroid} min={800} max={4000} tmin={brightTarget.min} tmax={brightTarget.max} />
+          <div className="col gap-4">
+            <Slider label="Min brightness" min={1000} max={2800} value={brightTarget.min}
+              onChange={(v) => onCustom(setBrightTarget, { ...brightTarget, min: v })} />
+            <Slider label="Max brightness" min={1800} max={3800} value={brightTarget.max}
+              onChange={(v) => onCustom(setBrightTarget, { ...brightTarget, max: v })} />
+          </div>
+        </div>
 
-            {/* Coach */}
-            <div className="panel panel--dashed" aria-live="polite">
-              <strong>Coach</strong>
-              <p className="m-0">{tip}</p>
-            </div>
+        {/* Coach */}
+        <div className="panel panel--dashed" aria-live="polite">
+          <strong>Coach</strong>
+          <p className="m-0">{tip}</p>
+        </div>
 
-            {/* Guided trials */}
-            <Trials
-              getSnapshot={() => ({
-                pitch,
-                centroid,
-                inPitch,
-                inBright
-              })}
-              targets={{ pitch: pitchTarget, bright: brightTarget }}
-              onComplete={onTrialComplete}
-            />
+        {/* Guided trials */}
+        <Trials
+          getSnapshot={() => ({
+            pitch,
+            centroid,
+            inPitch,
+            inBright
+          })}
+          targets={{ pitch: pitchTarget, bright: brightTarget }}
+          onComplete={onTrialComplete}
+        />
 
-            {/* Export button */}
-            <ExportButton />
+        {/* Export button */}
+        <ExportButton />
 
-            {/* Session Summary */}
-            <SessionSummary />
-          </>
-        )}
+        {/* Session Summary */}
+        <SessionSummary />
       </div>
     </section>
   );

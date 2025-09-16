@@ -19,6 +19,15 @@ Generated: 2025-09-16 06:33 UTC — see [.artifacts/SSOT.md](.artifacts/SSOT.md)
 4. `playwright/tests/smoke.spec.ts` — data privacy page is accessible (failed ×1) — 8.01s — Locator: getByText('Local‑first by design')
 5. `playwright/tests/mic_flow.spec.ts` — one-tap mic toggles recording and emits analytics (failed ×1) — 7.24s — Locator: locator('.pitch-meter')
 
+## How to regenerate SSOT locally
+
+`ash
+pnpm run test:unit:json
+pnpm run test:e2e:json
+pnpm exec tsx scripts/ci-summary.ts
+`
+
+Regenerate the SSOT whenever the reporter artifacts change so the top block stays accurate.
 Quick commands to run the Instant Practice feature and verify everything works.
 
 ## 🚀 Quick Start
@@ -29,12 +38,45 @@ npm run dev:ci
 ```
 Server runs on http://localhost:3003
 
-### 2. Run E2E Tests (No Web Server)
+### 2. Start Background Agent (Optional)
+```bash
+pnpm agent:start
+```
+This starts a self-perpetuating background worker that monitors and manages automated tasks. The worker respects the `.agent/LOCK` kill-switch file - create this file to stop the agent, remove it to restart.
+
+#### Agent Configuration
+The agent behavior can be customized via `.agent/config.json` or environment variables:
+
+**Configuration file** (`.agent/config.json`):
+```json
+{
+  "maxJobs": 2,
+  "maxFiles": 10,
+  "maxLines": 200,
+  "jobTtlMs": 43200000,
+  "maxAttempts": 3,
+  "backoffMs": 900000
+}
+```
+
+**Environment variables** (override config file):
+- `AGENT_MAX_JOBS`: Maximum concurrent jobs (default: 2)
+- `AGENT_MAX_FILES`: Maximum files per job (default: 10)
+- `AGENT_MAX_LINES`: Maximum lines of code per job (default: 200)
+- `AGENT_JOB_TTL_MS`: Job time-to-live in milliseconds (default: 12 hours)
+- `AGENT_MAX_ATTEMPTS`: Maximum retry attempts per job (default: 3)
+- `AGENT_BACKOFF_MS`: Backoff delay in milliseconds (default: 15 minutes)
+
+**Control the agent**:
+- **Stop**: `touch .agent/LOCK` (or create the file manually)
+- **Restart**: `rm .agent/LOCK` (or delete the file)
+
+### 3. Run E2E Tests (No Web Server)
 ```bash
 npx playwright test --config=playwright/playwright.noweb.config.ts --project=firefox
 ```
 
-### 3. Run E2E Tests (Playwright-Managed Server)
+### 4. Run E2E Tests (Playwright-Managed Server)
 ```bash
 npx playwright test --config=playwright.config.ts --project=firefox
 ```

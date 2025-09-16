@@ -1,18 +1,18 @@
 ## Summary
-(what & why)
+Provide a concise description of the change and the why.
 
-## Tests
+## Owner Checklist
+- [ ] A1 - SSOT regenerated or explicitly deferred with rationale
+- [ ] B1 - Reset flows verified (practice session, progress meter, toasts)
+- [ ] C1 - Flaky ledger inspected or flagged for follow-up
+- [ ] D1 - Governance docs/tasks updated when scope changes
+
+## Verification
 - [ ] Typecheck
 - [ ] ESLint
-- [ ] Unit
-- [ ] E2E
-- [ ] A11y (axe via Playwright where applicable)
+- [ ] Unit tests (`pnpm run test:unit`)
+- [ ] Playwright (Firefox lane)
+- [ ] SSOT reporters (`pnpm run test:unit:json && pnpm run test:e2e:json`)
 
-## Budgets
-- [ ] No budget regressions (see CI "budgets" step)
-
-## Ownership
-- Owner: @CursorAgent (or @CodexAgent)
-- Reviewer: @CodexAgent
-- Decision link (if adjusting budgets/security): docs/DECISIONS.md#yyyy-mm-dd-...
-
+<!-- Macro: comment this once CI is green -->
+`@cloud ready-for-gate`

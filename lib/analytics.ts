@@ -30,7 +30,7 @@ class AnalyticsClient {
 
   private startFlushInterval(): void {
     if (typeof window === 'undefined') return;
-    
+
     setInterval(() => {
       this.flush();
     }, this.flushInterval);
@@ -90,7 +90,6 @@ class AnalyticsClient {
           '/api/events',
           body
         );
-        
         if (!success) {
           // Fallback to fetch if sendBeacon fails
           await this.fallbackFlush(events);
@@ -119,10 +118,20 @@ class AnalyticsClient {
   // Flush on page unload
   flushOnUnload(): void {
     if (typeof window === 'undefined') return;
-    
+
     window.addEventListener('beforeunload', () => {
       this.flush();
     });
+  }
+
+  // Force flush for testing
+  async forceFlush(): Promise<void> {
+    await this.flush();
+  }
+
+  // Get current buffer for testing
+  getBuffer(): AnalyticsEvent[] {
+    return [...this.buffer];
   }
 }
 
@@ -132,6 +141,12 @@ export const analytics = new AnalyticsClient();
 // Initialize on client side
 if (typeof window !== 'undefined') {
   analytics.flushOnUnload();
+
+  // Expose analytics methods for testing
+  (window as any).__analytics = {
+    forceFlush: () => analytics.forceFlush(),
+    getBuffer: () => analytics.getBuffer(),
+  };
 }
 
 // Core event tracking functions

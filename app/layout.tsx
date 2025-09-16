@@ -1,6 +1,8 @@
+import '@/src/sessionProgress';
 import "./globals.css";
 import "./ui.css";
 import Link from "next/link";
+import Script from "next/script";
 import SwRegister from "./SwRegister";
 import PerfHUD from "./PerfHUD";
 // import CspDevLogger from "./CspDevLogger";
@@ -20,6 +22,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
+        <Script id="session-progress-globals" strategy="beforeInteractive">
+          {`
+            window.__resetSessionProgress = window.__resetSessionProgress || function () { 
+              if (window.__resetSessionProgressImpl) window.__resetSessionProgressImpl();
+            };
+            window.__getSessionProgress = window.__getSessionProgress || function () { 
+              return window.__getSessionProgressImpl ? window.__getSessionProgressImpl() : [];
+            };
+            window.__trackSessionProgress = window.__trackSessionProgress || function (stepCount, totalSteps) { 
+              return window.__trackSessionProgressImpl ? window.__trackSessionProgressImpl(stepCount, totalSteps) : {};
+            };
+          `}
+        </Script>
         <a href="#main" className="sr-only">Skip to content</a>
         <header className="site">
           <div className="container">
