@@ -14,8 +14,8 @@ const nextConfig = {
       "frame-ancestors 'none'",
       "img-src 'self' data: blob:",
       "font-src 'self'",
-      // Allow 'unsafe-eval' in development for Next.js HMR and React DevTools, but keep script-src strict
-      isProd ? "script-src 'self'" : "script-src 'self' 'unsafe-eval'",
+      // Allow 'unsafe-eval' and 'unsafe-inline' in development for Next.js HMR, React DevTools, and test stubs
+      isProd ? "script-src 'self'" : "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
       "style-src 'self'",                 // strict: no 'unsafe-inline'
       "connect-src 'self' https://*.vercel.app https://*.vercel-insights.com",
       "worker-src 'self' blob:",
