@@ -11,6 +11,11 @@ Legend: [codex] coordinator • [cursor] UI implementor • [either] any
 - [codex] COOP/COEP in headers (done)
   - next.config.js updated with COOP/COEP; run isolation tests.
 
+- [codex] Test stabilization workspace (in progress)
+  - **Branch:** `feat/tests-stabilization` - Active workspace for Playwright test fixes
+  - Focus: Stabilize flaky tests, improve reliability, reduce CI failures
+  - Priority: Session reset tests, accessibility tests, isolation tests
+
 - [codex] Inline style removals (wave 1) (in progress)
   - app/layout.tsx footer → classes (done)
   - app/SwRegister.tsx toast → DOM nodes/classes (done)
