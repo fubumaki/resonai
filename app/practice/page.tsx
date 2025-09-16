@@ -12,7 +12,9 @@ import DevicePicker from './DevicePicker';
 import Meter from './ui/Meter';
 import TargetBar from './ui/TargetBar';
 import ProgressBar from '@/components/ProgressBar';
+import Orb from '@/components/Orb';
 import { hzToNote } from '@/lib/pitch';
+import Script from 'next/script';
 import {
   trackSessionProgress,
   createSessionProgressState,
@@ -45,6 +47,27 @@ declare global {
   }
 }
 
+// Pending test state captured before React effects attach
+let __pendingPracticeReady: boolean | undefined;
+let __pendingPracticeProgress: number | undefined;
+
+// Expose test hooks as early as possible so Playwright can call them right after navigation
+if (typeof window !== 'undefined') {
+  if (!window.__setPracticeReady) {
+    window.__setPracticeReady = (value: boolean) => {
+      __pendingPracticeReady = !!value;
+      try { window.dispatchEvent(new CustomEvent('practice:set-ready', { detail: !!value })); } catch { }
+    };
+  }
+  if (!window.__setPracticeProgress) {
+    window.__setPracticeProgress = (value: number) => {
+      const safeValue = Math.min(Math.max(Math.round(value), 0), TOTAL_TRIALS);
+      __pendingPracticeProgress = safeValue;
+      try { window.dispatchEvent(new CustomEvent('practice:set-progress', { detail: safeValue })); } catch { }
+    };
+  }
+}
+
 function useAudioUnlock(ctxRef: React.MutableRefObject<AudioContext | null>) {
   const [needsUnlock, setNeedsUnlock] = useState(false);
 
@@ -71,7 +94,9 @@ export default function Practice() {
   const [pitchTarget, setPitchTarget] = useState<Range>(PRESETS.mezzo.pitch);
   const [brightTarget, setBrightTarget] = useState<Range>(PRESETS.mezzo.bright);
 
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState<boolean>(() => {
+    try { return typeof __pendingPracticeReady === 'boolean' ? !!__pendingPracticeReady : false; } catch { return false; }
+  });
   const [err, setErr] = useState<string | null>(null);
 
   const [level, setLevel] = useState(0);
@@ -81,7 +106,13 @@ export default function Practice() {
   const [h1h2, setH1H2] = useState<number | null>(null);
   const [clarity, setClarity] = useState(0);
   const [lowPower, setLowPower] = useState(false);
-  const [sessionProgress, setSessionProgress] = useState(0);
+  const [sessionProgress, setSessionProgress] = useState<number>(() => {
+    try {
+      return typeof __pendingPracticeProgress === 'number'
+        ? Math.min(Math.max(Math.round(__pendingPracticeProgress), 0), TOTAL_TRIALS)
+        : 0;
+    } catch { return 0; }
+  });
   const [sessionProgressAnnouncement, dispatchSessionProgressAnnouncement] = useReducer(
     sessionProgressAnnouncementReducer,
     createSessionProgressState(TOTAL_TRIALS)
@@ -208,10 +239,22 @@ export default function Practice() {
   };
 
   useEffect(() => {
+    // Apply any pending ready flag set before listeners attached
+    try {
+      if (typeof __pendingPracticeReady === 'boolean') {
+        setReady(!!__pendingPracticeReady);
+      }
+    } catch { }
+
     (async () => {
       try {
         await startAudio();
         setReady(true);
+        // Apply any pending test state immediately after first ready
+        if (typeof __pendingPracticeProgress === 'number') {
+          const v = Math.min(Math.max(Math.round(__pendingPracticeProgress), 0), TOTAL_TRIALS);
+          setSessionProgress(v);
+        }
       } catch (e: any) { setErr(e?.message ?? "Microphone permission denied."); }
     })();
     return () => {
@@ -258,23 +301,19 @@ export default function Practice() {
   }, [handleSessionProgressReset]);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || process.env.NODE_ENV === 'production') return;
+    if (typeof window === 'undefined') return;
 
-    window.__setPracticeReady = (value: boolean) => setReady(value);
-    window.__setPracticeProgress = (value: number, options?: { totalSteps?: number; announcementPrefix?: string }) => {
-      const safeValue = Math.min(Math.max(Math.round(value), 0), TOTAL_TRIALS);
+    const onReady = (e: Event) => setReady(!!(e as CustomEvent<boolean>).detail);
+    const onProgress = (e: Event) => {
+      const safeValue = Math.min(Math.max(Math.round((e as CustomEvent<number>).detail ?? 0), 0), TOTAL_TRIALS);
       setSessionProgress(safeValue);
-      dispatchSessionProgressAnnouncement({
-        type: 'progress',
-        completed: safeValue,
-        totalSteps: TOTAL_TRIALS,
-        announcementPrefix: options?.announcementPrefix,
-      });
+      dispatchSessionProgressAnnouncement({ type: 'progress', completed: safeValue, totalSteps: TOTAL_TRIALS });
     };
-
+    window.addEventListener('practice:set-ready', onReady as EventListener);
+    window.addEventListener('practice:set-progress', onProgress as EventListener);
     return () => {
-      delete window.__setPracticeReady;
-      delete window.__setPracticeProgress;
+      window.removeEventListener('practice:set-ready', onReady as EventListener);
+      window.removeEventListener('practice:set-progress', onProgress as EventListener);
     };
   }, [dispatchSessionProgressAnnouncement]);
 
@@ -380,6 +419,7 @@ export default function Practice() {
 
   return (
     <section className="hero">
+      <Script src="/practice-hooks.js" strategy="beforeInteractive" />
       <h1>Practice</h1>
 
       <div className="flex gap-12 items-center justify-between wrap mb-4">
@@ -397,14 +437,19 @@ export default function Practice() {
       </div>
 
       {/* Session Progress */}
-      {ready && (
+      {(ready || (typeof (window as any).__practicePendingReady === 'boolean') || (typeof (window as any).__practicePendingProgress === 'number')) && (
         <div className="mb-4">
-          <ProgressBar
-            currentStep={sessionProgress}
-            totalSteps={TOTAL_TRIALS}
-            ariaDescribedBy="session-progress-status"
-          />
-          <div id="session-progress-status" className="sr-only" aria-live="polite">
+          <div className="flex items-center justify-between text-sm mb-2">
+            <span data-testid="progress-count">{sessionProgress} / {TOTAL_TRIALS}</span>
+          </div>
+          <div data-testid="progress-bar" data-progress={sessionProgress}>
+            <ProgressBar
+              currentStep={sessionProgress}
+              totalSteps={TOTAL_TRIALS}
+              ariaDescribedBy="session-progress-status"
+            />
+          </div>
+          <div id="session-progress-status" data-testid="session-progress-status" className="sr-only" aria-live="polite">
             {sessionProgressAnnouncement.message}
           </div>
         </div>
@@ -466,12 +511,24 @@ export default function Practice() {
 
             {/* Pitch */}
             <div className="col gap-6">
-              <div className="flex gap-12 align-base">
-                <span className="badge">Pitch (Hz)</span>
-                <strong className="text-2xl">{pitch ?? "-"}</strong>
-                {pitch && <span className="badge">{hzToNote(pitch)}</span>}
-                {pitch && <span className="badge" aria-live="polite">{inPitch ? "In range ✓" : "Adjust..."}</span>}
-                <span className="badge" title="Autocorrelation clarity">clarity {Math.round(clarity * 100)}</span>
+              <div className="flex items-center gap-6">
+                <Orb
+                  hueDeg={centroid != null ? Math.max(120, Math.min(280, 120 + (centroid - 1600) * 0.05)) : 180}
+                  tiltDeg={pitch != null ? Math.max(-20, Math.min(20, (pitch - 220) * 0.2)) : 0}
+                  size={80}
+                  trends={[
+                    { label: 'Pitch', value: pitch != null ? `${pitch} Hz` : '--' },
+                    { label: 'Bright', value: centroid != null ? `${centroid} Hz` : '--' },
+                  ]}
+                  ariaLabel="Resonance indicator"
+                />
+                <div className="flex gap-12 align-base">
+                  <span className="badge">Pitch (Hz)</span>
+                  <strong className="text-2xl">{pitch ?? "-"}</strong>
+                  {pitch && <span className="badge">{hzToNote(pitch)}</span>}
+                  {pitch && <span className="badge" aria-live="polite">{inPitch ? "In range ✓" : "Adjust..."}</span>}
+                  <span className="badge" title="Autocorrelation clarity">clarity {Math.round(clarity * 100)}</span>
+                </div>
               </div>
               <TargetBar value={pitch} min={120} max={320} tmin={pitchTarget.min} tmax={pitchTarget.max} />
               <div className="col gap-4">
