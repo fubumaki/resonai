@@ -11,7 +11,32 @@ export interface PermissionController {
   snapshot(): Promise<PermissionOverrides>;
 }
 
-const createStatus = (state: PermissionState): PermissionStatus => ({
+type PermissionHelperState = {
+  overrides: PermissionOverrides;
+};
+
+type PermissionHelper = {
+  state: PermissionHelperState;
+  set(next: PermissionOverrides): void;
+  reset(keys?: (PermissionName | '*')[]): void;
+  snapshot(): PermissionOverrides;
+};
+
+type PermissionsLike = {
+  query?: Permissions['query'];
+} & Record<string, unknown>;
+
+declare global {
+  interface Window {
+    __PERMISSION_HELPER__?: PermissionHelper;
+  }
+}
+
+const createStatus = (
+  name: PermissionName,
+  state: PermissionState
+): PermissionStatus => ({
+  name,
   state,
   onchange: null,
   addEventListener: () => undefined,
@@ -29,41 +54,70 @@ export async function usePermissionMock(
   overrides: PermissionOverrides = {}
 ): Promise<PermissionController> {
   await page.addInitScript(initialOverrides => {
-    const globalAny = window as any;
-    const navAny = navigator as any;
-    const permissions: any = navAny.permissions || {};
+    const globalWithHelper = window as Window & {
+      __PERMISSION_HELPER__?: PermissionHelper;
+    };
+    const navigatorWithPermissions = navigator as Navigator & {
+      permissions?: PermissionsLike;
+    };
+    const permissions = (navigatorWithPermissions.permissions ?? {}) as PermissionsLike;
     const originalQuery = permissions.query?.bind(permissions);
 
-    const state = {
+    const state: PermissionHelperState = {
       overrides: { ...initialOverrides },
     };
 
     const resolveState = (
-      descriptor: PermissionDescriptor | any
+      descriptor: PermissionDescriptor | PermissionName | '*'
     ): Promise<PermissionStatus> | PermissionStatus => {
-      const name = (descriptor?.name || descriptor) as PermissionName | '*';
-      const override = state.overrides[name] ?? state.overrides['*'];
+      const rawKey = (typeof descriptor === 'string'
+        ? descriptor
+        : descriptor?.name) as PermissionName | '*';
+
+      const overrideKey = rawKey ?? '*';
+      const permissionName: PermissionName =
+        overrideKey === '*'
+          ? 'geolocation'
+          : (overrideKey as PermissionName);
+      const override =
+        state.overrides[overrideKey] ?? state.overrides['*'];
 
       if (override) {
-        return createStatus(override);
+        return createStatus(permissionName, override);
       }
 
-      if (originalQuery) {
-        return originalQuery(descriptor).catch(() => createStatus('denied'));
+      if (!originalQuery || overrideKey === '*') {
+        return createStatus(permissionName, 'prompt');
       }
 
-      return Promise.resolve(createStatus('prompt'));
+      const normalizedDescriptor: PermissionDescriptor =
+        typeof descriptor === 'string'
+          ? { name: permissionName }
+          : descriptor ?? { name: permissionName };
+
+      return originalQuery(normalizedDescriptor).catch(() =>
+        createStatus(permissionName, 'denied')
+      );
     };
 
-    const query = (descriptor: PermissionDescriptor | any) => {
+    const query = (
+      descriptor: PermissionDescriptor | PermissionName | '*'
+    ) => {
       const result = resolveState(descriptor);
       return result instanceof Promise ? result : Promise.resolve(result);
     };
 
     permissions.query = query;
-    navAny.permissions = permissions;
 
-    const helper = {
+    if (!navigatorWithPermissions.permissions) {
+      Object.defineProperty(navigatorWithPermissions, 'permissions', {
+        configurable: true,
+        enumerable: false,
+        value: permissions,
+      });
+    }
+
+    const helper: PermissionHelper = {
       state,
       set(next: PermissionOverrides) {
         state.overrides = { ...state.overrides, ...next };
@@ -82,12 +136,14 @@ export async function usePermissionMock(
       },
     };
 
-    globalAny.__PERMISSION_HELPER__ = helper;
+    globalWithHelper.__PERMISSION_HELPER__ = helper;
   }, overrides);
 
   const exec = async <T>(action: 'set' | 'reset' | 'snapshot', payload?: unknown): Promise<T> => {
     return page.evaluate(({ action, payload }) => {
-      const helper = (window as any).__PERMISSION_HELPER__;
+      const helper = (window as Window & {
+        __PERMISSION_HELPER__?: PermissionHelper;
+      }).__PERMISSION_HELPER__;
       if (!helper) {
         if (action === 'snapshot') {
           return {};
@@ -96,12 +152,12 @@ export async function usePermissionMock(
       }
 
       if (action === 'set') {
-        helper.set(payload || {});
+        helper.set((payload as PermissionOverrides | undefined) ?? {});
         return undefined;
       }
 
       if (action === 'reset') {
-        helper.reset(payload || undefined);
+        helper.reset(payload as (PermissionName | '*')[] | undefined);
         return undefined;
       }
 
