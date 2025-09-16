@@ -1,3 +1,12 @@
+<!-- ssot-start -->
+> **Last green commit:** `b3ccd98` (b3ccd984fe02b1edfbacc5f5f12f4c61f9fc50f2)
+> **Date:** `2025-09-16 06:19:13 UTC`
+> **Vitest:** `98/98` passing, duration `00:00:00`
+> **Playwright:** `unavailable/—` passing, duration `—`
+> **Top flakiest:**  
+> - `none`: `0` failures  
+<!-- ssot-end -->
+
 # Run and Verify Guide
 
 Quick commands to run the Instant Practice feature and verify everything works.
@@ -119,12 +128,63 @@ pnpm run test:e2e:json
 pnpm run test:unit:json
 ```
 
+### Isolation sanity check
+```bash
+pnpm run check:isolation -- --browser=chromium
+pnpm run check:isolation -- --browser=firefox
+```
+The script fetches `/` and reports COOP/COEP header values plus the runtime `crossOriginIsolated` flag.
+If Firefox reports `crossOriginIsolated: false`, open `about:config` and set `privacy.resistFingerprinting` to `false` before re-running. Use `--strict` to make the command fail when isolation is false.
+
+### Practice reset harness selectors
+- Session counters: `data-testid="progress-count"`, `data-testid="progress-bar"`, `data-testid="session-progress-status"`
+- Settings controls: `data-testid="settings-button"`, `data-testid="reset-everything"`
+- Run harness headless: `npx playwright test playwright/tests/practice-session-reset-harness.spec.ts --project=firefox-pr`
+
 ### Common Issues
 1. **Dialog not showing**: Check E2 variant is 'A' and primer flag is enabled
 2. **Analytics not working**: Check `/api/events` endpoint is responding
 3. **Tests timing out**: Increase timeout in config or check server health
 4. **COOP/COEP errors**: Verify headers are set in `next.config.ts`
 5. **CI test failures**: Download and review Playwright artifacts from GitHub Actions
+
+## 🔒 Isolation Checker
+
+### Quick Header Check
+```bash
+# Check COOP/COEP headers and crossOriginIsolated status
+pnpm run check:isolation
+
+# Check specific URL (e.g., Vercel preview)
+pnpm run check:isolation https://your-preview-url.vercel.app
+```
+
+### What the Script Checks
+- **COOP Header**: `Cross-Origin-Opener-Policy: same-origin`
+- **COEP Header**: `Cross-Origin-Embedder-Policy: require-corp`
+- **Browser Context**: Provides script to check `window.crossOriginIsolated`
+
+### Firefox Edge Case
+Firefox with `privacy.resistFingerprinting` enabled may report `crossOriginIsolated` as `false` even with correct headers. This is expected behavior:
+
+```javascript
+// Run in browser console to check
+console.log('crossOriginIsolated:', window.crossOriginIsolated);
+console.log('SharedArrayBuffer:', typeof SharedArrayBuffer !== 'undefined');
+
+// Check if Firefox with resistFingerprinting
+const isFirefox = navigator.userAgent.toLowerCase().includes('firefox');
+console.log('Firefox detected:', isFirefox);
+```
+
+**Troubleshooting Steps:**
+1. **Headers correct but `crossOriginIsolated` false in Firefox**: This is expected with `privacy.resistFingerprinting` enabled
+2. **Headers missing**: Check `next.config.js` COOP/COEP configuration
+3. **COEP/CORP errors in console**: Check that all resources are same-origin or have proper CORP headers
+
+**References:**
+- [MDN: crossOriginIsolated](https://developer.mozilla.org/en-US/docs/Web/API/Window/crossOriginIsolated)
+- [MDN: privacy.resistFingerprinting](https://developer.mozilla.org/en-US/docs/Web/Privacy/Privacy_settings_in_Firefox#privacy.resistFingerprinting)
 
 ## 🚀 Production Checklist
 

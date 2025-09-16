@@ -1,8 +1,8 @@
 ## CI SSOT
-sha: ed5edfd (ed5edfdf38327b3f8594e85ebf1f0b21ea986b9a)
-date: 2025-09-16T02:22:46.774Z
-vitest: unavailable
-vitest-duration: unavailable
+sha: b3ccd98 (b3ccd984fe02b1edfbacc5f5f12f4c61f9fc50f2)
+date: 2025-09-16T06:19:13.328Z
+vitest: 98 passed / 0 failed / 0 pending (total 98)
+vitest-duration: 0s
 playwright: unavailable
 playwright-duration: unavailable
 flakiest-specs: none
