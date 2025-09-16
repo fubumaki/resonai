@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { db } from "@/lib/db";
 import type { TrialResult } from "./Trials";
 
 type Row = TrialResult & { ts: number };
@@ -18,6 +19,49 @@ export default function SessionSummary() {
     };
     window.addEventListener("resonai:trial-complete", onTrial as EventListener);
     return () => window.removeEventListener("resonai:trial-complete", onTrial as EventListener);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadLatest = async () => {
+      const table = (db as any).trials;
+      if (!table) return;
+      try {
+        const latest = await table.orderBy("ts").reverse().limit(20).toArray();
+        if (cancelled) return;
+        const mapped: Row[] = latest
+          .reverse()
+          .map((trial: any) => ({
+            ts: trial.ts,
+            phrase: trial.phrase,
+            durationMs: trial.durationMs ?? 0,
+            inPitchPct: trial.inPitchPct,
+            inBrightPct: trial.inBrightPct,
+            medianPitch: trial.medianPitch,
+            medianCentroid: trial.medianCentroid,
+            pitchStabilityHz: trial.pitchStabilityHz,
+            score: trial.score,
+          }));
+        setRows(mapped);
+      } catch {
+        if (!cancelled) setRows([]);
+      }
+    };
+
+    void loadLatest();
+
+    const handleImported = () => { void loadLatest(); };
+    const handleCleared = () => { void loadLatest(); };
+
+    window.addEventListener("resonai:trials-imported", handleImported);
+    window.addEventListener("resonai:trials-cleared", handleCleared);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("resonai:trials-imported", handleImported);
+      window.removeEventListener("resonai:trials-cleared", handleCleared);
+    };
   }, []);
 
   // Draw line chart of Score (0..100)
