@@ -1,9 +1,9 @@
 # CI Single Source of Truth
 
 **Last green commit:** _pending — current run has failures (Playwright (firefox): 22 failed)._
-**Current commit:** `b22e630` (2025-09-16 05:57 UTC)
+**Current commit:** `5d61047` (2025-09-16 06:40 UTC)
 
-Generated: 2025-09-16 06:33 UTC
+Generated: 2025-09-16 06:49 UTC
 
 ## Totals
 
