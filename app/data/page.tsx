@@ -8,7 +8,7 @@ export default function DataPrivacy() {
     <section className="hero">
       <h1>Data & Privacy</h1>
       <div className="panel col gap-2">
-        <p><strong>Local-first by design.</strong> Your audio never leaves your device. Analysis runs entirely in your browser.</p>
+        <p><strong>Local‑first by design.</strong> Your audio never leaves your device. Analysis runs entirely in your browser.</p>
 
         <div className="panel panel--dashed">
           <strong>Stored locally (IndexedDB)</strong>
