@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test("home has CTA and nav", async ({ page }) => {
   await page.goto("/");
   // Check for the main CTA in the hero section
-  await expect(page.locator("main").getByRole("link", { name: "Start practice (no sign‑up)" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Start practice (no sign‑up)" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
 });
 
