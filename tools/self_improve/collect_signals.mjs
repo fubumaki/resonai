@@ -4,13 +4,38 @@ import path from 'node:path';
 
 const root = process.cwd();
 const reportsDir = path.join(root, 'reports');
+const artifactsDir = path.join(root, '.artifacts');
 const toolsDir = path.join(root, 'tools', 'self_improve');
 fs.mkdirSync(reportsDir, { recursive: true });
+fs.mkdirSync(artifactsDir, { recursive: true });
 fs.mkdirSync(toolsDir, { recursive: true });
 
+const jsonCandidateNames = (p) => {
+  const names = new Set([p]);
+  if (p === 'unit.json') names.add('vitest.json');
+  if (p === 'e2e.json') names.add('playwright.json');
+  return [...names];
+};
+
 const readJson = (p) => {
-  try { return JSON.parse(fs.readFileSync(path.join(reportsDir, p), 'utf8')); }
-  catch { return null; }
+  const names = jsonCandidateNames(p);
+  const candidates = [
+    ...names.map((name) => path.join(artifactsDir, name)),
+    ...names.map((name) => path.join(reportsDir, name)),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      const raw = fs.readFileSync(candidate, 'utf8');
+      const start = raw.indexOf('{');
+      const payload = start === -1 ? raw : raw.slice(start);
+      return JSON.parse(payload);
+    } catch (error) {
+      continue;
+    }
+  }
+
+  return null;
 };
 const readTxt = (p) => {
   try { return fs.readFileSync(path.join(reportsDir, p), 'utf8'); }

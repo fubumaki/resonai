@@ -2,22 +2,22 @@
 
 ## CI Single Source of Truth (SSOT)
 
-**Last green commit:** _pending — current run has failures (Playwright (firefox): 56 failed)._  
-**Current commit:** `93c85e2` (2025-09-16 03:14 UTC)  
-Generated: 2025-09-16 03:44 UTC — see [.artifacts/SSOT.md](.artifacts/SSOT.md) for full artifact details.
+**Last green commit:** _pending — current run has failures (Playwright (firefox): 21 failed)._
+**Current commit:** `b22e630` (2025-09-16 05:57 UTC)
+Generated: 2025-09-16 06:37 UTC — see [.artifacts/SSOT.md](.artifacts/SSOT.md) for full artifact details.
 
 | Suite | Passed | Failed | Skipped | Flaky | Duration |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Vitest | 85 | 0 | 0 | 0 | 0.05s |
-| Playwright (firefox) | 5 | 56 | 5 | 0 | 1m 39.7s |
+| Vitest | 85 | 0 | 0 | 0 | 0.04s |
+| Playwright (firefox) | 3 | 21 | 44 | 0 | 30.2s |
 
 **Flakiest specs**
 
-1. `playwright/tests/smoke.spec.ts` — export/import/clear controls are visible (failed ×1) — 0.02s — Host system is missing dependencies to run browsers.
-2. `playwright/tests/smoke.spec.ts` — device picker shows microphone options (failed ×1) — 0.01s — Host system is missing dependencies to run browsers.
-3. `playwright/tests/smoke.spec.ts` — fallback to default mic shows toast (failed ×1) — 0.01s — Host system is missing dependencies to run browsers.
-4. `playwright/tests/manifest-link.spec.ts` — home page includes web app manifest link (failed ×1) — 0.01s — Host system is missing dependencies to run browsers.
-5. `playwright/tests/smoke.spec.ts` — nav has single primary CTA (failed ×1) — 0.01s — Host system is missing dependencies to run browsers.
+1. `playwright/tests/a11y_quick_wins.spec.ts` — error messages are announced to screen readers (failed ×1) — 0.01s — Error: browserType.launch: Executable doesn't exist at /root/.cache/ms-playwright/firefox-1490/firefox/firefox
+2. `playwright/tests/a11y_quick_wins.spec.ts` — primary CTA has proper focus-visible styles (failed ×1) — 0.01s — Error: browserType.launch: Executable doesn't exist at /root/.cache/ms-playwright/firefox-1490/firefox/firefox
+3. `playwright/tests/a11y_quick_wins.spec.ts` — button accessible name includes both Start and Enable microphone (failed ×1) — 0.01s — Error: browserType.launch: Executable doesn't exist at /root/.cache/ms-playwright/firefox-1490/firefox/firefox
+4. `playwright/tests/a11y_min.spec.ts` — permission primer dialog is accessible when shown (failed ×1) — 0.01s — Error: browserType.launch: Executable doesn't exist at /root/.cache/ms-playwright/firefox-1490/firefox/firefox
+5. `playwright/tests/a11y_quick_wins.spec.ts` — pitch meter has proper ARIA label (failed ×1) — 0.01s — Error: browserType.launch: Executable doesn't exist at /root/.cache/ms-playwright/firefox-1490/firefox/firefox
 
 Quick commands to run the Instant Practice feature and verify everything works.
 
@@ -65,7 +65,7 @@ npx playwright test --config=playwright/playwright.noweb.config.ts --project=fir
 
 ## 📁 JSON Reports & SSOT Checks
 
-Automated runs emit machine-readable artifacts under `reports/` so CI and QA can share a single source of truth.
+Automated runs emit machine-readable artifacts under `.artifacts/` so CI and QA can share a single source of truth.
 
 1. **Generate local JSON reporters**
    ```bash
@@ -76,10 +76,10 @@ Automated runs emit machine-readable artifacts under `reports/` so CI and QA can
 2. **Inspect artifacts**
    ```bash
    # Vitest details
-   jq '.numFailedTests' reports/unit.json
+   jq '.numFailedTests' .artifacts/vitest.json
 
    # Playwright run statistics
-   jq '.stats' reports/e2e.json
+   jq '.stats' .artifacts/playwright.json
    ```
 3. **Rebuild the SSOT snapshot**
    ```bash
@@ -89,7 +89,7 @@ Automated runs emit machine-readable artifacts under `reports/` so CI and QA can
    ```
    `reports/signals.json` (mirrored at `tools/self_improve/signals.json`) powers CI budgets and summaries—verify it before sign-off.
 4. **Review CI artifacts**
-   - Download the `reports` artifact from the GitHub Actions run to view the same `unit.json`, `e2e.json`, and aggregated `signals.json` files.
+   - Download the `reports` artifact from the GitHub Actions run to view `.artifacts/vitest.json`, `.artifacts/playwright.json`, and aggregated `reports/signals.json`.
    - The workflow summary highlights pass rates and gate metrics sourced from those JSON files.
 
 ## 🔧 Common Fixes

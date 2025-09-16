@@ -85,10 +85,26 @@ interface FlakySpecSummary {
   message?: string;
 }
 
+interface SummaryData {
+  suites: SuiteSummary[];
+  flakiest: FlakySpecSummary[];
+  git: { sha: string; date?: string };
+  generatedAt: Date;
+  allGreen: boolean;
+  lastGreenLine: string;
+  currentCommitLine?: string;
+  totalsTable: {
+    header: string;
+    divider: string;
+    rows: string[];
+  };
+}
+
 const ARTIFACTS_DIR = path.resolve(process.cwd(), '.artifacts');
 const VITEST_PATH = path.join(ARTIFACTS_DIR, 'vitest.json');
 const PLAYWRIGHT_PATH = path.join(ARTIFACTS_DIR, 'playwright.json');
 const OUTPUT_PATH = path.join(ARTIFACTS_DIR, 'SSOT.md');
+const RUN_AND_VERIFY_PATH = path.resolve(process.cwd(), 'RUN_AND_VERIFY.md');
 
 async function loadJson<T>(filePath: string): Promise<T> {
   const raw = await readFile(filePath, 'utf8');
@@ -294,84 +310,154 @@ function getGitMetadata(): { sha: string; date?: string } {
   }
 }
 
-function renderSummaryMarkdown(options: {
+function createSummaryData(options: {
   vitest: SuiteSummary;
   playwright: SuiteSummary;
   flakiest: FlakySpecSummary[];
   git: { sha: string; date?: string };
-}): string {
-  const { vitest, playwright, flakiest, git } = options;
+  generatedAt: Date;
+}): SummaryData {
+  const { vitest, playwright, flakiest, git, generatedAt } = options;
   const suites = [vitest, playwright];
   const allGreen = suites.every((suite) => suite.failed === 0 && suite.flaky === 0);
+  const gitDate = git.date ? formatUtcDate(git.date) : 'date unavailable';
 
-  const lines: string[] = [];
-  lines.push('# CI Single Source of Truth');
-  lines.push('');
+  let lastGreenLine = `**Last green commit:** \`${shortSha(git.sha)}\` (${gitDate})`;
+  let currentCommitLine: string | undefined;
 
-  if (allGreen) {
-    const gitDate = git.date ? formatUtcDate(git.date) : 'date unavailable';
-    lines.push(`**Last green commit:** \`${shortSha(git.sha)}\` (${gitDate})`);
-  } else {
-    const gitDate = git.date ? formatUtcDate(git.date) : 'date unavailable';
+  if (!allGreen) {
     const failingSuites = suites.filter((suite) => suite.failed > 0 || suite.flaky > 0);
     const failureSummary = failingSuites
       .map((suite) => `${suite.name}: ${suite.failed} failed${suite.flaky ? `, ${suite.flaky} flaky` : ''}`)
       .join('; ');
-    lines.push(`**Last green commit:** _pending — current run has failures (${failureSummary})._`);
-    lines.push(`**Current commit:** \`${shortSha(git.sha)}\` (${gitDate})`);
+    lastGreenLine = `**Last green commit:** _pending — current run has failures (${failureSummary})._`;
+    currentCommitLine = `**Current commit:** \`${shortSha(git.sha)}\` (${gitDate})`;
   }
 
+  const totalsRows = suites.map(
+    (suite) =>
+      `| ${suite.name} | ${suite.passed} | ${suite.failed} | ${suite.skipped} | ${suite.flaky} | ${formatDuration(suite.durationMs)} |`,
+  );
+
+  return {
+    suites,
+    flakiest,
+    git,
+    generatedAt,
+    allGreen,
+    lastGreenLine,
+    currentCommitLine,
+    totalsTable: {
+      header: '| Suite | Passed | Failed | Skipped | Flaky | Duration |',
+      divider: '| --- | ---: | ---: | ---: | ---: | ---: |',
+      rows: totalsRows,
+    },
+  };
+}
+
+function renderFlakiestLines(flakiest: FlakySpecSummary[]): string[] {
+  if (flakiest.length === 0) {
+    return ['_No flaky specs detected in the latest artifacts._'];
+  }
+
+  const top = flakiest.slice(0, 5);
+  return top.map((spec, index) => {
+    const parts = [`${index + 1}. \`${spec.path}\``];
+    if (spec.title) {
+      parts.push(`— ${spec.title}`);
+    }
+    const outcome: string[] = [];
+    if (spec.failures > 0) {
+      outcome.push(`failed ×${spec.failures}`);
+    }
+    if (spec.flaky > 0) {
+      outcome.push(`flaky ×${spec.flaky}`);
+    }
+    if (spec.retries > 0) {
+      outcome.push(`retries ×${spec.retries}`);
+    }
+    parts.push(`(${outcome.join(', ') || 'no runs'})`);
+    parts.push(`— ${formatDuration(spec.durationMs)}`);
+    if (spec.message) {
+      parts.push(`— ${spec.message}`);
+    }
+    return parts.join(' ');
+  });
+}
+
+function renderSummaryMarkdown(summary: SummaryData): string {
+  const lines: string[] = [];
+  lines.push('# CI Single Source of Truth');
   lines.push('');
-  lines.push(`Generated: ${formatUtcDate(new Date())}`);
+  lines.push(summary.lastGreenLine);
+  if (summary.currentCommitLine) {
+    lines.push(summary.currentCommitLine);
+  }
+  lines.push('');
+  lines.push(`Generated: ${formatUtcDate(summary.generatedAt)}`);
   lines.push('');
   lines.push('## Totals');
   lines.push('');
-  lines.push('| Suite | Passed | Failed | Skipped | Flaky | Duration |');
-  lines.push('| --- | ---: | ---: | ---: | ---: | ---: |');
-
-  for (const suite of suites) {
-    lines.push(
-      `| ${suite.name} | ${suite.passed} | ${suite.failed} | ${suite.skipped} | ${suite.flaky} | ${formatDuration(suite.durationMs)} |`,
-    );
-  }
-
+  lines.push(summary.totalsTable.header);
+  lines.push(summary.totalsTable.divider);
+  lines.push(...summary.totalsTable.rows);
   lines.push('');
   lines.push('## Flakiest specs');
   lines.push('');
-
-  if (flakiest.length === 0) {
-    lines.push('_No flaky specs detected in the latest artifacts._');
-  } else {
-    const top = flakiest.slice(0, 5);
-    top.forEach((spec, index) => {
-      const parts = [`${index + 1}. \`${spec.path}\``];
-      if (spec.title) {
-        parts.push(`— ${spec.title}`);
-      }
-      const outcome: string[] = [];
-      if (spec.failures > 0) {
-        outcome.push(`failed ×${spec.failures}`);
-      }
-      if (spec.flaky > 0) {
-        outcome.push(`flaky ×${spec.flaky}`);
-      }
-      if (spec.retries > 0) {
-        outcome.push(`retries ×${spec.retries}`);
-      }
-      parts.push(`(${outcome.join(', ') || 'no runs'})`);
-      parts.push(`— ${formatDuration(spec.durationMs)}`);
-      if (spec.message) {
-        parts.push(`— ${spec.message}`);
-      }
-      lines.push(parts.join(' '));
-    });
-  }
-
+  lines.push(...renderFlakiestLines(summary.flakiest));
   lines.push('');
   lines.push('_Source: `.artifacts/vitest.json`, `.artifacts/playwright.json`._');
   lines.push('');
-
   return lines.join('\n');
+}
+
+function renderRunAndVerifyBlock(summary: SummaryData): string {
+  const lines: string[] = [];
+  lines.push('');
+  lines.push(summary.lastGreenLine);
+  if (summary.currentCommitLine) {
+    lines.push(summary.currentCommitLine);
+  }
+  lines.push(
+    `Generated: ${formatUtcDate(summary.generatedAt)} — see [.artifacts/SSOT.md](.artifacts/SSOT.md) for full artifact details.`,
+  );
+  lines.push('');
+  lines.push(summary.totalsTable.header);
+  lines.push(summary.totalsTable.divider);
+  lines.push(...summary.totalsTable.rows);
+  lines.push('');
+  lines.push('**Flakiest specs**');
+  lines.push('');
+  lines.push(...renderFlakiestLines(summary.flakiest));
+  lines.push('');
+  lines.push('Quick commands to run the Instant Practice feature and verify everything works.');
+  lines.push('');
+  return lines.join('\n');
+}
+
+async function updateRunAndVerifyDocument(summary: SummaryData): Promise<void> {
+  const block = renderRunAndVerifyBlock(summary);
+  const document = await readFile(RUN_AND_VERIFY_PATH, 'utf8');
+  const heading = '## CI Single Source of Truth (SSOT)';
+  const headingIndex = document.indexOf(heading);
+
+  if (headingIndex === -1) {
+    throw new Error('Unable to locate CI summary heading in RUN_AND_VERIFY.md');
+  }
+
+  const headingLineEnd = document.indexOf('\n', headingIndex + heading.length);
+  const blockStart = headingLineEnd === -1 ? document.length : headingLineEnd + 1;
+  const rest = document.slice(blockStart);
+  const nextHeadingMatch = /\n## /.exec(rest);
+  const blockEnd = nextHeadingMatch ? blockStart + nextHeadingMatch.index : document.length;
+  const prefix = document.slice(0, blockStart);
+  const suffix = document.slice(blockEnd).replace(/^\n+/, '');
+  const normalizedBlock = block.trimEnd();
+  let nextDocument = `${prefix}${normalizedBlock}\n\n${suffix}`;
+  if (!nextDocument.endsWith('\n')) {
+    nextDocument += '\n';
+  }
+  await writeFile(RUN_AND_VERIFY_PATH, nextDocument, 'utf8');
 }
 
 async function main(): Promise<void> {
@@ -385,14 +471,17 @@ async function main(): Promise<void> {
   const flakiest = collectFlakySpecs(playwrightReport);
   const git = getGitMetadata();
 
-  const markdown = renderSummaryMarkdown({
+  const summary = createSummaryData({
     vitest: vitestSummary,
     playwright: playwrightSummary,
     flakiest,
     git,
+    generatedAt: new Date(),
   });
 
+  const markdown = renderSummaryMarkdown(summary);
   await writeFile(OUTPUT_PATH, `${markdown}\n`, 'utf8');
+  await updateRunAndVerifyDocument(summary);
 }
 
 main().catch((error) => {

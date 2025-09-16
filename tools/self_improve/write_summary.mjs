@@ -94,8 +94,8 @@ lines.push('');
 
 lines.push('## 📁 Artifacts');
 lines.push('');
-lines.push('- `reports/unit.json` — Vitest JSON reporter output');
-lines.push('- `reports/e2e.json` — Playwright JSON reporter output');
+lines.push('- `.artifacts/vitest.json` — Vitest JSON reporter output');
+lines.push('- `.artifacts/playwright.json` — Playwright JSON reporter output');
 lines.push('- `reports/signals.json` — Aggregated SSOT metrics for CI quality gates');
 lines.push('');
 

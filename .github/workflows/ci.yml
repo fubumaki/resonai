@@ -27,8 +27,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Prepare reports dir
-        run: mkdir -p reports
+      - name: Prepare artifact dirs
+        run: |
+          mkdir -p reports
+          mkdir -p .artifacts
 
       - name: Typecheck (to text)
         run: pnpm run typecheck | tee reports/tsc.txt
@@ -56,6 +58,10 @@ jobs:
           CI: "true"
         run: pnpm run test:e2e:json || true
 
+      - name: Generate SSOT summary
+        if: always()
+        run: pnpm run ci:ssot
+
       - name: A11y (optional JSON)
         run: pnpm run a11y:json || true
 
@@ -74,4 +80,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: reports
-          path: reports
+          path: |
+            reports
+            .artifacts

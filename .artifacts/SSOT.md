@@ -1,24 +1,24 @@
 # CI Single Source of Truth
 
-**Last green commit:** _pending — current run has failures (Playwright (firefox): 56 failed)._
-**Current commit:** `93c85e2` (2025-09-16 03:14 UTC)
+**Last green commit:** _pending — current run has failures (Playwright (firefox): 21 failed)._
+**Current commit:** `b22e630` (2025-09-16 05:57 UTC)
 
-Generated: 2025-09-16 03:44 UTC
+Generated: 2025-09-16 06:37 UTC
 
 ## Totals
 
 | Suite | Passed | Failed | Skipped | Flaky | Duration |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Vitest | 85 | 0 | 0 | 0 | 0.05s |
-| Playwright (firefox) | 5 | 56 | 5 | 0 | 1m 39.7s |
+| Vitest | 85 | 0 | 0 | 0 | 0.04s |
+| Playwright (firefox) | 3 | 21 | 44 | 0 | 30.2s |
 
 ## Flakiest specs
 
-1. `playwright/tests/smoke.spec.ts` — export/import/clear controls are visible (failed ×1) — 0.02s — Host system is missing dependencies to run browsers.
-2. `playwright/tests/smoke.spec.ts` — device picker shows microphone options (failed ×1) — 0.01s — Host system is missing dependencies to run browsers.
-3. `playwright/tests/smoke.spec.ts` — fallback to default mic shows toast (failed ×1) — 0.01s — Host system is missing dependencies to run browsers.
-4. `playwright/tests/manifest-link.spec.ts` — home page includes web app manifest link (failed ×1) — 0.01s — Host system is missing dependencies to run browsers.
-5. `playwright/tests/smoke.spec.ts` — nav has single primary CTA (failed ×1) — 0.01s — Host system is missing dependencies to run browsers.
+1. `playwright/tests/a11y_quick_wins.spec.ts` — error messages are announced to screen readers (failed ×1) — 0.01s — Error: browserType.launch: Executable doesn't exist at /root/.cache/ms-playwright/firefox-1490/firefox/firefox
+2. `playwright/tests/a11y_quick_wins.spec.ts` — primary CTA has proper focus-visible styles (failed ×1) — 0.01s — Error: browserType.launch: Executable doesn't exist at /root/.cache/ms-playwright/firefox-1490/firefox/firefox
+3. `playwright/tests/a11y_quick_wins.spec.ts` — button accessible name includes both Start and Enable microphone (failed ×1) — 0.01s — Error: browserType.launch: Executable doesn't exist at /root/.cache/ms-playwright/firefox-1490/firefox/firefox
+4. `playwright/tests/a11y_min.spec.ts` — permission primer dialog is accessible when shown (failed ×1) — 0.01s — Error: browserType.launch: Executable doesn't exist at /root/.cache/ms-playwright/firefox-1490/firefox/firefox
+5. `playwright/tests/a11y_quick_wins.spec.ts` — pitch meter has proper ARIA label (failed ×1) — 0.01s — Error: browserType.launch: Executable doesn't exist at /root/.cache/ms-playwright/firefox-1490/firefox/firefox
 
 _Source: `.artifacts/vitest.json`, `.artifacts/playwright.json`._
 
