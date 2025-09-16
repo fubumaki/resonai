@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo, useReducer, useCallback } from "react";
 import Trials from "./Trials";
 import { db, defaultSettings } from '@/lib/db';
 import { useSettings } from './useSettings';
@@ -13,7 +13,13 @@ import Meter from './ui/Meter';
 import TargetBar from './ui/TargetBar';
 import ProgressBar from '@/components/ProgressBar';
 import { hzToNote } from '@/lib/pitch';
-import { trackSessionProgress } from '@/src/sessionProgress';
+import {
+  trackSessionProgress,
+  createSessionProgressState,
+  sessionProgressAnnouncementReducer,
+  SESSION_PROGRESS_RESET_EVENT,
+  type SessionProgressResetDetail,
+} from '@/src/sessionProgress';
 import type { TrialResult } from './Trials';
 
 type PresetKey = "alto" | "mezzo" | "soprano" | "custom";
@@ -26,6 +32,18 @@ const PRESETS: Record<PresetKey, Preset> = {
   soprano: { name: "Soprano", pitch: { min: 200, max: 260 }, bright: { min: 2000, max: 3200 }, note: "Light, bright" },
   custom: { name: "Custom", pitch: { min: 170, max: 220 }, bright: { min: 1800, max: 2800 }, note: "Tweak to taste" }
 };
+
+const TOTAL_TRIALS = 10;
+
+declare global {
+  interface Window {
+    __setPracticeReady?: (value: boolean) => void;
+    __setPracticeProgress?: (
+      value: number,
+      options?: { totalSteps?: number; announcementPrefix?: string }
+    ) => void;
+  }
+}
 
 function useAudioUnlock(ctxRef: React.MutableRefObject<AudioContext | null>) {
   const [needsUnlock, setNeedsUnlock] = useState(false);
@@ -64,6 +82,10 @@ export default function Practice() {
   const [clarity, setClarity] = useState(0);
   const [lowPower, setLowPower] = useState(false);
   const [sessionProgress, setSessionProgress] = useState(0);
+  const [sessionProgressAnnouncement, dispatchSessionProgressAnnouncement] = useReducer(
+    sessionProgressAnnouncementReducer,
+    createSessionProgressState(TOTAL_TRIALS)
+  );
 
   // Audio device settings
   const [inputDeviceId, setInputDeviceId] = useState<string | null>(null);
@@ -214,6 +236,48 @@ export default function Practice() {
     return () => navigator.mediaDevices.removeEventListener?.("devicechange", onChange);
   }, [ready, inputDeviceId, echoCancellation, noiseSuppression, autoGainControl]);
 
+  const handleSessionProgressReset = useCallback((announcementPrefix?: string) => {
+    setSessionProgress(0);
+    dispatchSessionProgressAnnouncement({
+      type: 'reset',
+      totalSteps: TOTAL_TRIALS,
+      announcementPrefix,
+    });
+  }, [dispatchSessionProgressAnnouncement]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const onSessionProgressReset: EventListener = (event) => {
+      const detail = (event as CustomEvent<SessionProgressResetDetail>).detail;
+      handleSessionProgressReset(detail?.announcementPrefix);
+    };
+
+    window.addEventListener(SESSION_PROGRESS_RESET_EVENT, onSessionProgressReset);
+    return () => window.removeEventListener(SESSION_PROGRESS_RESET_EVENT, onSessionProgressReset);
+  }, [handleSessionProgressReset]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || process.env.NODE_ENV === 'production') return;
+
+    window.__setPracticeReady = (value: boolean) => setReady(value);
+    window.__setPracticeProgress = (value: number, options?: { totalSteps?: number; announcementPrefix?: string }) => {
+      const safeValue = Math.min(Math.max(Math.round(value), 0), TOTAL_TRIALS);
+      setSessionProgress(safeValue);
+      dispatchSessionProgressAnnouncement({
+        type: 'progress',
+        completed: safeValue,
+        totalSteps: TOTAL_TRIALS,
+        announcementPrefix: options?.announcementPrefix,
+      });
+    };
+
+    return () => {
+      delete window.__setPracticeReady;
+      delete window.__setPracticeProgress;
+    };
+  }, [dispatchSessionProgressAnnouncement]);
+
   const rafLevel = () => {
     const data = new Uint8Array(analyser.current!.fftSize);
     const lastRef = useRef(0);
@@ -263,9 +327,14 @@ export default function Practice() {
 
       // Update session progress (increment by 1 for each completed trial)
       setSessionProgress(prev => {
-        const next = Math.min(prev + 1, 10); // Cap at 10 trials
+        const next = Math.min(prev + 1, TOTAL_TRIALS); // Cap at TOTAL_TRIALS trials
         if (next !== prev) {
-          trackSessionProgress(next, 10);
+          trackSessionProgress(next, TOTAL_TRIALS);
+          dispatchSessionProgressAnnouncement({
+            type: 'progress',
+            completed: next,
+            totalSteps: TOTAL_TRIALS,
+          });
         }
         return next;
       });
@@ -294,7 +363,8 @@ export default function Practice() {
     const p = PRESETS[preset];
     setPitchTarget({ ...p.pitch });
     setBrightTarget({ ...p.bright });
-    toast('Targets reset to preset defaults.');
+    handleSessionProgressReset('Practice data reset.');
+    toast('Practice data reset');
   };
 
   const resetAll = async () => {
@@ -304,7 +374,8 @@ export default function Practice() {
     setBrightTarget({ min: defaultSettings.brightMin, max: defaultSettings.brightMax });
     setLowPower(false);
     try { await (db as any).trials.clear(); } catch { }
-    toast('Settings reset and trials cleared.');
+    handleSessionProgressReset('Practice data reset.');
+    toast('Practice data reset');
   };
 
   return (
@@ -330,11 +401,11 @@ export default function Practice() {
         <div className="mb-4">
           <ProgressBar
             currentStep={sessionProgress}
-            totalSteps={10}
+            totalSteps={TOTAL_TRIALS}
             ariaDescribedBy="session-progress-status"
           />
           <div id="session-progress-status" className="sr-only" aria-live="polite">
-            Practice session progress: {sessionProgress} of 10 trials completed
+            {sessionProgressAnnouncement.message}
           </div>
         </div>
       )}

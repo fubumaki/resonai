@@ -25,6 +25,8 @@ export default function ProgressBar({
       aria-valuemin={0}
       aria-valuemax={progress.safeTotal}
       aria-describedby={ariaDescribedBy}
+      data-testid="progress-bar"
+      data-progress={progress.percent}
     >
       <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 mb-2">
         <span>Step {progress.safeStep} of {progress.safeTotal}</span>
