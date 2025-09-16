@@ -134,6 +134,14 @@ Automated runs emit machine-readable artifacts under `reports/` so CI and QA can
    - Download the `reports` artifact from the GitHub Actions run to view the same `unit.json`, `e2e.json`, and aggregated `signals.json` files.
    - The workflow summary highlights pass rates and gate metrics sourced from those JSON files.
 
+## 🗂️ Research Summary Validation
+
+Run the Codex summary validator before publishing or editing research notes to ensure metadata and citations meet guardrails.
+
+```bash
+npm run codex:validate-summaries
+```
+
 ## 🔧 Common Fixes
 
 ### Port Already in Use
