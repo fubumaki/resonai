@@ -10,16 +10,16 @@ interface QueueEntry { id: string; lane: Lane; kind: JobKind; attempts: number; 
 interface WorkerState { lastRun: string | null; lastError: string | null; killSwitch: boolean; queueLength: number; lanes: Record<string, { lastJobId?: string; lastSuccessAt?: string; lastFailure?: string }>; }
 
 const ROOT = process.cwd();
-const PATHS = { 
-  queue: path.resolve(ROOT, '.agent/agent_queue.json'), 
-  state: path.resolve(ROOT, '.agent/state.json'), 
-  lock: path.resolve(ROOT, '.agent/LOCK'), 
+const PATHS = {
+  queue: path.resolve(ROOT, '.agent/agent_queue.json'),
+  state: path.resolve(ROOT, '.agent/state.json'),
+  lock: path.resolve(ROOT, '.agent/LOCK'),
   config: path.resolve(ROOT, '.agent/config.json'),
-  runbook: path.resolve(ROOT, 'RUN_AND_VERIFY.md'), 
-  vitest: path.resolve(ROOT, '.artifacts/vitest.json'), 
-  playwright: path.resolve(ROOT, '.artifacts/playwright.json'), 
-  ssot: path.resolve(ROOT, '.artifacts/SSOT.md'), 
-  flaky: path.resolve(ROOT, '.artifacts/flakiest.json') 
+  runbook: path.resolve(ROOT, 'RUN_AND_VERIFY.md'),
+  vitest: path.resolve(ROOT, '.artifacts/vitest.json'),
+  playwright: path.resolve(ROOT, '.artifacts/playwright.json'),
+  ssot: path.resolve(ROOT, '.artifacts/SSOT.md'),
+  flaky: path.resolve(ROOT, '.artifacts/flakiest.json')
 };
 const WATCHERS = ['src', 'app', 'tests', 'playwright', '.artifacts', 'RUN_AND_VERIFY.md'].map((item) => path.resolve(ROOT, item));
 const pnpmBin = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
@@ -61,6 +61,12 @@ const loadConfig = async (): Promise<AgentConfig> => {
   }
   if (process.env.AGENT_JOB_TTL_MS) {
     config.jobTtlMs = parseInt(process.env.AGENT_JOB_TTL_MS, 10) || defaults.jobTtlMs;
+  }
+  if (process.env.AGENT_MAX_ATTEMPTS) {
+    config.maxAttempts = parseInt(process.env.AGENT_MAX_ATTEMPTS, 10) || defaults.maxAttempts;
+  }
+  if (process.env.AGENT_BACKOFF_MS) {
+    config.backoffMs = parseInt(process.env.AGENT_BACKOFF_MS, 10) || defaults.backoffMs;
   }
 
   return config;

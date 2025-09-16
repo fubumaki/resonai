@@ -196,6 +196,8 @@ The agent behavior can be customized via `.agent/config.json` or environment var
 - `AGENT_MAX_FILES`: Maximum files per job (default: 10)
 - `AGENT_MAX_LINES`: Maximum lines of code per job (default: 200)
 - `AGENT_JOB_TTL_MS`: Job time-to-live in milliseconds (default: 12 hours)
+- `AGENT_MAX_ATTEMPTS`: Maximum retry attempts per job (default: 3)
+- `AGENT_BACKOFF_MS`: Backoff delay in milliseconds (default: 15 minutes)
 
 #### 6. Troubleshooting
 - If the agent won't start, check for existing runner processes
