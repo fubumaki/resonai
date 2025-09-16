@@ -23,7 +23,10 @@ export default function DataPrivacy() {
           <ul>
             <li><strong>No audio recordings.</strong> We do not save or upload audio.</li>
             <li><strong>No account data.</strong> No sign-up, passwords, or email.</li>
-            <li><strong>No analytics beacons.</strong> The app doesn't transmit usage data.</li>
+            <li>
+              <strong>Usage telemetry (screen views, mic permission prompts/outcomes, mic sessions, time-to-voice, activation, session progress).</strong>
+              These events stay in-memory while the tab is open and are batch-posted as JSON to <code>/api/events</code>; session progress events are also mirrored in-memory for QA tools. No audio or identifiers are included.
+            </li>
           </ul>
         </div>
 
