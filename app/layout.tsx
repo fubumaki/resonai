@@ -1,6 +1,7 @@
 import "./globals.css";
 import "./ui.css";
 import Link from "next/link";
+import Script from "next/script";
 import SwRegister from "./SwRegister";
 import PerfHUD from "./PerfHUD";
 // import CspDevLogger from "./CspDevLogger";
@@ -20,6 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
+        <Script id="practice-test-hooks" strategy="beforeInteractive" src="/practice-hooks.js" />
         <a href="#main" className="sr-only">Skip to content</a>
         <header className="site">
           <div className="container">

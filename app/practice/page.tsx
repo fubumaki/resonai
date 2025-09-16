@@ -35,14 +35,70 @@ const PRESETS: Record<PresetKey, Preset> = {
 
 const TOTAL_TRIALS = 10;
 
+type PracticeProgressOptions = {
+  totalSteps?: number;
+  announcementPrefix?: string;
+};
+
+type PracticeHooksState = {
+  readyValue?: boolean;
+  progressValue?: number;
+  progressOptions?: PracticeProgressOptions;
+  bootstrapReady?: (value: boolean) => void;
+  bootstrapProgress?: (value: number, options?: PracticeProgressOptions) => void;
+  readyHandler?: (value: boolean) => void;
+  progressHandler?: (value: number, options?: PracticeProgressOptions) => void;
+};
+
 declare global {
   interface Window {
     __setPracticeReady?: (value: boolean) => void;
     __setPracticeProgress?: (
       value: number,
-      options?: { totalSteps?: number; announcementPrefix?: string }
+      options?: PracticeProgressOptions
     ) => void;
+    __practiceHooksState?: PracticeHooksState;
   }
+}
+
+function sanitizePracticeProgress(value: number, options?: PracticeProgressOptions) {
+  const totalSteps = options?.totalSteps ?? TOTAL_TRIALS;
+  const clamped = Math.min(Math.max(Math.round(value), 0), totalSteps);
+  return Math.min(clamped, TOTAL_TRIALS);
+}
+
+function getPracticeHooksState(): PracticeHooksState | undefined {
+  if (typeof window === "undefined" || process.env.NODE_ENV === "production") {
+    return undefined;
+  }
+
+  if (!window.__practiceHooksState) {
+    window.__practiceHooksState = {};
+  }
+
+  return window.__practiceHooksState;
+}
+
+function readInitialPracticeReady() {
+  const state = getPracticeHooksState();
+  if (!state || typeof state.readyValue === "undefined") {
+    return false;
+  }
+
+  const safe = Boolean(state.readyValue);
+  state.readyValue = safe;
+  return safe;
+}
+
+function readInitialPracticeProgress() {
+  const state = getPracticeHooksState();
+  if (!state || typeof state.progressValue === "undefined") {
+    return 0;
+  }
+
+  const safe = sanitizePracticeProgress(state.progressValue, state.progressOptions);
+  state.progressValue = safe;
+  return safe;
 }
 
 function useAudioUnlock(ctxRef: React.MutableRefObject<AudioContext | null>) {
@@ -71,7 +127,7 @@ export default function Practice() {
   const [pitchTarget, setPitchTarget] = useState<Range>(PRESETS.mezzo.pitch);
   const [brightTarget, setBrightTarget] = useState<Range>(PRESETS.mezzo.bright);
 
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState<boolean>(() => readInitialPracticeReady());
   const [err, setErr] = useState<string | null>(null);
 
   const [level, setLevel] = useState(0);
@@ -81,7 +137,7 @@ export default function Practice() {
   const [h1h2, setH1H2] = useState<number | null>(null);
   const [clarity, setClarity] = useState(0);
   const [lowPower, setLowPower] = useState(false);
-  const [sessionProgress, setSessionProgress] = useState(0);
+  const [sessionProgress, setSessionProgress] = useState(() => readInitialPracticeProgress());
   const [sessionProgressAnnouncement, dispatchSessionProgressAnnouncement] = useReducer(
     sessionProgressAnnouncementReducer,
     createSessionProgressState(TOTAL_TRIALS)
@@ -258,23 +314,69 @@ export default function Practice() {
   }, [handleSessionProgressReset]);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || process.env.NODE_ENV === 'production') return;
+    if (typeof window === "undefined" || process.env.NODE_ENV === "production") return;
 
-    window.__setPracticeReady = (value: boolean) => setReady(value);
-    window.__setPracticeProgress = (value: number, options?: { totalSteps?: number; announcementPrefix?: string }) => {
-      const safeValue = Math.min(Math.max(Math.round(value), 0), TOTAL_TRIALS);
+    const hooksState = getPracticeHooksState();
+    if (!hooksState) return;
+
+    const previousReady = window.__setPracticeReady ?? hooksState.bootstrapReady;
+    const previousProgress = window.__setPracticeProgress ?? hooksState.bootstrapProgress;
+
+    const handleReady = (value: boolean) => {
+      const safeValue = Boolean(value);
+      hooksState.readyValue = safeValue;
+      setReady(safeValue);
+    };
+
+    const handleProgress = (
+      value: number,
+      options?: PracticeProgressOptions,
+    ) => {
+      const safeValue = sanitizePracticeProgress(value, options);
+      hooksState.progressValue = safeValue;
+      hooksState.progressOptions = options;
       setSessionProgress(safeValue);
       dispatchSessionProgressAnnouncement({
         type: 'progress',
         completed: safeValue,
-        totalSteps: TOTAL_TRIALS,
+        totalSteps: options?.totalSteps ?? TOTAL_TRIALS,
         announcementPrefix: options?.announcementPrefix,
       });
     };
 
+    window.__setPracticeReady = handleReady;
+    window.__setPracticeProgress = handleProgress;
+
+    hooksState.readyHandler = handleReady;
+    hooksState.progressHandler = handleProgress;
+
+    if (typeof hooksState.readyValue !== "undefined") {
+      handleReady(hooksState.readyValue);
+    }
+
+    if (typeof hooksState.progressValue !== "undefined") {
+      handleProgress(hooksState.progressValue, hooksState.progressOptions);
+    }
+
     return () => {
-      delete window.__setPracticeReady;
-      delete window.__setPracticeProgress;
+      hooksState.readyHandler = undefined;
+      hooksState.progressHandler = undefined;
+
+      if (previousReady) {
+        window.__setPracticeReady = previousReady;
+      } else if (hooksState.bootstrapReady) {
+        window.__setPracticeReady = hooksState.bootstrapReady;
+      } else {
+        delete window.__setPracticeReady;
+      }
+
+      if (previousProgress) {
+        window.__setPracticeProgress = previousProgress;
+      } else if (hooksState.bootstrapProgress) {
+        window.__setPracticeProgress = hooksState.bootstrapProgress;
+      } else {
+        delete window.__setPracticeProgress;
+      }
     };
   }, [dispatchSessionProgressAnnouncement]);
 
