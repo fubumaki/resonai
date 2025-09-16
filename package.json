@@ -21,7 +21,7 @@
     "ci:ssot": "tsx scripts/ci-summary.ts",
     "test:unit:json": "vitest run --reporter=json --outputFile=.artifacts/vitest.json",
     "test:e2e": "playwright test --project=firefox",
-    "test:e2e:json": "playwright test --reporter=json --outputFile=.artifacts/playwright.json",
+    "test:e2e:json": "node scripts/run-playwright-json.mjs",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:noweb:win": "cmd /c \"set PW_DISABLE_WEBSERVER=1 && playwright test --config=playwright/playwright.noweb.config.ts --project=firefox\"",
     "test:coach": "npx playwright test tests/coach_policy.spec.ts --project=firefox",
