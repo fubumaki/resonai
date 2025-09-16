@@ -37,39 +37,99 @@ const PRESETS: Record<PresetKey, Preset> = {
 
 const TOTAL_TRIALS = 10;
 
-type PracticeHooksSnapshot = {
-  ready?: boolean;
-  progress?: number;
+type PracticeProgressOptions = {
   totalSteps?: number;
   announcementPrefix?: string;
 };
 
-const getCachedPracticeHooksState = (): PracticeHooksSnapshot | undefined => {
-  if (typeof window === 'undefined') return undefined;
-  try {
-    return window.getPracticeHooksState?.();
-  } catch {
-    return undefined;
-  }
+type PracticeHooksState = {
+  ready?: boolean;
+  progress?: number;
+  totalSteps?: number;
+  announcementPrefix?: string;
+  defaultSetReady?: (value: boolean) => void;
+  defaultSetProgress?: (value: number, options?: PracticeProgressOptions) => void;
 };
 
-const getInitialPracticeReady = (): boolean | undefined => {
-  if (typeof window === 'undefined') return undefined;
-  try {
-    return window.readInitialPracticeReady?.();
-  } catch {
-    return undefined;
+declare global {
+  interface Window {
+    __setPracticeReady?: (value: boolean) => void;
+    __setPracticeProgress?: (
+      value: number,
+      options?: PracticeProgressOptions
+    ) => void;
+    __getPracticeHooksState?: () => PracticeHooksState;
   }
-};
+}
 
-const getInitialPracticeProgress = (): number | undefined => {
-  if (typeof window === 'undefined') return undefined;
-  try {
-    return window.readInitialPracticeProgress?.();
-  } catch {
-    return undefined;
+function sanitizeTotalSteps(totalSteps: number | undefined, fallback: number): number {
+  const total = Number(totalSteps ?? fallback);
+  if (!Number.isFinite(total) || total <= 0) {
+    return fallback;
   }
-};
+  return Math.max(1, Math.round(total));
+}
+
+function clampCompletedSteps(value: number | undefined, totalSteps: number): number {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return 0;
+  }
+  const rounded = Math.round(numeric);
+  return Math.min(Math.max(rounded, 0), totalSteps);
+}
+
+function getPracticeHooksState(): PracticeHooksState | undefined {
+  if (typeof window === 'undefined') return undefined;
+  const globalWindow = window as typeof window & {
+    __getPracticeHooksState?: () => PracticeHooksState;
+    __practiceHooksState?: PracticeHooksState;
+  };
+  if (typeof globalWindow.__getPracticeHooksState === 'function') {
+    return globalWindow.__getPracticeHooksState();
+  }
+  if (!globalWindow.__practiceHooksState) {
+    globalWindow.__practiceHooksState = {};
+  }
+  return globalWindow.__practiceHooksState;
+}
+
+function readInitialPracticeReady(): boolean {
+  const state = getPracticeHooksState();
+  return typeof state?.ready === 'boolean' ? state.ready : false;
+}
+
+function readInitialPracticeProgress(defaultTotalSteps: number): number {
+  const state = getPracticeHooksState();
+  if (!state) return 0;
+  const totalSteps = sanitizeTotalSteps(state.totalSteps, defaultTotalSteps);
+  return clampCompletedSteps(state.progress, totalSteps);
+}
+
+function updatePracticeHooksReady(value: boolean): void {
+  const state = getPracticeHooksState();
+  if (!state) return;
+  state.ready = value;
+}
+
+function updatePracticeHooksProgress(
+  value: number,
+  totalSteps: number,
+  announcementPrefix?: string
+): void {
+  const state = getPracticeHooksState();
+  if (!state) return;
+  const safeTotal = sanitizeTotalSteps(totalSteps, TOTAL_TRIALS);
+  state.totalSteps = safeTotal;
+  state.progress = clampCompletedSteps(value, safeTotal);
+  state.announcementPrefix = announcementPrefix;
+}
+
+function hasCachedPracticeHooksState(): boolean {
+  const state = getPracticeHooksState();
+  if (!state) return false;
+  return typeof state.ready === 'boolean' || typeof state.progress === 'number';
+}
 
 function useAudioUnlock(ctxRef: React.MutableRefObject<AudioContext | null>) {
   const [needsUnlock, setNeedsUnlock] = useState(false);
@@ -97,10 +157,7 @@ export default function Practice() {
   const [pitchTarget, setPitchTarget] = useState<Range>(PRESETS.mezzo.pitch);
   const [brightTarget, setBrightTarget] = useState<Range>(PRESETS.mezzo.bright);
 
-  const [ready, setReady] = useState<boolean>(() => {
-    const initialReady = getInitialPracticeReady();
-    return typeof initialReady === 'boolean' ? initialReady : false;
-  });
+  const [ready, setReady] = useState<boolean>(() => readInitialPracticeReady());
   const [err, setErr] = useState<string | null>(null);
 
   const [level, setLevel] = useState(0);
@@ -110,23 +167,15 @@ export default function Practice() {
   const [h1h2, setH1H2] = useState<number | null>(null);
   const [clarity, setClarity] = useState(0);
   const [lowPower, setLowPower] = useState(false);
-  const [sessionProgress, setSessionProgress] = useState<number>(() => {
-    const initialProgress = getInitialPracticeProgress();
-    if (typeof initialProgress !== 'number') return 0;
-    const rounded = Math.round(initialProgress);
-    if (Number.isNaN(rounded)) return 0;
-    if (rounded < 0) return 0;
-    if (rounded > TOTAL_TRIALS) return TOTAL_TRIALS;
-    return rounded;
-  });
+  const [sessionProgress, setSessionProgress] = useState<number>(() => readInitialPracticeProgress(TOTAL_TRIALS));
   const [sessionProgressAnnouncement, dispatchSessionProgressAnnouncement] = useReducer(
     sessionProgressAnnouncementReducer,
     createSessionProgressState(TOTAL_TRIALS)
   );
 
-  const hooksStateSnapshot = getCachedPracticeHooksState();
+  const hooksStateSnapshot = getPracticeHooksState();
   const shouldRenderSessionProgress =
-    ready || !!(hooksStateSnapshot && (typeof hooksStateSnapshot.ready === 'boolean' || typeof hooksStateSnapshot.progress === 'number'));
+    ready || hasCachedPracticeHooksState();
 
   // Audio device settings
   const [inputDeviceId, setInputDeviceId] = useState<string | null>(null);
@@ -249,21 +298,15 @@ export default function Practice() {
   };
 
   useEffect(() => {
-    const cachedState = getCachedPracticeHooksState();
-    if (cachedState && typeof cachedState.ready === 'boolean') {
-      setReady(cachedState.ready);
-    }
-
     (async () => {
       try {
         await startAudio();
         setReady(true);
-        const latestState = getCachedPracticeHooksState();
-        if (latestState && typeof latestState.progress === 'number') {
-          const v = Math.min(Math.max(Math.round(latestState.progress), 0), TOTAL_TRIALS);
-          setSessionProgress(v);
-        }
-      } catch (e: any) { setErr(e?.message ?? "Microphone permission denied."); }
+        updatePracticeHooksReady(true);
+      } catch (e: any) {
+        setErr(e?.message ?? "Microphone permission denied.");
+        updatePracticeHooksReady(false);
+      }
     })();
     return () => {
       mediaStream.current?.getTracks().forEach(t => t.stop());
@@ -287,11 +330,13 @@ export default function Practice() {
     return () => navigator.mediaDevices.removeEventListener?.("devicechange", onChange);
   }, [ready, inputDeviceId, echoCancellation, noiseSuppression, autoGainControl]);
 
-  const handleSessionProgressReset = useCallback((announcementPrefix?: string) => {
+  const handleSessionProgressReset = useCallback((announcementPrefix?: string, totalSteps?: number) => {
+    const safeTotal = sanitizeTotalSteps(totalSteps, TOTAL_TRIALS);
     setSessionProgress(0);
+    updatePracticeHooksProgress(0, safeTotal, announcementPrefix);
     dispatchSessionProgressAnnouncement({
       type: 'reset',
-      totalSteps: TOTAL_TRIALS,
+      totalSteps: safeTotal,
       announcementPrefix,
     });
   }, [dispatchSessionProgressAnnouncement]);
@@ -301,7 +346,7 @@ export default function Practice() {
 
     const onSessionProgressReset: EventListener = (event) => {
       const detail = (event as CustomEvent<SessionProgressResetDetail>).detail;
-      handleSessionProgressReset(detail?.announcementPrefix);
+      handleSessionProgressReset(detail?.announcementPrefix, detail?.totalSteps);
     };
 
     window.addEventListener(SESSION_PROGRESS_RESET_EVENT, onSessionProgressReset);
@@ -310,18 +355,65 @@ export default function Practice() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    const state = getPracticeHooksState();
+    if (!state) return;
 
-    const onReady = (e: Event) => setReady(!!(e as CustomEvent<boolean>).detail);
-    const onProgress = (e: Event) => {
-      const safeValue = Math.min(Math.max(Math.round((e as CustomEvent<number>).detail ?? 0), 0), TOTAL_TRIALS);
-      setSessionProgress(safeValue);
-      dispatchSessionProgressAnnouncement({ type: 'progress', completed: safeValue, totalSteps: TOTAL_TRIALS });
+    const previousReady = window.__setPracticeReady;
+    const previousProgress = window.__setPracticeProgress;
+
+    const applyReady = (value: boolean) => {
+      const next = !!value;
+      state.ready = next;
+      setReady(next);
     };
-    window.addEventListener('practice:set-ready', onReady as EventListener);
-    window.addEventListener('practice:set-progress', onProgress as EventListener);
+
+    const applyProgress = (
+      value: number,
+      options?: PracticeProgressOptions
+    ) => {
+      const safeTotal = sanitizeTotalSteps(options?.totalSteps ?? state.totalSteps, TOTAL_TRIALS);
+      const safeValue = clampCompletedSteps(value, safeTotal);
+      state.totalSteps = safeTotal;
+      state.progress = safeValue;
+      state.announcementPrefix = options?.announcementPrefix;
+      setSessionProgress(safeValue);
+      dispatchSessionProgressAnnouncement({
+        type: 'progress',
+        completed: safeValue,
+        totalSteps: safeTotal,
+        announcementPrefix: options?.announcementPrefix,
+      });
+    };
+
+    window.__setPracticeReady = applyReady;
+    window.__setPracticeProgress = applyProgress;
+
+    if (typeof state.ready === 'boolean') {
+      applyReady(state.ready);
+    }
+    if (typeof state.progress === 'number') {
+      applyProgress(state.progress, {
+        totalSteps: state.totalSteps,
+        announcementPrefix: state.announcementPrefix,
+      });
+    }
+
     return () => {
-      window.removeEventListener('practice:set-ready', onReady as EventListener);
-      window.removeEventListener('practice:set-progress', onProgress as EventListener);
+      if (previousReady && previousReady !== applyReady) {
+        window.__setPracticeReady = previousReady;
+      } else if (state.defaultSetReady) {
+        window.__setPracticeReady = state.defaultSetReady;
+      } else {
+        delete window.__setPracticeReady;
+      }
+
+      if (previousProgress && previousProgress !== applyProgress) {
+        window.__setPracticeProgress = previousProgress;
+      } else if (state.defaultSetProgress) {
+        window.__setPracticeProgress = state.defaultSetProgress;
+      } else {
+        delete window.__setPracticeProgress;
+      }
     };
   }, [dispatchSessionProgressAnnouncement]);
 
@@ -382,6 +474,7 @@ export default function Practice() {
             completed: next,
             totalSteps: TOTAL_TRIALS,
           });
+          updatePracticeHooksProgress(next, TOTAL_TRIALS);
         }
         return next;
       });
@@ -445,7 +538,7 @@ export default function Practice() {
       </div>
 
       {/* Session Progress */}
-      {shouldRenderSessionProgress && (
+      {(ready || hasCachedPracticeHooksState()) && (
         <div className="mb-4">
           <div className="flex items-center justify-between text-sm mb-2">
             <span data-testid="progress-count">{sessionProgress} / {TOTAL_TRIALS}</span>
