@@ -36,7 +36,8 @@
     "cursor:model": "node scripts/cursor-model-router.mjs",
     "issues:seed": "node tools/seed_issues_from_tasks.mjs",
     "issues:create": "node tools/seed_issues_from_tasks.mjs --create",
-    "codex:render-summary": "tsx tools/codex-cloud/render-summary.ts"
+    "codex:render-summary": "tsx tools/codex-cloud/render-summary.ts",
+    "backlog:build": "tsx tools/codex-cloud/build-backlog.ts"
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.7",

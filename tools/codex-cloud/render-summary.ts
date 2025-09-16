@@ -107,26 +107,55 @@ function collectSources(record: Record<string, unknown>): {
   const sectionSources: Record<string, unknown>[] = [];
 
   const seen = new Set<Record<string, unknown>>();
+  const sectionSeen = new Set<Record<string, unknown>>();
+  const queue: Record<string, unknown>[] = [];
+
   const pushDirect = (value: unknown) => {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        pushDirect(item);
+      }
+      return;
+    }
     if (isRecord(value) && !seen.has(value)) {
       seen.add(value);
       directSources.push(value);
+      queue.push(value);
     }
   };
 
-  pushDirect(record);
-  pushDirect(record.metadata);
-  pushDirect((record as Record<string, unknown>).meta);
-
   const pushSection = (value: unknown) => {
-    if (isRecord(value)) {
+    if (Array.isArray(value)) {
+      for (const entry of value) {
+        pushSection(entry);
+      }
+      return;
+    }
+    if (isRecord(value) && !sectionSeen.has(value)) {
+      sectionSeen.add(value);
       sectionSources.push(value);
     }
   };
 
-  for (const source of directSources) {
-    pushSection(source.sections);
-    pushSection(source.section);
+  pushDirect(record);
+
+  const METADATA_KEYS = ['metadata', 'meta', 'data', 'details'];
+  const SECTION_KEY_CANDIDATES = ['sections', 'section'];
+
+  while (queue.length > 0) {
+    const source = queue.shift()!;
+    for (const key of METADATA_KEYS) {
+      const candidate = getValueFromObject(source, [key]);
+      if (candidate !== undefined) {
+        pushDirect(candidate);
+      }
+    }
+    for (const sectionKey of SECTION_KEY_CANDIDATES) {
+      const candidate = getValueFromObject(source, [sectionKey]);
+      if (candidate !== undefined) {
+        pushSection(candidate);
+      }
+    }
   }
 
   return { directSources, sectionSources };
