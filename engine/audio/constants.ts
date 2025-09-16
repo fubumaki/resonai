@@ -23,6 +23,10 @@ export const PROSODY_FALL_CENTS_PER_SEC = -250;
 export const PROSODY_EMA_ALPHA = 0.25;
 export const PROSODY_MIN_SAMPLES = 8;
 
+// Expressiveness defaults
+export const EXPRESSIVENESS_REF_SPREAD_CENTS = 300;
+export const EXPRESSIVENESS_MIN_SAMPLES = 10;
+
 // Legacy format for backward compatibility
 export const PROSODY_DEFAULTS = {
   windowMs: PROSODY_WINDOW_MS,

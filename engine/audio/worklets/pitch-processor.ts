@@ -11,7 +11,7 @@ class PitchProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
     const sampleRate = sampleRate || 48000;
-    const windowSize = 1024;
+    const windowSize = 1024; // centralized if needed later
     this._buffer = new Float32Array(windowSize);
     this._hop = Math.floor(windowSize / 2);
     this._ptr = 0;
@@ -20,8 +20,8 @@ class PitchProcessor extends AudioWorkletProcessor {
   // Very rough ACF-based pitch with confidence
   private estimatePitch(frame: Float32Array): { f0: number | null; conf: number } {
     const N = frame.length;
-    const maxLag = Math.floor(sampleRate / 60); // up to ~60 Hz lower bound
-    let minLag = Math.floor(sampleRate / 500); // ~500 Hz upper bound
+    const maxLag = Math.floor(sampleRate / 60); // TODO: expose via constants if tuning needed
+    let minLag = Math.floor(sampleRate / 500);
     if (minLag < 2) minLag = 2;
 
     let bestLag = 0;

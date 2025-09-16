@@ -11,9 +11,11 @@ export type Expressiveness = {
   sampleCount: number;  // voiced sample count used
 };
 
+import { EXPRESSIVENESS_MIN_SAMPLES, EXPRESSIVENESS_REF_SPREAD_CENTS } from './constants';
+
 export type ExprOptions = {
-  refSpreadCents?: number;  // spread at which score→~1.0 (default 300c ~= 3 semitones)
-  minSamples?: number;      // default 10
+  refSpreadCents?: number;  // spread at which score→~1.0 (default from constants)
+  minSamples?: number;      // default from constants
 };
 
 export function computeExpressiveness(
@@ -21,8 +23,8 @@ export function computeExpressiveness(
   voicedMs: number,
   opts: ExprOptions = {}
 ): Expressiveness {
-  const ref = opts.refSpreadCents ?? 300;
-  const minN = opts.minSamples ?? 10;
+  const ref = opts.refSpreadCents ?? EXPRESSIVENESS_REF_SPREAD_CENTS;
+  const minN = opts.minSamples ?? EXPRESSIVENESS_MIN_SAMPLES;
 
   if (!centsSeries.length) {
     return { stdevCents: 0, iqrCents: 0, rangeCents: 0, score01: 0, voicedMs, sampleCount: 0 };
