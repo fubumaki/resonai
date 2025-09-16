@@ -73,6 +73,8 @@ interface SuiteSummary {
   skipped: number;
   flaky: number;
   durationMs: number;
+  available: boolean;
+  unavailableReason?: string;
 }
 
 interface FlakySpecSummary {
@@ -90,6 +92,7 @@ const VITEST_PATH = path.join(ARTIFACTS_DIR, 'vitest.json');
 const PLAYWRIGHT_PATH = path.join(ARTIFACTS_DIR, 'playwright.json');
 const PLAYWRIGHT_FLAKY_PATH = path.join(ARTIFACTS_DIR, 'playwright', 'flaky.json');
 const OUTPUT_PATH = path.join(ARTIFACTS_DIR, 'SSOT.md');
+const QUOTE_OUTPUT_PATH = path.join(ARTIFACTS_DIR, 'ci-summary.txt');
 
 interface PlaywrightFlakyArtifact {
   generatedAt?: string;
@@ -212,6 +215,7 @@ function summarizeVitest(report: VitestReport): SuiteSummary {
     skipped,
     flaky: 0,
     durationMs,
+    available: true,
   };
 }
 
@@ -237,7 +241,55 @@ function summarizePlaywright(report: PlaywrightReport): SuiteSummary {
     skipped,
     flaky,
     durationMs,
+    available: true,
   };
+}
+
+function createUnavailableSuite(name: string, reason: string): SuiteSummary {
+  const normalizedReason = reason.trim().length > 0 ? reason.trim() : 'report unavailable';
+  const message = normalizedReason.toLowerCase().includes('unavailable')
+    ? normalizedReason
+    : `unavailable — ${normalizedReason}`;
+
+  return {
+    name,
+    passed: 0,
+    failed: 0,
+    skipped: 0,
+    flaky: 0,
+    durationMs: 0,
+    available: false,
+    unavailableReason: message,
+  };
+}
+
+function describePlaywrightLoadError(error: unknown): string {
+  const maybeErrno = error as NodeJS.ErrnoException;
+  if (maybeErrno?.code === 'ENOENT') {
+    return 'report unavailable (file not found)';
+  }
+
+  if (maybeErrno?.code && typeof maybeErrno.code === 'string') {
+    return `report unavailable (${maybeErrno.code})`;
+  }
+
+  if (error instanceof SyntaxError) {
+    return 'report unavailable (invalid JSON)';
+  }
+
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+      ? error
+      : undefined;
+
+  if (!message) {
+    return 'report unavailable';
+  }
+
+  const sanitized = cleanErrorMessage(message) ?? message.replace(/\s+/g, ' ').trim();
+  return sanitized ? `report unavailable (${sanitized})` : 'report unavailable';
 }
 
 function collectFlakySpecs(report: PlaywrightReport): FlakySpecSummary[] {
@@ -329,30 +381,40 @@ function renderSummaryMarkdown(options: {
   git: { sha: string; date?: string };
   sources: string[];
   flakyContext: FlakyContext;
+  generatedAt: Date;
 }): string {
-  const { vitest, playwright, flakiest, git, sources, flakyContext } = options;
+  const { vitest, playwright, flakiest, git, sources, flakyContext, generatedAt } = options;
   const suites = [vitest, playwright];
-  const allGreen = suites.every((suite) => suite.failed === 0 && suite.flaky === 0);
-
+  const allGreen = suites.every((suite) => suite.available && suite.failed === 0 && suite.flaky === 0);
+  const gitDate = git.date ? formatUtcDate(git.date) : 'date unavailable';
   const lines: string[] = [];
+
   lines.push('# CI Single Source of Truth');
   lines.push('');
 
+  const unavailableSuites = suites.filter((suite) => !suite.available);
+  const failingSuites = suites.filter((suite) => suite.available && (suite.failed > 0 || suite.flaky > 0));
+
   if (allGreen) {
-    const gitDate = git.date ? formatUtcDate(git.date) : 'date unavailable';
     lines.push(`**Last green commit:** \`${shortSha(git.sha)}\` (${gitDate})`);
-  } else {
-    const gitDate = git.date ? formatUtcDate(git.date) : 'date unavailable';
-    const failingSuites = suites.filter((suite) => suite.failed > 0 || suite.flaky > 0);
+  } else if (failingSuites.length > 0) {
     const failureSummary = failingSuites
       .map((suite) => `${suite.name}: ${suite.failed} failed${suite.flaky ? `, ${suite.flaky} flaky` : ''}`)
       .join('; ');
     lines.push(`**Last green commit:** _pending — current run has failures (${failureSummary})._`);
     lines.push(`**Current commit:** \`${shortSha(git.sha)}\` (${gitDate})`);
+  } else if (unavailableSuites.length > 0) {
+    const reasonSummary = unavailableSuites
+      .map((suite) => `${suite.name} ${suite.unavailableReason ?? 'results unavailable'}`)
+      .join('; ');
+    lines.push(`**Last green commit:** _pending — ${reasonSummary}._`);
+    lines.push(`**Current commit:** \`${shortSha(git.sha)}\` (${gitDate})`);
+  } else {
+    lines.push(`**Last green commit:** \`${shortSha(git.sha)}\` (${gitDate})`);
   }
 
   lines.push('');
-  lines.push(`Generated: ${formatUtcDate(new Date())}`);
+  lines.push(`Generated: ${formatUtcDate(generatedAt)}`);
   lines.push('');
   lines.push('## Totals');
   lines.push('');
@@ -360,9 +422,20 @@ function renderSummaryMarkdown(options: {
   lines.push('| --- | ---: | ---: | ---: | ---: | ---: |');
 
   for (const suite of suites) {
-    lines.push(
-      `| ${suite.name} | ${suite.passed} | ${suite.failed} | ${suite.skipped} | ${suite.flaky} | ${formatDuration(suite.durationMs)} |`,
-    );
+    const passed = suite.available ? suite.passed : 'unavailable';
+    const failed = suite.available ? suite.failed : 'unavailable';
+    const skipped = suite.available ? suite.skipped : 'unavailable';
+    const flaky = suite.available ? suite.flaky : 'unavailable';
+    const duration = suite.available ? formatDuration(suite.durationMs) : 'unavailable';
+    lines.push(`| ${suite.name} | ${passed} | ${failed} | ${skipped} | ${flaky} | ${duration} |`);
+  }
+
+  if (unavailableSuites.length > 0) {
+    lines.push('');
+    for (const suite of unavailableSuites) {
+      const reason = suite.unavailableReason ?? 'results unavailable';
+      lines.push(`_Note: ${suite.name} ${reason}._`);
+    }
   }
 
   lines.push('');
@@ -379,10 +452,18 @@ function renderSummaryMarkdown(options: {
       lines.push(`_Warning: ${flakyContext.error}_`);
     }
     lines.push('');
+  } else if (flakyContext.error) {
+    lines.push(`_Warning: ${flakyContext.error}_`);
+    lines.push('');
   }
 
   if (flakiest.length === 0) {
-    lines.push('_No flaky specs detected in the latest artifacts._');
+    if (!playwright.available) {
+      const reason = playwright.unavailableReason ?? 'results unavailable';
+      lines.push(`_Flaky specs unavailable — ${reason}._`);
+    } else {
+      lines.push('_No flaky specs detected in the latest artifacts._');
+    }
   } else {
     const top = flakiest.slice(0, 5);
     top.forEach((spec, index) => {
@@ -419,22 +500,166 @@ function renderSummaryMarkdown(options: {
   return lines.join('\n');
 }
 
+function describeSuiteForQuote(suite: SuiteSummary): string {
+  if (!suite.available) {
+    const reason = suite.unavailableReason ?? 'unavailable';
+    return `${suite.name}: ${reason}`;
+  }
+
+  const metrics = [
+    `passed ${suite.passed}`,
+    `failed ${suite.failed}`,
+    `skipped ${suite.skipped}`,
+    `flaky ${suite.flaky}`,
+  ];
+  return `${suite.name}: ${metrics.join(', ')} — ${formatDuration(suite.durationMs)}`;
+}
+
+function renderQuoteBlock(options: {
+  vitest: SuiteSummary;
+  playwright: SuiteSummary;
+  flakiest: FlakySpecSummary[];
+  git: { sha: string; date?: string };
+  sources: string[];
+  flakyContext: FlakyContext;
+  generatedAt: Date;
+}): string {
+  const { vitest, playwright, flakiest, git, sources, flakyContext, generatedAt } = options;
+  const suites = [vitest, playwright];
+  const allGreen = suites.every((suite) => suite.available && suite.failed === 0 && suite.flaky === 0);
+  const gitDate = git.date ? formatUtcDate(git.date) : 'date unavailable';
+  const unavailableSuites = suites.filter((suite) => !suite.available);
+  const failingSuites = suites.filter((suite) => suite.available && (suite.failed > 0 || suite.flaky > 0));
+  const lines: string[] = [];
+
+  lines.push('> [!CI] **CI Single Source of Truth (SSOT)**');
+
+  if (allGreen) {
+    lines.push(`> - **Last green commit:** \`${shortSha(git.sha)}\` (${gitDate})`);
+  } else if (failingSuites.length > 0) {
+    const failureSummary = failingSuites
+      .map((suite) => `${suite.name}: ${suite.failed} failed${suite.flaky ? `, ${suite.flaky} flaky` : ''}`)
+      .join('; ');
+    lines.push(`> - **Last green commit:** _pending — current run has failures (${failureSummary})._`);
+    lines.push(`> - **Current commit:** \`${shortSha(git.sha)}\` (${gitDate})`);
+  } else if (unavailableSuites.length > 0) {
+    const reasonSummary = unavailableSuites
+      .map((suite) => `${suite.name} ${suite.unavailableReason ?? 'results unavailable'}`)
+      .join('; ');
+    lines.push(`> - **Last green commit:** _pending — ${reasonSummary}._`);
+    lines.push(`> - **Current commit:** \`${shortSha(git.sha)}\` (${gitDate})`);
+  } else {
+    lines.push(`> - **Last green commit:** \`${shortSha(git.sha)}\` (${gitDate})`);
+  }
+
+  lines.push(`> - **Generated:** ${formatUtcDate(generatedAt)}`);
+  lines.push('> - **Totals**');
+  for (const suite of suites) {
+    lines.push(`>   - ${describeSuiteForQuote(suite)}`);
+  }
+
+  lines.push('> - **Flakiest specs**');
+
+  if (flakyContext.type === 'artifact') {
+    const generated = flakyContext.generatedAt
+      ? formatUtcDate(flakyContext.generatedAt) || 'time unavailable'
+      : 'time unavailable';
+    const commit = flakyContext.commit ? ` for commit \`${shortSha(flakyContext.commit)}\`` : '';
+    lines.push(`>   - _Data sourced from nightly artifact generated ${generated}${commit}._`);
+    if (flakyContext.error) {
+      lines.push(`>   - _Warning: ${flakyContext.error}_`);
+    }
+  } else if (flakyContext.error) {
+    lines.push(`>   - _Warning: ${flakyContext.error}_`);
+  }
+
+  if (flakiest.length === 0) {
+    if (!playwright.available) {
+      const reason = playwright.unavailableReason ?? 'results unavailable';
+      lines.push(`>   - Flaky data unavailable — ${reason}.`);
+    } else {
+      lines.push('>   - _No flaky specs detected in the latest artifacts._');
+    }
+  } else {
+    const top = flakiest.slice(0, 5);
+    top.forEach((spec, index) => {
+      const parts = [`${index + 1}. \`${spec.path}\``];
+      if (spec.title) {
+        parts.push(`— ${spec.title}`);
+      }
+      const outcome: string[] = [];
+      if (spec.failures > 0) {
+        outcome.push(`failed ×${spec.failures}`);
+      }
+      if (spec.flaky > 0) {
+        outcome.push(`flaky ×${spec.flaky}`);
+      }
+      if (spec.retries > 0) {
+        outcome.push(`retries ×${spec.retries}`);
+      }
+      parts.push(`(${outcome.join(', ') || 'no runs'})`);
+      parts.push(`— ${formatDuration(spec.durationMs)}`);
+      if (spec.message) {
+        parts.push(`— ${spec.message}`);
+      }
+      lines.push(`>   ${parts.join(' ')}`);
+    });
+  }
+
+  if (sources.length > 0) {
+    const formattedSources = sources.map((source) => `\`${source}\``).join(', ');
+    lines.push(`> - _Source: ${formattedSources}._`);
+  }
+
+  return lines.join('\n');
+}
+
 async function main(): Promise<void> {
-  const [vitestReport, playwrightReport, flakyArtifact] = await Promise.all([
+  const [vitestReport, playwrightResult, flakyArtifact] = await Promise.all([
     loadJson<VitestReport>(VITEST_PATH),
-    loadJson<PlaywrightReport>(PLAYWRIGHT_PATH),
+    (async () => {
+      try {
+        const report = await loadJson<PlaywrightReport>(PLAYWRIGHT_PATH);
+        return { report } as const;
+      } catch (error) {
+        return { error } as const;
+      }
+    })(),
     loadOptionalJson<PlaywrightFlakyArtifact>(PLAYWRIGHT_FLAKY_PATH),
   ]);
 
   const vitestSummary = summarizeVitest(vitestReport);
-  const playwrightSummary = summarizePlaywright(playwrightReport);
+  const playwrightReport = 'report' in playwrightResult ? playwrightResult.report : undefined;
+  const playwrightError = 'error' in playwrightResult ? playwrightResult.error : undefined;
+
+  let playwrightSummary: SuiteSummary;
+  if (playwrightReport) {
+    playwrightSummary = summarizePlaywright(playwrightReport);
+  } else {
+    const reason = describePlaywrightLoadError(playwrightError);
+    console.warn(`[ci-summary] Playwright summary unavailable: ${reason}`);
+    playwrightSummary = createUnavailableSuite('Playwright', reason);
+  }
+
   const usingFlakyArtifact = Array.isArray(flakyArtifact?.specs);
-  const flakiest = usingFlakyArtifact ? flakyArtifact?.specs ?? [] : collectFlakySpecs(playwrightReport);
+  const flakiest = usingFlakyArtifact
+    ? flakyArtifact?.specs ?? []
+    : playwrightReport
+    ? collectFlakySpecs(playwrightReport)
+    : [];
   const git = getGitMetadata();
-  const sources = ['.artifacts/vitest.json', '.artifacts/playwright.json'];
+  const generatedAt = new Date();
+
+  const sources = ['.artifacts/vitest.json'];
+  if (playwrightSummary.available) {
+    sources.push('.artifacts/playwright.json');
+  } else {
+    sources.push('unavailable: .artifacts/playwright.json');
+  }
   if (usingFlakyArtifact) {
     sources.push('.artifacts/playwright/flaky.json');
   }
+
   const flakyContext: FlakyContext = usingFlakyArtifact
     ? {
         type: 'artifact',
@@ -442,7 +667,9 @@ async function main(): Promise<void> {
         commit: flakyArtifact?.commit,
         error: flakyArtifact?.error,
       }
-    : { type: 'report' };
+    : playwrightSummary.available
+    ? { type: 'report' }
+    : { type: 'report', error: playwrightSummary.unavailableReason };
 
   const markdown = renderSummaryMarkdown({
     vitest: vitestSummary,
@@ -451,9 +678,25 @@ async function main(): Promise<void> {
     git,
     sources,
     flakyContext,
+    generatedAt,
   });
 
-  await writeFile(OUTPUT_PATH, `${markdown}\n`, 'utf8');
+  const quoteBlock = renderQuoteBlock({
+    vitest: vitestSummary,
+    playwright: playwrightSummary,
+    flakiest,
+    git,
+    sources,
+    flakyContext,
+    generatedAt,
+  });
+
+  await Promise.all([
+    writeFile(OUTPUT_PATH, `${markdown}\n`, 'utf8'),
+    writeFile(QUOTE_OUTPUT_PATH, `${quoteBlock}\n`, 'utf8'),
+  ]);
+
+  console.log(quoteBlock);
 }
 
 main().catch((error) => {
