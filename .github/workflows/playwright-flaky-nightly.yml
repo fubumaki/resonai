@@ -1,0 +1,162 @@
+name: Playwright Flaky Audit (nightly)
+
+on:
+  schedule:
+    - cron: "30 4 * * *"  # 04:30 UTC nightly run after other e2e jobs
+  workflow_dispatch:
+
+jobs:
+  detect-flaky-specs:
+    name: Detect flaky Playwright specs
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps firefox
+
+      - name: Run Playwright suite with retries
+        env:
+          CI: true
+        run: |
+          npx playwright test --config=playwright.config.ts --project=firefox
+
+      - name: Summarize flaky runs
+        if: always()
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+
+          const artifactsDir = path.join(process.cwd(), '.artifacts', 'playwright');
+          fs.mkdirSync(artifactsDir, { recursive: true });
+
+          const reportPath = path.join(process.cwd(), 'playwright-report', 'results.json');
+          const outputPath = path.join(artifactsDir, 'flaky.json');
+
+          const now = new Date().toISOString();
+
+          const base = {
+            generatedAt: now,
+            repository: process.env.GITHUB_REPOSITORY,
+            runId: process.env.GITHUB_RUN_ID,
+            commit: process.env.GITHUB_SHA,
+          };
+
+          function loadReport(filePath) {
+            if (!fs.existsSync(filePath)) {
+              return undefined;
+            }
+            const raw = fs.readFileSync(filePath, 'utf8');
+            const firstBrace = raw.indexOf('{');
+            if (firstBrace === -1) {
+              return undefined;
+            }
+            try {
+              return JSON.parse(raw.slice(firstBrace));
+            } catch (error) {
+              console.warn('Unable to parse results.json', error);
+              return undefined;
+            }
+          }
+
+          function collectFlaky(report) {
+            const suites = report?.suites ?? [];
+            const flakySpecs = [];
+            for (const suite of suites) {
+              const specs = suite?.specs ?? [];
+              for (const spec of specs) {
+                const tests = spec?.tests ?? [];
+                let flakyRuns = 0;
+                let failedRuns = 0;
+                let retries = 0;
+                let durationMs = 0;
+
+                for (const test of tests) {
+                  const results = test?.results ?? [];
+                  for (const result of results) {
+                    const status = result?.status ?? '';
+                    if (status === 'flaky') {
+                      flakyRuns += 1;
+                    }
+                    if (status === 'failed') {
+                      failedRuns += 1;
+                    }
+                    const retryIndex = Number.isFinite(result?.retry) ? result.retry : 0;
+                    if (retryIndex > retries) {
+                      retries = retryIndex;
+                    }
+                    const duration = Number.isFinite(result?.duration) ? result.duration : 0;
+                    durationMs += duration;
+                  }
+                }
+
+                if (flakyRuns > 0) {
+                  flakySpecs.push({
+                    file: spec?.file ?? suite?.file ?? null,
+                    title: spec?.title ?? 'unknown',
+                    flakyRuns,
+                    failedRuns,
+                    retries,
+                    durationMs,
+                  });
+                }
+              }
+            }
+            return flakySpecs;
+          }
+
+          const report = loadReport(reportPath);
+          if (!report) {
+            fs.writeFileSync(
+              outputPath,
+              JSON.stringify({
+                ...base,
+                error: 'playwright-report/results.json not found or unreadable',
+              }, null, 2)
+            );
+            process.exit(0);
+          }
+
+          const stats = report?.stats ?? {};
+          const flakySpecs = collectFlaky(report);
+
+          const payload = {
+            ...base,
+            stats: {
+              expected: stats.expected ?? 0,
+              unexpected: stats.unexpected ?? 0,
+              flaky: stats.flaky ?? 0,
+              skipped: stats.skipped ?? 0,
+              durationMs: stats.duration ?? 0,
+            },
+            projectTestDir: report?.config?.projects?.[0]?.testDir,
+            flakySpecs,
+            summary: flakySpecs.length > 0
+              ? `${flakySpecs.length} flaky spec${flakySpecs.length === 1 ? '' : 's'} detected`
+              : 'No flaky specs detected',
+          };
+
+          fs.writeFileSync(outputPath, JSON.stringify(payload, null, 2));
+          NODE
+
+      - name: Upload flaky summary artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-flaky
+          path: .artifacts/playwright/flaky.json
+          if-no-files-found: error
+          retention-days: 14
