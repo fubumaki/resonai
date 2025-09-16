@@ -56,7 +56,7 @@ class AgentWatchdog {
     child.on('exit', (code, signal) => {
       console.log(`[watchdog] Runner process exited with code ${code}, signal ${signal}`);
       this.childProcess = null;
-      
+
       if (!this.isShuttingDown) {
         this.scheduleRestart();
       }
@@ -69,7 +69,7 @@ class AgentWatchdog {
     if (this.childProcess) {
       console.log('[watchdog] Stopping child process...');
       this.childProcess.kill('SIGTERM');
-      
+
       // Force kill after 10 seconds if it doesn't stop gracefully
       setTimeout(() => {
         if (this.childProcess && !this.childProcess.killed) {
@@ -77,7 +77,7 @@ class AgentWatchdog {
           this.childProcess.kill('SIGKILL');
         }
       }, 10000);
-      
+
       this.childProcess = null;
     }
   }
@@ -170,7 +170,7 @@ class AgentWatchdog {
 // Main execution
 const main = async (): Promise<void> => {
   const watchdog = new AgentWatchdog();
-  
+
   try {
     await watchdog.start();
   } catch (error) {
