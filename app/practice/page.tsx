@@ -37,36 +37,39 @@ const PRESETS: Record<PresetKey, Preset> = {
 
 const TOTAL_TRIALS = 10;
 
-declare global {
-  interface Window {
-    __setPracticeReady?: (value: boolean) => void;
-    __setPracticeProgress?: (
-      value: number,
-      options?: { totalSteps?: number; announcementPrefix?: string }
-    ) => void;
-  }
-}
+type PracticeHooksSnapshot = {
+  ready?: boolean;
+  progress?: number;
+  totalSteps?: number;
+  announcementPrefix?: string;
+};
 
-// Pending test state captured before React effects attach
-let __pendingPracticeReady: boolean | undefined;
-let __pendingPracticeProgress: number | undefined;
+const getCachedPracticeHooksState = (): PracticeHooksSnapshot | undefined => {
+  if (typeof window === 'undefined') return undefined;
+  try {
+    return window.getPracticeHooksState?.();
+  } catch {
+    return undefined;
+  }
+};
 
-// Expose test hooks as early as possible so Playwright can call them right after navigation
-if (typeof window !== 'undefined') {
-  if (!window.__setPracticeReady) {
-    window.__setPracticeReady = (value: boolean) => {
-      __pendingPracticeReady = !!value;
-      try { window.dispatchEvent(new CustomEvent('practice:set-ready', { detail: !!value })); } catch { }
-    };
+const getInitialPracticeReady = (): boolean | undefined => {
+  if (typeof window === 'undefined') return undefined;
+  try {
+    return window.readInitialPracticeReady?.();
+  } catch {
+    return undefined;
   }
-  if (!window.__setPracticeProgress) {
-    window.__setPracticeProgress = (value: number) => {
-      const safeValue = Math.min(Math.max(Math.round(value), 0), TOTAL_TRIALS);
-      __pendingPracticeProgress = safeValue;
-      try { window.dispatchEvent(new CustomEvent('practice:set-progress', { detail: safeValue })); } catch { }
-    };
+};
+
+const getInitialPracticeProgress = (): number | undefined => {
+  if (typeof window === 'undefined') return undefined;
+  try {
+    return window.readInitialPracticeProgress?.();
+  } catch {
+    return undefined;
   }
-}
+};
 
 function useAudioUnlock(ctxRef: React.MutableRefObject<AudioContext | null>) {
   const [needsUnlock, setNeedsUnlock] = useState(false);
@@ -95,7 +98,8 @@ export default function Practice() {
   const [brightTarget, setBrightTarget] = useState<Range>(PRESETS.mezzo.bright);
 
   const [ready, setReady] = useState<boolean>(() => {
-    try { return typeof __pendingPracticeReady === 'boolean' ? !!__pendingPracticeReady : false; } catch { return false; }
+    const initialReady = getInitialPracticeReady();
+    return typeof initialReady === 'boolean' ? initialReady : false;
   });
   const [err, setErr] = useState<string | null>(null);
 
@@ -107,16 +111,22 @@ export default function Practice() {
   const [clarity, setClarity] = useState(0);
   const [lowPower, setLowPower] = useState(false);
   const [sessionProgress, setSessionProgress] = useState<number>(() => {
-    try {
-      return typeof __pendingPracticeProgress === 'number'
-        ? Math.min(Math.max(Math.round(__pendingPracticeProgress), 0), TOTAL_TRIALS)
-        : 0;
-    } catch { return 0; }
+    const initialProgress = getInitialPracticeProgress();
+    if (typeof initialProgress !== 'number') return 0;
+    const rounded = Math.round(initialProgress);
+    if (Number.isNaN(rounded)) return 0;
+    if (rounded < 0) return 0;
+    if (rounded > TOTAL_TRIALS) return TOTAL_TRIALS;
+    return rounded;
   });
   const [sessionProgressAnnouncement, dispatchSessionProgressAnnouncement] = useReducer(
     sessionProgressAnnouncementReducer,
     createSessionProgressState(TOTAL_TRIALS)
   );
+
+  const hooksStateSnapshot = getCachedPracticeHooksState();
+  const shouldRenderSessionProgress =
+    ready || !!(hooksStateSnapshot && (typeof hooksStateSnapshot.ready === 'boolean' || typeof hooksStateSnapshot.progress === 'number'));
 
   // Audio device settings
   const [inputDeviceId, setInputDeviceId] = useState<string | null>(null);
@@ -239,20 +249,18 @@ export default function Practice() {
   };
 
   useEffect(() => {
-    // Apply any pending ready flag set before listeners attached
-    try {
-      if (typeof __pendingPracticeReady === 'boolean') {
-        setReady(!!__pendingPracticeReady);
-      }
-    } catch { }
+    const cachedState = getCachedPracticeHooksState();
+    if (cachedState && typeof cachedState.ready === 'boolean') {
+      setReady(cachedState.ready);
+    }
 
     (async () => {
       try {
         await startAudio();
         setReady(true);
-        // Apply any pending test state immediately after first ready
-        if (typeof __pendingPracticeProgress === 'number') {
-          const v = Math.min(Math.max(Math.round(__pendingPracticeProgress), 0), TOTAL_TRIALS);
+        const latestState = getCachedPracticeHooksState();
+        if (latestState && typeof latestState.progress === 'number') {
+          const v = Math.min(Math.max(Math.round(latestState.progress), 0), TOTAL_TRIALS);
           setSessionProgress(v);
         }
       } catch (e: any) { setErr(e?.message ?? "Microphone permission denied."); }
@@ -437,7 +445,7 @@ export default function Practice() {
       </div>
 
       {/* Session Progress */}
-      {(ready || (typeof (window as any).__practicePendingReady === 'boolean') || (typeof (window as any).__practicePendingProgress === 'number')) && (
+      {shouldRenderSessionProgress && (
         <div className="mb-4">
           <div className="flex items-center justify-between text-sm mb-2">
             <span data-testid="progress-count">{sessionProgress} / {TOTAL_TRIALS}</span>
