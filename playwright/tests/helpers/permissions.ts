@@ -50,7 +50,9 @@ export async function usePermissionMock(
       }
 
       if (originalQuery) {
-        return originalQuery(descriptor).catch(() => createStatus(descriptorName, 'denied'));
+        return originalQuery(descriptor)
+          .then((status: PermissionStatus) => createStatus(descriptorName, status.state))
+          .catch(() => createStatus(descriptorName, 'denied'));
       }
 
       return Promise.resolve(createStatus(descriptorName, 'prompt'));
