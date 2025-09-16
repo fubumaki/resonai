@@ -42,36 +42,42 @@ export async function usePermissionMock(
       overrides: { ...initialOverrides },
     };
 
-    const resolveState = (
-      descriptor: PermissionDescriptor | any
-    ): Promise<PermissionStatus> | PermissionStatus => {
-      const descriptorKey = (descriptor?.name || descriptor) as
-        | PermissionName
-        | '*';
+    const resolveState = async (
+      descriptor: PermissionDescriptor | PermissionName | '*'
+    ): Promise<PermissionStatus> => {
+      const key = (descriptor && typeof descriptor === 'object'
+        ? (descriptor as PermissionDescriptor).name
+        : descriptor ?? '*') as PermissionName | '*';
+
       const permissionName: PermissionName =
-        descriptorKey === '*'
-          ? 'geolocation'
-          : (descriptorKey as PermissionName);
+        key === '*'
+          ? // Fallback to a concrete permission for wildcard overrides so the
+            // mocked PermissionStatus stays type-compatible with the DOM lib.
+            'geolocation'
+          : key;
+
       const override =
-        state.overrides[descriptorKey] ?? state.overrides['*'];
+        key === '*'
+          ? state.overrides['*']
+          : state.overrides[key] ?? state.overrides['*'];
 
       if (override) {
         return createStatus(permissionName, override);
       }
 
-      if (!originalQuery || descriptorKey === '*') {
+      if (!originalQuery || key === '*') {
         return createStatus(permissionName, 'prompt');
       }
 
-      return originalQuery(descriptor).catch(() =>
-        createStatus(permissionName, 'denied')
-      );
+      try {
+        return await originalQuery(descriptor);
+      } catch {
+        return createStatus(permissionName, 'denied');
+      }
     };
 
-    const query = (descriptor: PermissionDescriptor | any) => {
-      const result = resolveState(descriptor);
-      return result instanceof Promise ? result : Promise.resolve(result);
-    };
+    const query = (descriptor: PermissionDescriptor | any) =>
+      resolveState(descriptor);
 
     permissions.query = query;
     navAny.permissions = permissions;
