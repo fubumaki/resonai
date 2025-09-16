@@ -15,18 +15,24 @@ import {
 } from '@/lib/analytics';
 import { getCoachMessage, getProgressMessage } from '@/lib/coach-copy';
 import MicPrimerDialog from '@/components/MicPrimerDialog';
+import MicCalibrationFlow from '@/components/MicCalibrationFlow';
 import ProgressBar from '@/components/ProgressBar';
 import MicroInteraction from '@/components/MicroInteraction';
+import { useMicCalibration } from '@/hooks/useMicCalibration';
 
 export default function InstantPractice() {
   const [micReady, setMicReady] = useState(false);
   const [recording, setRecording] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPrimer, setShowPrimer] = useState(false);
+  const [showCalibration, setShowCalibration] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
   const [hasActivated, setHasActivated] = useState(false);
   const [currentMessage, setCurrentMessage] = useState<keyof typeof import('@/lib/coach-copy').COACH_MESSAGES>('ready');
   const [showMicroInteraction, setShowMicroInteraction] = useState(false);
+
+  // Calibration state management
+  const { config, isConfigured, saveConfig, retestMic } = useMicCalibration();
 
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -69,15 +75,50 @@ export default function InstantPractice() {
 
   const requestMic = async () => {
     try {
-      // Show primer for E2A variant
-      if (e2Variant === 'A' && primerShort) {
-        setShowPrimer(true);
-        return;
+      // Check if we have a calibrated configuration
+      if (isConfigured && config) {
+        // Use calibrated configuration
+        await requestMicWithCalibration();
+      } else {
+        // Show calibration flow for new users or E2A variant
+        if (e2Variant === 'A' && primerShort) {
+          setShowPrimer(true);
+          return;
+        }
+        
+        // Show calibration flow for better setup
+        setShowCalibration(true);
       }
-
-      await requestMicPermission();
     } catch (error) {
       console.error('Mic request failed:', error);
+    }
+  };
+
+  const requestMicWithCalibration = async () => {
+    try {
+      trackPermissionRequested('microphone', 'instant_practice');
+
+      // Use calibrated constraints
+      const constraints = {
+        audio: config!.constraints
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      mediaStreamRef.current = stream;
+      setMicReady(true);
+      setError(null);
+      setCurrentMessage('ready');
+
+      trackPermissionGranted('instant_practice');
+
+      // Measure TTV
+      const ttv = Date.now() - ttvStartTime.current;
+      trackTtvMeasured(ttv);
+
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Microphone access denied');
+      setCurrentMessage('micDenied');
+      trackPermissionDenied('instant_practice');
     }
   };
 
@@ -113,6 +154,20 @@ export default function InstantPractice() {
     setShowPrimer(false);
     setCurrentMessage('micDenied');
     trackPermissionDenied('instant_practice');
+  };
+
+  const handleCalibrationComplete = async (calibrationConfig: any) => {
+    saveConfig(calibrationConfig);
+    setShowCalibration(false);
+    
+    // Use the calibrated configuration immediately
+    await requestMicWithCalibration();
+  };
+
+  const handleCalibrationCancel = () => {
+    setShowCalibration(false);
+    // Fall back to basic permission request
+    requestMicPermission();
   };
 
   const startStop = () => {
@@ -234,26 +289,36 @@ export default function InstantPractice() {
 
       {/* Bottom controls */}
       <nav className="fixed bottom-20 left-0 right-0 p-4 safe-area-pb">
-        <div className="max-w-sm mx-auto">
+        <div className="max-w-sm mx-auto space-y-3">
           {!micReady ? (
             <button
               className="w-full py-4 px-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 active:scale-95"
               onClick={requestMic}
               aria-label="Enable microphone to start practicing"
             >
-              Start with voice
+              {isConfigured ? 'Start with voice' : 'Setup microphone'}
             </button>
           ) : (
-            <button
-              className={`w-full py-4 px-6 font-semibold rounded-lg shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-900 active:scale-95 ${recording
-                ? 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-500'
-                : 'bg-green-600 hover:bg-green-700 text-white focus:ring-green-500'
-                }`}
-              onClick={startStop}
-              aria-pressed={recording}
-            >
-              {recording ? 'Stop' : 'Start'}
-            </button>
+            <>
+              <button
+                className={`w-full py-4 px-6 font-semibold rounded-lg shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-900 active:scale-95 ${recording
+                  ? 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-500'
+                  : 'bg-green-600 hover:bg-green-700 text-white focus:ring-green-500'
+                  }`}
+                onClick={startStop}
+                aria-pressed={recording}
+              >
+                {recording ? 'Stop' : 'Start'}
+              </button>
+              
+              {/* Recalibrate option */}
+              <button
+                className="w-full py-2 px-4 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors duration-200"
+                onClick={() => setShowCalibration(true)}
+              >
+                Recalibrate microphone
+              </button>
+            </>
           )}
         </div>
       </nav>
@@ -264,6 +329,18 @@ export default function InstantPractice() {
         onAccept={handlePrimerAccept}
         onDecline={handlePrimerDecline}
       />
+
+      {/* Mic calibration flow */}
+      {showCalibration && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <MicCalibrationFlow
+              onComplete={handleCalibrationComplete}
+              onCancel={handleCalibrationCancel}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Micro-interactions */}
       {showMicroInteraction && (
