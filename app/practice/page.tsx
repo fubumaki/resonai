@@ -134,15 +134,19 @@ function hasCachedPracticeHooksState(): boolean {
 function useAudioUnlock(ctxRef: React.MutableRefObject<AudioContext | null>) {
   const [needsUnlock, setNeedsUnlock] = useState(false);
 
+  const ctx = ctxRef.current;
+
   useEffect(() => {
-    const ctx = ctxRef.current;
-    if (!ctx) return;
+    if (!ctx) {
+      setNeedsUnlock(false);
+      return;
+    }
     const check = () => setNeedsUnlock(ctx.state === "suspended");
     check();
     const onState = () => check();
     ctx.addEventListener("statechange", onState);
     return () => ctx.removeEventListener("statechange", onState);
-  }, []);
+  }, [ctx]);
 
   const unlock = async () => {
     const ctx = ctxRef.current;
