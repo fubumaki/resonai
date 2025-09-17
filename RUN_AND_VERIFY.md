@@ -2,9 +2,11 @@
 
 ## CI Single Source of Truth (SSOT)
 
-**Last green commit:** _pending — current run has failures (Playwright (firefox): 22 failed)._ 
+**Last green commit:** _pending — current run has failures (Playwright (firefox): 22 failed)._  
 **Current commit:** `b22e630` (2025-09-16 05:57 UTC)
 Generated: 2025-09-16 06:33 UTC — see [.artifacts/SSOT.md](.artifacts/SSOT.md) for full artifact details.
+
+See [QUALITY-GATES/lanes.md](QUALITY-GATES/lanes.md) for the lane-specific (A1/B1/C1/D1) acceptance checklists referenced by the merge agent.
 
 | Suite | Passed | Failed | Skipped | Flaky | Duration |
 | --- | ---: | ---: | ---: | ---: | ---: |
