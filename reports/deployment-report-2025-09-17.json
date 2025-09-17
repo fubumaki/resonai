@@ -1,0 +1,41 @@
+{
+  "reports": [
+    {
+      "timestamp": "2025-09-17T00:02:08.701Z",
+      "deployment": {
+        "version": "v1.2.0",
+        "phase": "staging",
+        "uptime": "100%"
+      },
+      "metrics": {
+        "calibration": {
+          "successRate": "0.0%",
+          "avgSetupTime": "0s",
+          "errorRate": "0%"
+        },
+        "hud": {
+          "engagementRate": "0.0%",
+          "avgFrameRate": "0 fps",
+          "avgCPUUsage": "0%"
+        },
+        "technical": {
+          "errorRate": "0%",
+          "responseTime": "0ms"
+        }
+      },
+      "alerts": [
+        {
+          "type": "warning",
+          "message": "Calibration success rate below target (85%)",
+          "value": "0.0%"
+        },
+        {
+          "type": "warning",
+          "message": "HUD engagement rate below target (70%)",
+          "value": "0.0%"
+        }
+      ],
+      "status": "healthy"
+    }
+  ]
+}
