@@ -695,9 +695,9 @@ export default function Practice() {
     setter(r);
   };
 
-    // Reset handlers
-    const resetToPresetDefaults = () => {
-      // Use the currently selected preset's defaults
+  // Reset handlers
+  const resetToPresetDefaults = () => {
+    // Use the currently selected preset's defaults
     const p = PRESETS[preset];
     setPitchTarget({ ...p.pitch });
     setBrightTarget({ ...p.bright });
@@ -705,37 +705,37 @@ export default function Practice() {
     showToast('Practice data reset');
   };
 
-    const resetAll = async () => {
-      autoRestartRef.current = false;
-      // Settings → defaults
-      const defaultLowPower = defaultSettings.lowPower ?? false;
-      const defaultInputId = defaultSettings.inputDeviceId ?? null;
-      const defaultEchoCancellation = defaultSettings.echoCancellation === true;
-      const defaultNoiseSuppression = defaultSettings.noiseSuppression === true;
-      const defaultAutoGainControl = defaultSettings.autoGainControl === true;
+  const resetAll = async () => {
+    autoRestartRef.current = false;
+    // Settings → defaults
+    const defaultLowPower = defaultSettings.lowPower ?? false;
+    const defaultInputId = defaultSettings.inputDeviceId ?? null;
+    const defaultEchoCancellation = defaultSettings.echoCancellation === true;
+    const defaultNoiseSuppression = defaultSettings.noiseSuppression === true;
+    const defaultAutoGainControl = defaultSettings.autoGainControl === true;
 
-      setPreset(defaultSettings.preset);
-      setPitchTarget({ min: defaultSettings.pitchMin, max: defaultSettings.pitchMax });
-      setBrightTarget({ min: defaultSettings.brightMin, max: defaultSettings.brightMax });
-      setLowPower(defaultLowPower);
-      setInputDeviceId(defaultInputId);
-      setEchoCancellation(defaultEchoCancellation);
-      setNoiseSuppression(defaultNoiseSuppression);
-      setAutoGainControl(defaultAutoGainControl);
-      try { await (db as any).trials.clear(); } catch { }
-      handleSessionProgressReset('Practice data reset.');
-      try {
-        await restartAudio({
-          inputDeviceId: defaultInputId,
-          echoCancellation: defaultEchoCancellation,
-          noiseSuppression: defaultNoiseSuppression,
-          autoGainControl: defaultAutoGainControl,
-        });
-      } finally {
-        autoRestartRef.current = true;
-      }
-      showToast('Practice data reset');
-    };
+    setPreset(defaultSettings.preset);
+    setPitchTarget({ min: defaultSettings.pitchMin, max: defaultSettings.pitchMax });
+    setBrightTarget({ min: defaultSettings.brightMin, max: defaultSettings.brightMax });
+    setLowPower(defaultLowPower);
+    setInputDeviceId(defaultInputId);
+    setEchoCancellation(defaultEchoCancellation);
+    setNoiseSuppression(defaultNoiseSuppression);
+    setAutoGainControl(defaultAutoGainControl);
+    try { await (db as any).trials.clear(); } catch { }
+    handleSessionProgressReset('Practice data reset.');
+    try {
+      await restartAudio({
+        inputDeviceId: defaultInputId,
+        echoCancellation: defaultEchoCancellation,
+        noiseSuppression: defaultNoiseSuppression,
+        autoGainControl: defaultAutoGainControl,
+      });
+    } finally {
+      autoRestartRef.current = true;
+    }
+    showToast('Practice data reset');
+  };
 
   return (
     <section className="hero">
