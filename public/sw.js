@@ -9,6 +9,25 @@ const APP_SHELL = [
   "/worklets/pitch-processor.js",
 ];
 
+const COOP_COEP_HEADERS = {
+  "Cross-Origin-Opener-Policy": "same-origin",
+  "Cross-Origin-Embedder-Policy": "require-corp",
+};
+
+const withCoopCoep = (response) => {
+  if (!response || response.type === "opaque") return response;
+  const clone = response.clone();
+  const headers = new Headers(clone.headers);
+  Object.entries(COOP_COEP_HEADERS).forEach(([key, value]) => {
+    headers.set(key, value);
+  });
+  return new Response(clone.body, {
+    status: clone.status,
+    statusText: clone.statusText,
+    headers,
+  });
+};
+
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(V).then((c) => c.addAll(APP_SHELL)));
   self.skipWaiting();
@@ -31,10 +50,10 @@ self.addEventListener("fetch", (e) => {
     e.respondWith((async () => {
       const cache = await caches.open(V);
       const cached = await cache.match(request);
-      if (cached) return cached;
+      if (cached) return withCoopCoep(cached);
       const res = await fetch(request);
       if (res.ok && res.type !== "opaque") cache.put(request, res.clone());
-      return res;
+      return withCoopCoep(res);
     })());
     return;
   }
@@ -46,10 +65,12 @@ self.addEventListener("fetch", (e) => {
   e.respondWith((async () => {
     const cache = await caches.open(V);
     const cached = await cache.match(request);
-    const fetcher = fetch(request).then((res) => {
-      if (res.ok && res.type !== "opaque") cache.put(request, res.clone());
-      return res;
-    }).catch(() => cached || Response.error());
-    return cached || fetcher;
+    const fetcher = fetch(request)
+      .then((res) => {
+        if (res.ok && res.type !== "opaque") cache.put(request, res.clone());
+        return withCoopCoep(res);
+      })
+      .catch(() => Response.error());
+    return cached ? withCoopCoep(cached) : fetcher;
   })());
 });
