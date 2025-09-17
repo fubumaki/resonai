@@ -4,6 +4,36 @@
 import React from 'react';
 import { PracticeMetrics, TargetRanges } from '../hooks/usePracticeMetrics';
 
+type PitchStatus = 'no-signal' | 'low' | 'high' | 'in-range';
+type BrightnessStatus = 'low' | 'high' | 'in-range';
+type ConfidenceStatus = 'low' | 'medium' | 'high';
+
+const pitchStatusClasses: Record<PitchStatus, string> = {
+  'in-range': 'bg-green-500',
+  low: 'bg-red-500',
+  high: 'bg-red-500',
+  'no-signal': 'bg-gray-400'
+};
+
+const pitchStatusLabels: Record<PitchStatus, string> = {
+  'in-range': 'In range',
+  low: 'Too low',
+  high: 'Too high',
+  'no-signal': 'No signal'
+};
+
+const brightnessStatusClasses: Record<BrightnessStatus, string> = {
+  'in-range': 'bg-green-400',
+  low: 'bg-yellow-400',
+  high: 'bg-red-400'
+};
+
+const confidenceStatusClasses: Record<ConfidenceStatus, string> = {
+  high: 'bg-blue-400',
+  medium: 'bg-yellow-400',
+  low: 'bg-red-400'
+};
+
 interface PracticeHUDProps {
   metrics: PracticeMetrics;
   targetRanges?: TargetRanges;
@@ -29,20 +59,20 @@ export default function PracticeHUD({
   const ranges = targetRanges || defaultTargetRanges;
 
   // Helper functions for visual indicators
-  const getPitchStatus = (pitch: number | null) => {
+  const getPitchStatus = (pitch: number | null): PitchStatus => {
     if (pitch === null) return 'no-signal';
     if (pitch < ranges.pitchMin) return 'low';
     if (pitch > ranges.pitchMax) return 'high';
     return 'in-range';
   };
 
-  const getBrightnessStatus = (brightness: number) => {
+  const getBrightnessStatus = (brightness: number): BrightnessStatus => {
     if (brightness < ranges.brightnessMin) return 'low';
     if (brightness > ranges.brightnessMax) return 'high';
     return 'in-range';
   };
 
-  const getConfidenceStatus = (confidence: number) => {
+  const getConfidenceStatus = (confidence: number): ConfidenceStatus => {
     if (confidence < 0.3) return 'low';
     if (confidence < 0.7) return 'medium';
     return 'high';
@@ -64,6 +94,12 @@ export default function PracticeHUD({
   const formatInRange = (percentage: number) => {
     return `${Math.round(percentage)}%`;
   };
+
+  const pitchStatus = getPitchStatus(metrics.pitch);
+
+  const brightnessStatus = getBrightnessStatus(metrics.brightness);
+
+  const confidenceStatus = getConfidenceStatus(metrics.confidence);
 
   return (
     <div
@@ -124,18 +160,11 @@ export default function PracticeHUD({
           {/* Status indicator */}
           <div className="flex items-center mt-1">
             <div
-              className={`w-2 h-2 rounded-full mr-2 ${getPitchStatus(metrics.pitch) === 'in-range' ? 'bg-green-500' :
-                  getPitchStatus(metrics.pitch) === 'low' ? 'bg-red-500' :
-                    getPitchStatus(metrics.pitch) === 'high' ? 'bg-red-500' :
-                      'bg-gray-400'
-                }`}
+              className={`w-2 h-2 rounded-full mr-2 ${pitchStatusClasses[pitchStatus]}`}
               aria-hidden="true"
             />
             <span className="text-xs text-slate-600 dark:text-slate-400">
-              {getPitchStatus(metrics.pitch) === 'in-range' ? 'In range' :
-                getPitchStatus(metrics.pitch) === 'low' ? 'Too low' :
-                  getPitchStatus(metrics.pitch) === 'high' ? 'Too high' :
-                    'No signal'}
+              {pitchStatusLabels[pitchStatus]}
             </span>
           </div>
         </div>
@@ -157,10 +186,7 @@ export default function PracticeHUD({
           {/* Brightness Meter */}
           <div className="relative h-8 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
             <div
-              className={`h-full transition-all duration-200 meter-fill-dynamic ${getBrightnessStatus(metrics.brightness) === 'in-range' ? 'bg-green-400' :
-                  getBrightnessStatus(metrics.brightness) === 'low' ? 'bg-yellow-400' :
-                    'bg-red-400'
-                }`}
+              className={`h-full transition-all duration-200 meter-fill-dynamic ${brightnessStatusClasses[brightnessStatus]}`}
               style={{
                 '--meter-width': `${Math.min(100, Math.max(0, metrics.brightness * 100))}%`,
                 width: 'var(--meter-width)'
@@ -187,10 +213,7 @@ export default function PracticeHUD({
           {/* Confidence Meter */}
           <div className="relative h-8 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
             <div
-              className={`h-full transition-all duration-200 meter-fill-dynamic ${getConfidenceStatus(metrics.confidence) === 'high' ? 'bg-blue-400' :
-                  getConfidenceStatus(metrics.confidence) === 'medium' ? 'bg-yellow-400' :
-                    'bg-red-400'
-                }`}
+              className={`h-full transition-all duration-200 meter-fill-dynamic ${confidenceStatusClasses[confidenceStatus]}`}
               style={{
                 '--meter-width': `${Math.min(100, Math.max(0, metrics.confidence * 100))}%`,
                 width: 'var(--meter-width)'
