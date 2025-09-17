@@ -1,0 +1,147 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=e3]:
+    - navigation "Primary" [ref=e5]:
+      - link "Resonai home" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - text: Resonai
+      - list [ref=e7]:
+        - listitem [ref=e8]:
+          - link "Listen" [ref=e9] [cursor=pointer]:
+            - /url: /listen
+        - listitem [ref=e10]:
+          - link "Practice" [ref=e11] [cursor=pointer]:
+            - /url: /practice
+        - listitem [ref=e12]:
+          - link "About" [ref=e13] [cursor=pointer]:
+            - /url: /about
+      - link "Start practice" [ref=e14] [cursor=pointer]:
+        - /url: /practice
+  - main [ref=e15]:
+    - generic [ref=e16]:
+      - heading "Practice" [level=1] [ref=e17]
+      - generic [ref=e18]:
+        - generic [ref=e19]: MEZZO • Pitch 180-220 Hz • Bright 1800-2800 Hz
+        - button "Settings" [ref=e21] [cursor=pointer]
+      - generic [ref=e22]:
+        - generic [ref=e24]: 0 / 10
+        - progressbar [ref=e26]:
+          - generic [ref=e27]:
+            - generic [ref=e28]: Step 0 of 10
+            - generic [ref=e29]: 0%
+          - img [ref=e30]
+        - generic [ref=e32]: "Practice session progress: 0 of 10 trials completed"
+      - generic [ref=e33]:
+        - generic [ref=e34]:
+          - generic [ref=e35]:
+            - generic [ref=e36]: Profile
+            - combobox "Target profile" [ref=e37]:
+              - option "Alto"
+              - option "Mezzo" [selected]
+              - option "Soprano"
+              - option "Custom"
+          - generic [ref=e38]: Balanced focus
+        - paragraph [ref=e39]: Allow microphone to begin.
+        - generic [ref=e40]:
+          - strong [ref=e41]: Mic level
+          - meter [ref=e42]
+        - generic [ref=e44]:
+          - strong [ref=e45]: "Engine:"
+          - generic [ref=e46]: Measuring…
+        - generic [ref=e47]:
+          - strong [ref=e48]: Microphone
+          - paragraph [ref=e49]: Allow microphone to choose a device.
+          - generic [ref=e50]:
+            - generic [ref=e51]:
+              - checkbox "Echo cancellation" [ref=e52]
+              - generic [ref=e53]: Echo cancellation
+            - generic [ref=e54]:
+              - checkbox "Noise suppression" [ref=e55]
+              - generic [ref=e56]: Noise suppression
+            - generic [ref=e57]:
+              - checkbox "Auto gain control" [ref=e58]
+              - generic [ref=e59]: Auto gain control
+          - paragraph [ref=e60]: "Tip: choose a USB mic if available for steadier pitch tracking."
+        - generic [ref=e61]:
+          - generic [ref=e62]:
+            - img "Resonance indicator" [ref=e63]:
+              - img [ref=e64]
+            - generic [ref=e73]:
+              - generic [ref=e74]: Pitch (Hz)
+              - strong [ref=e75]: "-"
+              - generic "Autocorrelation clarity" [ref=e76]: clarity 0
+          - img "Target range" [ref=e77]
+          - generic [ref=e80]:
+            - generic [ref=e81]:
+              - generic [ref=e82]: Min pitch
+              - slider "Min pitch" [ref=e83]: "180"
+              - generic [ref=e84]:
+                - text: "Min pitch:"
+                - strong [ref=e85]: "180"
+                - text: Hz
+            - generic [ref=e86]:
+              - generic [ref=e87]: Max pitch
+              - slider "Max pitch" [ref=e88]: "220"
+              - generic [ref=e89]:
+                - text: "Max pitch:"
+                - strong [ref=e90]: "220"
+                - text: Hz
+        - generic [ref=e91]:
+          - generic [ref=e92]:
+            - generic [ref=e93]: Brightness (centroid Hz)
+            - strong [ref=e94]: "-"
+          - img "Target range" [ref=e95]
+          - generic [ref=e98]:
+            - generic [ref=e99]:
+              - generic [ref=e100]: Min brightness
+              - slider "Min brightness" [ref=e101]: "1800"
+              - generic [ref=e102]:
+                - text: "Min brightness:"
+                - strong [ref=e103]: "1800"
+                - text: Hz
+            - generic [ref=e104]:
+              - generic [ref=e105]: Max brightness
+              - slider "Max brightness" [ref=e106]: "2800"
+              - generic [ref=e107]:
+                - text: "Max brightness:"
+                - strong [ref=e108]: "2800"
+                - text: Hz
+        - generic [ref=e109]:
+          - strong [ref=e110]: Coach
+          - paragraph [ref=e111]: Say 'mee-mee-mee' for one second. Keep your volume steady.
+        - generic [ref=e112]:
+          - generic [ref=e113]:
+            - strong [ref=e114]: Phrase trial
+            - generic [ref=e115]: "Say: \"see the green tree\""
+          - button "Start trial" [ref=e117] [cursor=pointer]
+        - generic [ref=e118]:
+          - button "Export last 20 trials" [ref=e119] [cursor=pointer]
+          - button "Import trials (JSON)" [ref=e120] [cursor=pointer]
+          - button "Clear" [ref=e121] [cursor=pointer]
+        - region "Session summary" [ref=e122]:
+          - generic [ref=e123]:
+            - strong [ref=e124]: Session summary
+            - button "Export chart data (CSV)" [ref=e125] [cursor=pointer]
+          - img "Line chart of last trials' scores" [ref=e126]
+          - table [ref=e128]:
+            - rowgroup [ref=e129]:
+              - row "# Time Score Pitch Bright" [ref=e130]:
+                - cell "#" [ref=e131]
+                - cell "Time" [ref=e132]
+                - cell "Score" [ref=e133]
+                - cell "Pitch" [ref=e134]
+                - cell "Bright" [ref=e135]
+            - rowgroup
+  - contentinfo [ref=e136]:
+    - generic [ref=e137]:
+      - text: © 2025 Resonai - Local-first. No cloud audio.
+      - link "Data & Privacy" [ref=e138] [cursor=pointer]:
+        - /url: /data
+      - generic [ref=e139]: vdev
+  - alert [ref=e140]
+  - generic "Performance indicators" [ref=e141]: FCP 2240ms - INP 0ms - CLS 0.000
+```

@@ -446,11 +446,11 @@ async function main(): Promise<void> {
   }
   const flakyContext: FlakyContext = usingFlakyArtifact
     ? {
-        type: 'artifact',
-        generatedAt: flakyArtifact?.generatedAt,
-        commit: flakyArtifact?.commit,
-        error: flakyArtifact?.error,
-      }
+      type: 'artifact',
+      generatedAt: flakyArtifact?.generatedAt,
+      commit: flakyArtifact?.commit,
+      error: flakyArtifact?.error,
+    }
     : { type: 'report' };
 
   const markdown = renderSummaryMarkdown({
