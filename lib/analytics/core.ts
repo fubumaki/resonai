@@ -15,21 +15,29 @@ export function trackEvent(event: string, properties?: Record<string, any>) {
 
     // Send to custom analytics endpoint if available
     if (typeof window !== 'undefined') {
-      fetch('/api/analytics', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          event,
-          properties,
-          timestamp: Date.now(),
-          url: window.location.href,
-          userAgent: navigator.userAgent,
-        }),
-      }).catch(error => {
-        console.warn('Analytics tracking failed:', error);
-      });
+      try {
+        const endpoint = window.location?.origin
+          ? new URL('/api/analytics', window.location.origin).toString()
+          : '/api/analytics';
+
+        fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            event,
+            properties,
+            timestamp: Date.now(),
+            url: window.location.href,
+            userAgent: navigator.userAgent,
+          }),
+        }).catch(error => {
+          console.warn('Analytics tracking failed:', error);
+        });
+      } catch (urlError) {
+        console.warn('Analytics tracking failed:', urlError);
+      }
     }
 
     // Log to console in development

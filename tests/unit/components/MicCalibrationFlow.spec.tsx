@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import MicCalibrationFlow from '../../../components/MicCalibrationFlow';
 import { deviceManager } from '../../../audio/deviceManager';
@@ -92,7 +92,8 @@ describe('MicCalibrationFlow', () => {
     await waitFor(() => {
       expect(screen.getByText('Choose your microphone:')).toBeInTheDocument();
       expect(screen.getByDisplayValue('USB Microphone')).toBeInTheDocument();
-      expect(screen.getByDisplayValue('Built-in Microphone')).toBeInTheDocument();
+      const select = screen.getByLabelText('Microphone selection');
+      expect(within(select).getByRole('option', { name: 'Built-in Microphone' })).toBeInTheDocument();
     });
   });
 
@@ -123,7 +124,7 @@ describe('MicCalibrationFlow', () => {
 
     await waitFor(() => {
       const testButton = screen.getByText('Test Microphone');
-      expect(testButton).not.toBeDisabled();
+      expect(testButton).toHaveAttribute('aria-disabled', 'false');
     });
   });
 
@@ -134,7 +135,7 @@ describe('MicCalibrationFlow', () => {
 
     await waitFor(() => {
       const testButton = screen.getByText('Test Microphone');
-      expect(testButton).toBeDisabled();
+      expect(testButton).toHaveAttribute('aria-disabled', 'true');
     });
   });
 
@@ -143,7 +144,7 @@ describe('MicCalibrationFlow', () => {
 
     await waitFor(() => {
       const testButton = screen.getByText('Test Microphone');
-      expect(testButton).not.toBeDisabled();
+      expect(testButton).toHaveAttribute('aria-disabled', 'false');
     });
 
     const testButton = screen.getByText('Test Microphone');

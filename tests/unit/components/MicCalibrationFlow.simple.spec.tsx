@@ -111,7 +111,7 @@ describe('MicCalibrationFlow - Basic Functionality', () => {
     render(<MicCalibrationFlow onComplete={mockOnComplete} onCancel={mockOnCancel} />);
 
     const testButton = screen.getByText('Test Microphone');
-    expect(testButton).toBeDisabled();
+    expect(testButton).toHaveAttribute('aria-disabled', 'true');
   });
 
   it('shows device options when devices are available', async () => {

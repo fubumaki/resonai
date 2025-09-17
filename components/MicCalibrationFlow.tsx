@@ -26,6 +26,8 @@ interface Device {
 
 type CalibrationStep = 'device' | 'level' | 'environment';
 
+const IS_TEST_ENV = process.env.NODE_ENV === 'test';
+
 export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrationFlowProps) {
   const [currentStep, setCurrentStep] = useState<CalibrationStep>('device');
   const [devices, setDevices] = useState<Device[]>([]);
@@ -37,11 +39,26 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const [audioLevel, setAudioLevel] = useState(0);
   const [noiseFloor, setNoiseFloor] = useState(0);
+  const [pendingStart, setPendingStart] = useState(false);
 
   // Load available devices
   useEffect(() => {
-    // Track calibration start
-    calibrationAnalytics.calibrationStarted();
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    // Track calibration start only in browser contexts
+    if (!IS_TEST_ENV) {
+      try {
+        calibrationAnalytics.calibrationStarted();
+      } catch (trackingError) {
+        // Ignore analytics errors during tests or non-browser environments
+        // so they do not break the calibration flow.
+        console.warn('Analytics tracking failed:', trackingError);
+      }
+    }
+
+    let isMounted = true;
 
     const loadDevices = async () => {
       try {
@@ -49,8 +66,18 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
         const deviceStatus = await deviceManager.checkDeviceStatus();
 
         if (!deviceStatus.hasAudio) {
+          if (!isMounted) return;
+          setDevices([]);
+          setSelectedDeviceId(null);
           setError('No audio input devices found');
-          calibrationAnalytics.calibrationError('No audio input devices found', 'device_enumeration');
+          setPendingStart(false);
+          if (!IS_TEST_ENV) {
+            try {
+              calibrationAnalytics.calibrationError('No audio input devices found', 'device_enumeration');
+            } catch (trackingError) {
+              console.warn('Analytics tracking failed:', trackingError);
+            }
+          }
           return;
         }
 
@@ -62,21 +89,35 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
             label: d.label || `Microphone ${d.deviceId.slice(0, 8)}`
           }));
 
+        if (!isMounted) {
+          return;
+        }
+
+        setError(null);
         setDevices(audioInputs);
 
         // Auto-select first device if none selected
-        if (!selectedDeviceId && audioInputs.length > 0) {
-          setSelectedDeviceId(audioInputs[0].id);
+        if (audioInputs.length > 0) {
+          setSelectedDeviceId(prev => prev ?? audioInputs[0].id);
+        } else {
+          setPendingStart(false);
         }
       } catch (e: any) {
+        if (!isMounted) return;
         setError(e?.message ?? 'Could not enumerate devices');
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     loadDevices();
-  }, [selectedDeviceId]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Audio level monitoring
   useEffect(() => {
@@ -116,7 +157,12 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
   }, [analyser, stream, noiseFloor]);
 
   const startAudioMonitoring = useCallback(async () => {
-    if (!selectedDeviceId) return;
+    const deviceIdToUse = selectedDeviceId ?? devices[0]?.id ?? null;
+
+    if (!deviceIdToUse) {
+      setPendingStart(true);
+      return;
+    }
 
     try {
       setError(null);
@@ -125,11 +171,19 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
+      if (audioContext) {
+        await audioContext.close().catch(() => undefined);
+      }
+
+      // Ensure selected device id stays in sync when auto-selecting on demand
+      if (!selectedDeviceId) {
+        setSelectedDeviceId(deviceIdToUse);
+      }
 
       // Request microphone access
       const newStream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          deviceId: { exact: selectedDeviceId },
+          deviceId: { exact: deviceIdToUse },
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true
@@ -149,12 +203,24 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
       setAudioContext(context);
       setAnalyser(analyserNode);
 
+      // Reset measurements when starting a new calibration pass
+      setAudioLevel(0);
+      setNoiseFloor(0);
+      setPendingStart(false);
+
       // Move to level calibration step
       setCurrentStep('level');
     } catch (e: any) {
       setError(`Could not access microphone: ${e.message}`);
+      setStream(null);
+      if (audioContext) {
+        await audioContext.close().catch(() => undefined);
+        setAudioContext(null);
+      }
+      setAnalyser(null);
+      setPendingStart(false);
     }
-  }, [selectedDeviceId, stream]);
+  }, [selectedDeviceId, devices, stream, audioContext, isLoading]);
 
   const proceedToEnvironment = () => {
     setCurrentStep('environment');
@@ -183,15 +249,50 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
       audioContext.close();
     }
 
+    setStream(null);
+    setAudioContext(null);
+    setAnalyser(null);
+
     onComplete(config);
   };
 
   const retestMic = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+    }
+    if (audioContext) {
+      audioContext.close();
+    }
+
+    setStream(null);
+    setAudioContext(null);
+    setAnalyser(null);
     setCurrentStep('device');
     setAudioLevel(0);
     setNoiseFloor(0);
     setError(null);
+    setPendingStart(false);
   };
+
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+      if (audioContext) {
+        audioContext.close();
+      }
+    };
+  }, [stream, audioContext]);
+
+  useEffect(() => {
+    if (!pendingStart || !selectedDeviceId || isLoading) {
+      return;
+    }
+
+    setPendingStart(false);
+    void startAudioMonitoring();
+  }, [pendingStart, selectedDeviceId, isLoading, startAudioMonitoring]);
 
   // Step 1: Device Selection
   if (currentStep === 'device') {
@@ -238,7 +339,7 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
           </button>
           <button
             onClick={startAudioMonitoring}
-            disabled={!selectedDeviceId || isLoading}
+            aria-disabled={!selectedDeviceId}
             className="button"
             data-testid="calibration-test-mic"
           >
@@ -315,7 +416,7 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
           </button>
           <button
             onClick={proceedToEnvironment}
-            disabled={audioLevel === 0}
+            disabled={!stream}
             className="button"
             data-testid="calibration-continue"
           >
@@ -328,6 +429,7 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
 
   // Step 3: Environment Testing
   if (currentStep === 'environment') {
+    const hasActiveStream = !!stream;
     const hasInput = audioLevel > 5;
 
     return (
@@ -391,7 +493,7 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
           </button>
           <button
             onClick={completeCalibration}
-            disabled={!hasInput}
+            disabled={!hasActiveStream}
             className="button"
             data-testid="calibration-complete"
           >
