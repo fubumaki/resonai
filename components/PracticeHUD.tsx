@@ -10,8 +10,8 @@ interface PracticeHUDProps {
   className?: string;
 }
 
-export default function PracticeHUD({ 
-  metrics, 
+export default function PracticeHUD({
+  metrics,
   targetRanges,
   isVisible = true,
   className = ''
@@ -65,7 +65,7 @@ export default function PracticeHUD({
   };
 
   return (
-    <div 
+    <div
       className={`practice-hud bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg p-4 ${className}`}
       role="status"
       aria-live="polite"
@@ -78,67 +78,63 @@ export default function PracticeHUD({
             <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Pitch
             </span>
-            <span 
+            <span
               className="text-lg font-mono font-semibold"
               aria-label={`Current pitch: ${formatPitch(metrics.pitch)}`}
             >
               {formatPitch(metrics.pitch)}
             </span>
           </div>
-          
+
           {/* Pitch Range Indicator */}
           <div className="relative h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
             <div className="absolute inset-0 flex">
               {/* Low range indicator */}
-              <div 
-                className="bg-red-400 h-full"
-                style={{ width: '30%' }}
+              <div
+                className="bg-red-400 h-full width-30"
                 aria-hidden="true"
               />
               {/* Target range indicator */}
-              <div 
-                className="bg-green-400 h-full"
-                style={{ width: '40%' }}
+              <div
+                className="bg-green-400 h-full width-40"
                 aria-hidden="true"
               />
               {/* High range indicator */}
-              <div 
-                className="bg-red-400 h-full"
-                style={{ width: '30%' }}
+              <div
+                className="bg-red-400 h-full width-30"
                 aria-hidden="true"
               />
             </div>
-            
+
             {/* Current pitch indicator */}
             {metrics.pitch && (
-              <div 
-                className="absolute top-0 w-1 h-full bg-slate-900 dark:bg-white rounded-full transform -translate-x-1/2"
-                style={{ 
-                  left: `${Math.min(100, Math.max(0, 
+              <div
+                className="absolute top-0 w-1 h-full bg-slate-900 dark:bg-white rounded-full transform -translate-x-1/2 pitch-indicator"
+                style={{
+                  '--pitch-position': `${Math.min(100, Math.max(0,
                     ((metrics.pitch - 100) / 500) * 100
-                  ))}%` 
-                }}
+                  ))}%`
+                } as React.CSSProperties}
                 aria-label={`Pitch indicator at ${formatPitch(metrics.pitch)}`}
               />
             )}
           </div>
-          
+
           {/* Status indicator */}
           <div className="flex items-center mt-1">
-            <div 
-              className={`w-2 h-2 rounded-full mr-2 ${
-                getPitchStatus(metrics.pitch) === 'in-range' ? 'bg-green-500' :
-                getPitchStatus(metrics.pitch) === 'low' ? 'bg-red-500' :
-                getPitchStatus(metrics.pitch) === 'high' ? 'bg-red-500' :
-                'bg-gray-400'
-              }`}
+            <div
+              className={`w-2 h-2 rounded-full mr-2 ${getPitchStatus(metrics.pitch) === 'in-range' ? 'bg-green-500' :
+                  getPitchStatus(metrics.pitch) === 'low' ? 'bg-red-500' :
+                    getPitchStatus(metrics.pitch) === 'high' ? 'bg-red-500' :
+                      'bg-gray-400'
+                }`}
               aria-hidden="true"
             />
             <span className="text-xs text-slate-600 dark:text-slate-400">
               {getPitchStatus(metrics.pitch) === 'in-range' ? 'In range' :
-               getPitchStatus(metrics.pitch) === 'low' ? 'Too low' :
-               getPitchStatus(metrics.pitch) === 'high' ? 'Too high' :
-               'No signal'}
+                getPitchStatus(metrics.pitch) === 'low' ? 'Too low' :
+                  getPitchStatus(metrics.pitch) === 'high' ? 'Too high' :
+                    'No signal'}
             </span>
           </div>
         </div>
@@ -149,23 +145,25 @@ export default function PracticeHUD({
             <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Brightness
             </span>
-            <span 
+            <span
               className="text-sm font-mono font-semibold"
               aria-label={`Current brightness: ${formatBrightness(metrics.brightness)}`}
             >
               {formatBrightness(metrics.brightness)}
             </span>
           </div>
-          
+
           {/* Brightness Meter */}
           <div className="relative h-8 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-            <div 
-              className={`h-full transition-all duration-200 ${
-                getBrightnessStatus(metrics.brightness) === 'in-range' ? 'bg-green-400' :
-                getBrightnessStatus(metrics.brightness) === 'low' ? 'bg-yellow-400' :
-                'bg-red-400'
-              }`}
-              style={{ width: `${Math.min(100, Math.max(0, metrics.brightness * 100))}%` }}
+            <div
+              className={`h-full transition-all duration-200 meter-fill-dynamic ${getBrightnessStatus(metrics.brightness) === 'in-range' ? 'bg-green-400' :
+                  getBrightnessStatus(metrics.brightness) === 'low' ? 'bg-yellow-400' :
+                    'bg-red-400'
+                }`}
+              style={{
+                '--meter-width': `${Math.min(100, Math.max(0, metrics.brightness * 100))}%`,
+                width: 'var(--meter-width)'
+              } as React.CSSProperties}
               aria-label={`Brightness level: ${formatBrightness(metrics.brightness)}`}
             />
           </div>
@@ -177,23 +175,25 @@ export default function PracticeHUD({
             <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Confidence
             </span>
-            <span 
+            <span
               className="text-sm font-mono font-semibold"
               aria-label={`Analysis confidence: ${formatConfidence(metrics.confidence)}`}
             >
               {formatConfidence(metrics.confidence)}
             </span>
           </div>
-          
+
           {/* Confidence Meter */}
           <div className="relative h-8 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-            <div 
-              className={`h-full transition-all duration-200 ${
-                getConfidenceStatus(metrics.confidence) === 'high' ? 'bg-blue-400' :
-                getConfidenceStatus(metrics.confidence) === 'medium' ? 'bg-yellow-400' :
-                'bg-red-400'
-              }`}
-              style={{ width: `${Math.min(100, Math.max(0, metrics.confidence * 100))}%` }}
+            <div
+              className={`h-full transition-all duration-200 meter-fill-dynamic ${getConfidenceStatus(metrics.confidence) === 'high' ? 'bg-blue-400' :
+                  getConfidenceStatus(metrics.confidence) === 'medium' ? 'bg-yellow-400' :
+                    'bg-red-400'
+                }`}
+              style={{
+                '--meter-width': `${Math.min(100, Math.max(0, metrics.confidence * 100))}%`,
+                width: 'var(--meter-width)'
+              } as React.CSSProperties}
               aria-label={`Confidence level: ${formatConfidence(metrics.confidence)}`}
             />
           </div>
@@ -205,23 +205,26 @@ export default function PracticeHUD({
             <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
               In Range
             </span>
-            <span 
+            <span
               className="text-lg font-mono font-semibold"
               aria-label={`Time in range: ${formatInRange(metrics.inRangePercentage)}`}
             >
               {formatInRange(metrics.inRangePercentage)}
             </span>
           </div>
-          
+
           {/* Progress Bar */}
           <div className="relative h-3 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-red-400 via-yellow-400 to-green-400 transition-all duration-300"
-              style={{ width: `${Math.min(100, Math.max(0, metrics.inRangePercentage))}%` }}
+            <div
+              className="h-full bg-gradient-to-r from-red-400 via-yellow-400 to-green-400 transition-all duration-300 meter-fill-dynamic"
+              style={{
+                '--meter-width': `${Math.min(100, Math.max(0, metrics.inRangePercentage))}%`,
+                width: 'var(--meter-width)'
+              } as React.CSSProperties}
               aria-label={`Progress: ${formatInRange(metrics.inRangePercentage)} in range`}
             />
           </div>
-          
+
           <div className="text-xs text-slate-600 dark:text-slate-400 mt-1">
             Last 10 seconds
           </div>
