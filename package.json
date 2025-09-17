@@ -37,6 +37,8 @@
     "issues:seed": "node tools/seed_issues_from_tasks.mjs",
     "issues:create": "node tools/seed_issues_from_tasks.mjs --create",
     "backlog:build": "tsx tools/codex-cloud/build-backlog.ts",
+    "codex:manifest": "tsx tools/codex-cloud/generate-manifest.ts",
+    "codex:render-batch": "tsx tools/codex-cloud/render-summaries.ts --input",
     "agent:start": "pnpm exec tsx scripts/agent/watchdog.ts"
   },
   "dependencies": {
