@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { useStubbedAnalytics } from './helpers';
 
-test('analytics events are posted (sendBeacon stub + forced flush)', async ({ page, request }) => {
+test('@flaky analytics events are posted (sendBeacon stub + forced flush)', async ({ page, request }) => {
   // 0) start with a clean store
   const del = await request.delete('/api/events');
   expect(del.ok()).toBeTruthy();

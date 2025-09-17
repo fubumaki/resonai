@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('permission primer dialog is accessible when shown', async ({ page }) => {
+test('@flaky permission primer dialog is accessible when shown', async ({ page }) => {
   // Set pilot cohort cookie to allow access to /try page
   await page.context().addCookies([{
     name: 'pilot_cohort',

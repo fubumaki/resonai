@@ -132,9 +132,23 @@ export default function Trials({
 
       <div className="flex gap-2 items-center">
         {!active ? (
-          <button className="button" onClick={start} aria-label="Start trial">Start trial</button>
+          <button
+            className="button"
+            data-testid="practice-trial-start"
+            onClick={start}
+            aria-label="Start trial"
+          >
+            Start trial
+          </button>
         ) : (
-          <button className="button" onClick={finish} aria-label="Stop trial">Stop</button>
+          <button
+            className="button"
+            data-testid="practice-trial-stop"
+            onClick={finish}
+            aria-label="Stop trial"
+          >
+            Stop
+          </button>
         )}
         {countdown !== 0 && <span className="badge" aria-live="assertive">{countdown}</span>}
         {active && <span className="badge" aria-live="polite">Recording...</span>}

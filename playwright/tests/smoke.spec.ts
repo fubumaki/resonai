@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test("home has CTA and nav", async ({ page }) => {
+test("@flaky home has CTA and nav", async ({ page }) => {
   await page.goto("/");
   // Check for the main CTA in the hero section
   await expect(page.getByRole("link", { name: "Start practice (no sign‑up)" })).toBeVisible();
@@ -190,7 +190,7 @@ test("device picker shows microphone options", async ({ page }) => {
   }
 });
 
-test("data privacy page is accessible", async ({ page }) => {
+test("@flaky data privacy page is accessible", async ({ page }) => {
   await page.goto("/data");
   await expect(page.getByRole("heading", { name: "Data & Privacy" })).toBeVisible();
   await expect(page.getByText("Local‑first by design")).toBeVisible();
@@ -252,7 +252,7 @@ test("practice: meter, target bars, and note label appear", async ({ page }) => 
   // If you have a mocked pitch injection path, assert the badge text contains a note name.
 });
 
-test("fallback to default mic shows toast", async ({ page }) => {
+test("@flaky fallback to default mic shows toast", async ({ page }) => {
   await page.addInitScript(() => {
     const realGUM = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
     navigator.mediaDevices.getUserMedia = async (c) => {

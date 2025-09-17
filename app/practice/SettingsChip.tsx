@@ -55,12 +55,14 @@ export default function SettingsChip({
             <button
               ref={resetCancelButtonRef}
               className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 transition-colors"
+              data-testid="practice-settings-reset-cancel"
               onClick={() => setResetDialogOpen(false)}
             >
               Cancel
             </button>
             <button
               className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 transition-colors"
+              data-testid="practice-settings-reset-confirm"
               onClick={handleConfirmReset}
             >
               Reset everything
@@ -75,6 +77,7 @@ export default function SettingsChip({
           aria-haspopup="dialog"
           aria-expanded={open}
           aria-controls="settings-popover"
+          data-testid="practice-settings-toggle"
           onClick={() => setOpen(v => !v)}
         >
           Settings
@@ -95,6 +98,7 @@ export default function SettingsChip({
                 value={preset}
                 onChange={(e) => onPreset(e.target.value as PresetKey)}
                 className="select-input"
+                data-testid="practice-settings-preset"
               >
                 <option value="alto">Alto</option>
                 <option value="mezzo">Mezzo</option>
@@ -104,16 +108,30 @@ export default function SettingsChip({
             </label>
 
             <label className="row items-center gap-8">
-              <input type="checkbox" checked={lowPower} onChange={(e) => onLowPower(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={lowPower}
+                onChange={(e) => onLowPower(e.target.checked)}
+                data-testid="practice-settings-lowpower"
+              />
               <span>Low-power mode</span>
             </label>
 
             <div className="panel panel--dashed">
               <strong>Reset</strong>
               <div className="col gap-8 mt-6">
-                <button className="button" onClick={() => { onResetToPresetDefaults(); setOpen(false); }}>Reset to preset defaults</button>
-                <button className="button button-danger"
-                  onClick={() => setResetDialogOpen(true)}>
+                <button
+                  className="button"
+                  data-testid="practice-settings-reset-preset"
+                  onClick={() => { onResetToPresetDefaults(); setOpen(false); }}
+                >
+                  Reset to preset defaults
+                </button>
+                <button
+                  className="button button-danger"
+                  data-testid="practice-settings-reset-open"
+                  onClick={() => setResetDialogOpen(true)}
+                >
                   Reset everything
                 </button>
               </div>
@@ -124,7 +142,13 @@ export default function SettingsChip({
             </p>
 
             <div className="row justify-end">
-              <button className="button" onClick={() => setOpen(false)}>Close</button>
+              <button
+                className="button"
+                data-testid="practice-settings-close"
+                onClick={() => setOpen(false)}
+              >
+                Close
+              </button>
             </div>
           </AccessibleDialog>
         )}

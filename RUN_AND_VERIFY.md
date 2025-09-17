@@ -2,22 +2,22 @@
 
 ## CI Single Source of Truth (SSOT)
 
-**Last green commit:** _pending â€” current run has failures (Playwright (firefox): 22 failed)._ 
-**Current commit:** `b22e630` (2025-09-16 05:57 UTC)
-Generated: 2025-09-16 06:33 UTC â€” see [.artifacts/SSOT.md](.artifacts/SSOT.md) for full artifact details.
+**Last green commit:** _pending — current run has failures (Playwright (firefox): 24 failed)._ 
+**Current commit:** `d0ee2ae` (2025-09-17 02:34 UTC)
+Generated: 2025-09-17 02:37 UTC — see [.artifacts/SSOT.md](.artifacts/SSOT.md) for full artifact details.
 
 | Suite | Passed | Failed | Skipped | Flaky | Duration |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Vitest | 85 | 0 | 0 | 0 | 0.08s |
-| Playwright (firefox) | 34 | 22 | 12 | 0 | 6m 5.42s |
+| Vitest | 96 | 0 | 0 | 0 | 0.22s |
+| Playwright (firefox) | 34 | 24 | 12 | 0 | 4m 56.2s |
 
 **Flakiest specs**
 
-1. `playwright/tests/a11y_min.spec.ts` â€” permission primer dialog is accessible when shown (failed Ã—1) â€” 10.8s â€” Locator: getByRole('dialog')
-2. `playwright/tests/analytics_beacon.spec.ts` â€” analytics events are posted (sendBeacon stub + forced flush) (failed Ã—1) â€” 10.4s â€” Expected: ArrayContaining ["screen_view", "permission_requested"]
-3. `playwright/tests/smoke.spec.ts` â€” fallback to default mic shows toast (failed Ã—1) â€” 8.95s â€” Locator: locator('#toasts')
-4. `playwright/tests/smoke.spec.ts` â€” data privacy page is accessible (failed Ã—1) â€” 8.01s â€” Locator: getByText('Localâ€‘first by design')
-5. `playwright/tests/mic_flow.spec.ts` â€” one-tap mic toggles recording and emits analytics (failed Ã—1) â€” 7.24s â€” Locator: locator('.pitch-meter')
+1. `playwright/tests/analytics_beacon.spec.ts` — @flaky analytics events are posted (sendBeacon stub + forced flush) (failed ×1) — 8.89s — Expected: ArrayContaining ["screen_view", "permission_requested"]
+2. `playwright/tests/a11y_min.spec.ts` — @flaky permission primer dialog is accessible when shown (failed ×1) — 8.61s — Locator: getByRole('dialog')
+3. `playwright/tests/smoke.spec.ts` — @flaky home has CTA and nav (failed ×1) — 8.00s — Locator: locator('main').getByRole('link', { name: 'Start practice (no sign-up)' })
+4. `playwright/tests/smoke.spec.ts` — @flaky fallback to default mic shows toast (failed ×1) — 7.61s — Locator: locator('#toasts')
+5. `playwright/tests/smoke.spec.ts` — @flaky data privacy page is accessible (failed ×1) — 6.93s — Locator: getByText('Local-first by design')
 
 ## How to regenerate SSOT locally
 
@@ -254,3 +254,4 @@ Before deploying:
 - [ ] `/analytics` dashboard shows sane values under pilot load
 - [ ] **RUN_AND_VERIFY.md** updated with commands + acceptance thresholds
 - [ ] Flags configured for staged rollout + killswitch
+

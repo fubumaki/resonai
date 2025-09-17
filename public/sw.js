@@ -24,6 +24,36 @@ const APP_SHELL = [
   "/worklets/spectral-processor.js"
 ];
 
+const ISOLATION_HEADERS = [
+  ["Cross-Origin-Opener-Policy", "same-origin"],
+  ["Cross-Origin-Embedder-Policy", "require-corp"],
+];
+
+function applyIsolationHeaders(response) {
+  if (!response) return response;
+
+  let needsWrap = false;
+  const headers = new Headers(response.headers);
+
+  for (const [key, value] of ISOLATION_HEADERS) {
+    if (headers.get(key) !== value) {
+      headers.set(key, value);
+      needsWrap = true;
+    }
+  }
+
+  if (!needsWrap) {
+    return response;
+  }
+
+  const clone = response.clone();
+  return new Response(clone.body, {
+    status: clone.status,
+    statusText: clone.statusText,
+    headers,
+  });
+}
+
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(V).then((c) => c.addAll(APP_SHELL)));
   self.skipWaiting();
@@ -46,10 +76,11 @@ self.addEventListener("fetch", (e) => {
     e.respondWith((async () => {
       const cache = await caches.open(V);
       const cached = await cache.match(request);
-      if (cached) return cached;
+      if (cached) return applyIsolationHeaders(cached);
       const res = await fetch(request);
-      if (res.ok && res.type !== "opaque") cache.put(request, res.clone());
-      return res;
+      const hardened = applyIsolationHeaders(res);
+      if (res.ok && res.type !== "opaque") await cache.put(request, hardened.clone());
+      return hardened;
     })());
     return;
   }
@@ -61,10 +92,16 @@ self.addEventListener("fetch", (e) => {
   e.respondWith((async () => {
     const cache = await caches.open(V);
     const cached = await cache.match(request);
-    const fetcher = fetch(request).then((res) => {
-      if (res.ok && res.type !== "opaque") cache.put(request, res.clone());
-      return res;
-    }).catch(() => cached || Response.error());
-    return cached || fetcher;
+    const cachedWithHeaders = cached ? applyIsolationHeaders(cached) : null;
+
+    const fetcher = fetch(request).then(async (res) => {
+      const hardened = applyIsolationHeaders(res);
+      if (res.ok && res.type !== "opaque") {
+        await cache.put(request, hardened.clone());
+      }
+      return hardened;
+    }).catch(() => cachedWithHeaders || Response.error());
+
+    return cachedWithHeaders || fetcher;
   })());
 });

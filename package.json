@@ -39,7 +39,15 @@
     "codex:validate-summaries": "tsx tools/codex-cloud/validate-summaries.ts",
     "backlog:build": "tsx tools/codex-cloud/build-backlog.ts",
     "codex:manifest": "tsx tools/codex-cloud/generate-manifest.ts",
-    "agent:start": "pnpm exec tsx scripts/agent/watchdog.ts"
+    "agent:start": "pnpm exec tsx scripts/agent/watchdog.ts",
+    "ci:refresh-ssot": "tsx scripts/ci-summary.ts",
+    "test:quarantine-flaky": "node scripts/quarantine-flaky-tests.js",
+    "a11y:enforce-selectors": "node scripts/enforce-selectors.js",
+    "a11y:fix-csp-drift": "node scripts/fix-csp-a11y-drift.js",
+    "lint:fix-batch": "node scripts/lint-fix-batch.js",
+    "cleanup:prune-unused": "node scripts/prune-unused-code.js",
+    "docs:sync-governance": "node scripts/sync-governance-docs.js",
+    "maintenance:run": "node scripts/maintenance-worker.js"
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.7",
