@@ -17,10 +17,10 @@ interface FeedbackCollectorProps {
   className?: string;
 }
 
-export default function FeedbackCollector({ 
-  feature, 
+export default function FeedbackCollector({
+  feature,
   onFeedback,
-  className = '' 
+  className = ''
 }: FeedbackCollectorProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [rating, setRating] = useState(0);
@@ -154,6 +154,7 @@ export default function FeedbackCollector({
             onClick={handleDismiss}
             className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
             aria-label="Dismiss feedback"
+            data-testid="feedback-dismiss"
           >
             ×
           </button>
@@ -169,12 +170,12 @@ export default function FeedbackCollector({
             <button
               key={star}
               onClick={() => setRating(star)}
-              className={`text-2xl transition-colors ${
-                star <= rating
+              className={`text-2xl transition-colors ${star <= rating
                   ? 'text-yellow-400'
                   : 'text-slate-300 dark:text-slate-600'
-              } hover:text-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 dark:focus:ring-offset-slate-800`}
+                } hover:text-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 dark:focus:ring-offset-slate-800`}
               aria-label={`Rate ${star} star${star !== 1 ? 's' : ''}`}
+              data-testid={`feedback-star-${star}`}
             >
               ★
             </button>
@@ -189,6 +190,7 @@ export default function FeedbackCollector({
           className="w-full p-2 text-sm border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
           rows={3}
           maxLength={500}
+          data-testid="feedback-comments"
         />
 
         {/* Character count */}
@@ -201,6 +203,7 @@ export default function FeedbackCollector({
           <button
             onClick={handleDismiss}
             className="flex-1 px-3 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+            data-testid="feedback-dismiss-bottom"
           >
             Dismiss
           </button>
@@ -208,6 +211,7 @@ export default function FeedbackCollector({
             onClick={handleSubmit}
             disabled={rating === 0 || isSubmitting}
             className="flex-1 px-3 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800"
+            data-testid="feedback-submit"
           >
             {isSubmitting ? 'Sending...' : 'Submit'}
           </button>

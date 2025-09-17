@@ -2,11 +2,26 @@
 const V = "resonai-v1";
 const APP_SHELL = [
   "/",
+  "/about",
+  "/dev/pitch",
+  "/dev/selftest",
+  "/dev/status",
+  "/flow",
+  "/flows/daily_v1.json",
+  "/flows/daily_v1_with_coach.json",
+  "/icons/icon-192.png",
+  "/icons/icon-192.svg",
+  "/icons/icon-512.png",
+  "/icons/icon-512.svg",
+  "/icons/maskable-icon-512.png",
+  "/icons/maskable-icon-512.svg",
   "/manifest.webmanifest",
-  "/practice",
-  "/labs/pitch-band",
+  "/settings",
+  "/worklets/energy-processor.js",
   "/worklets/lpc-processor.js",
   "/worklets/pitch-processor.js",
+  "/worklets/pitch.worklet.js",
+  "/worklets/spectral-processor.js"
 ];
 
 const COOP_COEP_HEADERS = {

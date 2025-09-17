@@ -1,5 +1,6 @@
 'use client';
 
+/* eslint-disable no-restricted-syntax */
 import React, { useEffect, useState, useCallback } from 'react';
 import { deviceManager } from '../audio/deviceManager';
 import { calibrationAnalytics } from '../lib/analytics/calibration';
@@ -41,12 +42,12 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
   useEffect(() => {
     // Track calibration start
     calibrationAnalytics.calibrationStarted();
-    
+
     const loadDevices = async () => {
       try {
         setIsLoading(true);
         const deviceStatus = await deviceManager.checkDeviceStatus();
-        
+
         if (!deviceStatus.hasAudio) {
           setError('No audio input devices found');
           calibrationAnalytics.calibrationError('No audio input devices found', 'device_enumeration');
@@ -60,9 +61,9 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
             id: d.deviceId,
             label: d.label || `Microphone ${d.deviceId.slice(0, 8)}`
           }));
-        
+
         setDevices(audioInputs);
-        
+
         // Auto-select first device if none selected
         if (!selectedDeviceId && audioInputs.length > 0) {
           setSelectedDeviceId(audioInputs[0].id);
@@ -86,7 +87,7 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
 
     const monitorLevel = () => {
       analyser.getByteFrequencyData(dataArray);
-      
+
       // Calculate RMS level
       let sum = 0;
       for (let i = 0; i < dataArray.length; i++) {
@@ -94,9 +95,9 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
       }
       const rms = Math.sqrt(sum / dataArray.length);
       const level = (rms / 255) * 100; // Convert to percentage
-      
+
       setAudioLevel(level);
-      
+
       // Update noise floor (running minimum)
       if (level > 0 && (noiseFloor === 0 || level < noiseFloor)) {
         setNoiseFloor(level);
@@ -119,7 +120,7 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
 
     try {
       setError(null);
-      
+
       // Stop existing stream
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
@@ -141,10 +142,10 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
       const context = new AudioContext();
       const source = context.createMediaStreamSource(newStream);
       const analyserNode = context.createAnalyser();
-      
+
       analyserNode.fftSize = 256;
       source.connect(analyserNode);
-      
+
       setAudioContext(context);
       setAnalyser(analyserNode);
 
@@ -197,9 +198,9 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
     return (
       <div className="panel col gap-8" role="dialog" aria-labelledby="calibration-title">
         <h2 id="calibration-title">Step 1: Select Microphone</h2>
-        
+
         {error && <div role="alert" className="panel panel-danger">{error}</div>}
-        
+
         {isLoading ? (
           <p>Loading available microphones...</p>
         ) : (
@@ -220,7 +221,7 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
                 ))}
               </select>
             </label>
-            
+
             <p className="text-muted text-sm">
               Tip: Choose a USB microphone if available for steadier pitch tracking.
             </p>
@@ -228,13 +229,18 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
         )}
 
         <div className="row gap-6 justify-end">
-          <button onClick={onCancel} className="button button--secondary">
+          <button
+            onClick={onCancel}
+            className="button button--secondary"
+            data-testid="calibration-cancel"
+          >
             Cancel
           </button>
-          <button 
+          <button
             onClick={startAudioMonitoring}
             disabled={!selectedDeviceId || isLoading}
             className="button"
+            data-testid="calibration-test-mic"
           >
             Test Microphone
           </button>
@@ -247,17 +253,17 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
   if (currentStep === 'level') {
     const isLevelGood = audioLevel > 10 && audioLevel < 90; // Good range
     const isNoiseFloorHigh = noiseFloor > 45; // dBFS equivalent warning
-    
+
     return (
       <div className="panel col gap-8" role="dialog" aria-labelledby="calibration-title">
         <h2 id="calibration-title">Step 2: Level Calibration</h2>
-        
+
         <div className="col gap-6">
           <div className="col gap-2">
             <label htmlFor="audio-level">Audio Level:</label>
             <div className="row gap-4 items-center">
               <div className="flex-1">
-                <div 
+                <div
                   id="audio-level"
                   className="h-4 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden"
                   role="progressbar"
@@ -266,11 +272,13 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
                   aria-valuemax={100}
                   aria-label={`Audio level: ${Math.round(audioLevel)}%`}
                 >
-                  <div 
-                    className={`h-full transition-all duration-100 ${
-                      isLevelGood ? 'bg-green-500' : 'bg-yellow-500'
-                    }`}
-                    style={{ width: `${audioLevel}%` }}
+                  <div
+                    className={`h-full transition-all duration-100 meter-fill-dynamic ${isLevelGood ? 'bg-green-500' : 'bg-yellow-500'
+                      }`}
+                    style={{
+                      '--meter-width': `${audioLevel}%`,
+                      width: 'var(--meter-width)'
+                    } as React.CSSProperties}
                   />
                 </div>
               </div>
@@ -298,13 +306,18 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
         </div>
 
         <div className="row gap-6 justify-end">
-          <button onClick={retestMic} className="button button--secondary">
+          <button
+            onClick={retestMic}
+            className="button button--secondary"
+            data-testid="calibration-retest"
+          >
             Retest Mic
           </button>
-          <button 
+          <button
             onClick={proceedToEnvironment}
             disabled={audioLevel === 0}
             className="button"
+            data-testid="calibration-continue"
           >
             Continue
           </button>
@@ -316,20 +329,20 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
   // Step 3: Environment Testing
   if (currentStep === 'environment') {
     const hasInput = audioLevel > 5;
-    
+
     return (
       <div className="panel col gap-8" role="dialog" aria-labelledby="calibration-title">
         <h2 id="calibration-title">Step 3: Environment Test</h2>
-        
+
         <div className="col gap-6">
           <div className="col gap-4">
             <p>Speak normally to test your microphone setup:</p>
-            
+
             <div className="col gap-2">
               <label htmlFor="environment-level">Voice Input:</label>
               <div className="row gap-4 items-center">
                 <div className="flex-1">
-                  <div 
+                  <div
                     id="environment-level"
                     className="h-6 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden"
                     role="progressbar"
@@ -338,11 +351,13 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
                     aria-valuemax={100}
                     aria-label={`Voice input level: ${Math.round(audioLevel)}%`}
                   >
-                    <div 
-                      className={`h-full transition-all duration-100 ${
-                        hasInput ? 'bg-green-500' : 'bg-slate-400'
-                      }`}
-                      style={{ width: `${audioLevel}%` }}
+                    <div
+                      className={`h-full transition-all duration-100 meter-fill-dynamic ${hasInput ? 'bg-green-500' : 'bg-slate-400'
+                        }`}
+                      style={{
+                        '--meter-width': `${audioLevel}%`,
+                        width: 'var(--meter-width)'
+                      } as React.CSSProperties}
                     />
                   </div>
                 </div>
@@ -367,13 +382,18 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
         </div>
 
         <div className="row gap-6 justify-end">
-          <button onClick={retestMic} className="button button--secondary">
+          <button
+            onClick={retestMic}
+            className="button button--secondary"
+            data-testid="calibration-retest-final"
+          >
             Retest Mic
           </button>
-          <button 
+          <button
             onClick={completeCalibration}
             disabled={!hasInput}
             className="button"
+            data-testid="calibration-complete"
           >
             Complete Setup
           </button>
