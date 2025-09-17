@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { useStubbedAnalytics } from './helpers';
+import { useStubbedAnalytics, useDialogHandler, useFakeMic, useStubbedBeacon } from './helpers';
 
 test('analytics events are posted (sendBeacon stub + forced flush)', async ({ page, request }) => {
   // 0) start with a clean store
@@ -8,7 +8,10 @@ test('analytics events are posted (sendBeacon stub + forced flush)', async ({ pa
 
   // 1) Use shared helpers so analytics/localStorage stubs behave consistently cross-browser
   const analytics = await useStubbedAnalytics(page);
-  
+  const dialogHandler = await useDialogHandler(page);
+  await useFakeMic(page);
+  await useStubbedBeacon(page);
+
   // Set pilot cohort cookie to allow access to /try page
   await page.context().addCookies([{
     name: 'pilot_cohort',
@@ -16,33 +19,33 @@ test('analytics events are posted (sendBeacon stub + forced flush)', async ({ pa
     domain: 'localhost',
     path: '/',
   }]);
-  
+
   // Set localStorage after navigation but before React initializes
   await page.goto('/try');
-  
+
   // Set the flags immediately after navigation
   await page.evaluate(() => {
     localStorage.setItem('ff.permissionPrimerShort', 'true');
     localStorage.setItem('ff.instantPractice', 'true');
   });
-  
+
   // Reload the page to ensure React reads the new flags
   await page.reload();
-  
+
   // Wait for React to hydrate and the page to be interactive
   await page.waitForLoadState('networkidle');
   await page.waitForSelector('button', { timeout: 10000 });
 
   // Start flow: first click requests mic
   const startBtn = page.getByRole('button', { name: /start|enable microphone/i });
-  await startBtn.click();
+  await dialogHandler.forceClick(startBtn);
 
   // Wait for mic to be ready and button to change
   await expect(page.getByRole('button', { name: /start/i })).toBeVisible();
 
   // Second click: start recording
   const recordBtn = page.getByRole('button', { name: /start/i });
-  await recordBtn.click();
+  await dialogHandler.forceClick(recordBtn);
 
   // Wait a moment for events to be generated
   await page.waitForTimeout(1000);

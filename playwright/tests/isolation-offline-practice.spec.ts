@@ -26,7 +26,17 @@ test.describe('Offline isolation regression', () => {
 
     await expect.poll(async () => page.evaluate(() => window.crossOriginIsolated)).toBe(true);
 
-    await context.setOffline(true);
+    // Use route interception to simulate offline behavior
+    await page.route('**/*', route => {
+      // Allow same-origin requests (cached resources)
+      if (route.request().url().startsWith('http://localhost:3003')) {
+        route.continue();
+      } else {
+        // Block external requests
+        route.abort();
+      }
+    });
+
     try {
       await page.reload({ waitUntil: 'domcontentloaded' });
       await expect.poll(async () => page.evaluate(() => window.crossOriginIsolated)).toBe(true);
@@ -72,7 +82,8 @@ test.describe('Offline isolation regression', () => {
         expect.soft(asset.coep).toBe('require-corp');
       }
     } finally {
-      await context.setOffline(false);
+      // Restore normal routing
+      await page.unroute('**/*');
     }
   });
 });

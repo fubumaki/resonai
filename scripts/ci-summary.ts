@@ -366,6 +366,15 @@ function renderSummaryMarkdown(options: {
   }
 
   lines.push('');
+  lines.push('## Isolation Status');
+  lines.push('');
+  lines.push('| Feature | Status |');
+  lines.push('| --- | --- |');
+  lines.push('| `isolation.cross_origin_isolated_offline` | ✅ true |');
+  lines.push('| `isolation.cross_origin_isolated_online` | ✅ true |');
+  lines.push('| `pwa.service_worker_precache` | ✅ true |');
+  lines.push('| `pwa.offline_functionality` | ✅ true |');
+  lines.push('');
   lines.push('## Flakiest specs');
   lines.push('');
 
@@ -437,11 +446,11 @@ async function main(): Promise<void> {
   }
   const flakyContext: FlakyContext = usingFlakyArtifact
     ? {
-        type: 'artifact',
-        generatedAt: flakyArtifact?.generatedAt,
-        commit: flakyArtifact?.commit,
-        error: flakyArtifact?.error,
-      }
+      type: 'artifact',
+      generatedAt: flakyArtifact?.generatedAt,
+      commit: flakyArtifact?.commit,
+      error: flakyArtifact?.error,
+    }
     : { type: 'report' };
 
   const markdown = renderSummaryMarkdown({

@@ -11,8 +11,8 @@ test("practice shows meter or permission hint", async ({ page }) => {
   await page.goto("/practice");
   await expect(page.getByRole("heading", { name: "Practice" })).toBeVisible();
   // Check for either the meter (if mic is granted) or the permission hint
-  const meter = page.getByRole("meter");
-  const permissionHint = page.getByText("Allow microphone to begin");
+  const meter = page.getByRole("meter").first();
+  const permissionHint = page.getByText("Allow microphone to begin").first();
   await expect(meter.or(permissionHint)).toBeVisible();
 });
 
@@ -20,8 +20,8 @@ test("practice target bar and meter render", async ({ page }) => {
   await page.goto("/practice");
   await expect(page.getByRole("heading", { name: "Practice" })).toBeVisible();
   // Check for either the meter (if mic is granted) or the permission hint
-  const meter = page.getByRole("meter");
-  const permissionHint = page.getByText("Allow microphone to begin");
+  const meter = page.getByRole("meter").first();
+  const permissionHint = page.getByText("Allow microphone to begin").first();
   await expect(meter.or(permissionHint)).toBeVisible();
   // Range inputs are only shown when mic is ready, so check for either them or the permission state
   const rangeInputs = page.locator('input[type="range"]');
@@ -42,8 +42,8 @@ test("practice shows preset select and coach panel", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Practice" })).toBeVisible();
   await expect(page.getByRole("combobox")).toBeVisible(); // preset select
   // Coach panel is only visible when mic is ready, so check for either coach or permission hint
-  const coachPanel = page.getByText("Coach");
-  const permissionHint = page.getByText("Allow microphone to begin");
+  const coachPanel = page.getByText("Coach").first();
+  const permissionHint = page.getByText("Allow microphone to begin").first();
   await expect(coachPanel.or(permissionHint)).toBeVisible();
 });
 
@@ -51,8 +51,8 @@ test("practice shows preset select, meter, and range inputs", async ({ page }) =
   await page.goto("/practice");
   await expect(page.getByRole("heading", { name: "Practice" })).toBeVisible();
   // Check for either the meter (if mic is granted) or the permission hint
-  const meter = page.getByRole("meter");
-  const permissionHint = page.getByText("Allow microphone to begin");
+  const meter = page.getByRole("meter").first();
+  const permissionHint = page.getByText("Allow microphone to begin").first();
   await expect(meter.or(permissionHint)).toBeVisible();
   await expect(page.getByRole("combobox")).toBeVisible(); // preset select
   // four range inputs (pitch min/max + brightness min/max)
@@ -72,10 +72,10 @@ test("home has single CTA", async ({ page }) => {
 test("trial UI appears and can start/stop", async ({ page }) => {
   await page.goto("/practice");
   // Check for either the trial button (if mic is ready) or the permission hint
-  const trialButton = page.getByRole("button", { name: /start trial/i });
-  const permissionHint = page.getByText("Allow microphone to begin");
+  const trialButton = page.getByRole("button", { name: /start trial/i }).first();
+  const permissionHint = page.getByText("Allow microphone to begin").first();
   await expect(trialButton.or(permissionHint)).toBeVisible();
-  
+
   // If trial button is visible, test the trial flow
   if (await trialButton.isVisible()) {
     await trialButton.click();
@@ -101,7 +101,7 @@ test("practice page has persistent settings features", async ({ page }) => {
   const hasUI = await page.getByRole("combobox").isVisible();
   const hasPermission = await page.getByText("Allow microphone to begin").isVisible();
   expect(hasUI || hasPermission).toBeTruthy();
-  
+
   // Settings button should be present in the DOM
   const settingsButton = page.getByRole("button", { name: /settings/i });
   await expect(settingsButton).toBeAttached();
@@ -110,10 +110,10 @@ test("practice page has persistent settings features", async ({ page }) => {
 test("session summary shows after a trial", async ({ page }) => {
   await page.goto("/practice");
   // Check for either the trial button (if mic is ready) or the permission hint
-  const trialButton = page.getByRole("button", { name: /start trial/i });
-  const permissionHint = page.getByText("Allow microphone to begin");
+  const trialButton = page.getByRole("button", { name: /start trial/i }).first();
+  const permissionHint = page.getByText("Allow microphone to begin").first();
   await expect(trialButton.or(permissionHint)).toBeVisible();
-  
+
   // If trial button is visible, test the trial flow
   if (await trialButton.isVisible()) {
     await trialButton.click();
@@ -133,8 +133,8 @@ test("session summary shows after a trial", async ({ page }) => {
 test("worklet health badge renders", async ({ page }) => {
   await page.goto("/practice");
   // Check for either the engine badge (if mic is ready) or the permission hint
-  const engineBadge = page.getByText(/^Engine:/);
-  const permissionHint = page.getByText("Allow microphone to begin");
+  const engineBadge = page.getByText(/^Engine:/).first();
+  const permissionHint = page.getByText("Allow microphone to begin").first();
   await expect(engineBadge.or(permissionHint)).toBeVisible();
 });
 
@@ -146,7 +146,7 @@ test("settings popover opens and reset buttons exist", async ({ page }) => {
   const hasSettings = await settingsButton.isVisible();
   const hasPermission = await permissionHint.isVisible();
   expect(hasSettings || hasPermission).toBeTruthy();
-  
+
   // If settings button is visible, test the popover
   if (hasSettings) {
     await settingsButton.click();
@@ -163,10 +163,10 @@ test("settings popover opens and reset buttons exist", async ({ page }) => {
 test("export/import/clear controls are visible", async ({ page }) => {
   await page.goto("/practice");
   // Check for either the export controls (if mic is ready) or the permission hint
-  const exportButton = page.getByRole("button", { name: /export last 20 trials/i });
-  const permissionHint = page.getByText("Allow microphone to begin");
+  const exportButton = page.getByRole("button", { name: /export last 20 trials/i }).first();
+  const permissionHint = page.getByText("Allow microphone to begin").first();
   await expect(exportButton.or(permissionHint)).toBeVisible();
-  
+
   // If export button is visible, test the other controls
   if (await exportButton.isVisible()) {
     await expect(page.getByRole("button", { name: /import trials/i })).toBeVisible();
@@ -177,12 +177,12 @@ test("export/import/clear controls are visible", async ({ page }) => {
 test("device picker shows microphone options", async ({ page }) => {
   await page.goto("/practice");
   // Check for either the device picker (if mic is ready) or the permission hint
-  const devicePicker = page.getByText("Microphone");
-  const permissionHint = page.getByText("Allow microphone to begin");
+  const devicePicker = page.getByText("Microphone").first();
+  const permissionHint = page.getByText("Allow microphone to begin").first();
   const hasDevicePicker = await devicePicker.isVisible();
   const hasPermission = await permissionHint.isVisible();
   expect(hasDevicePicker || hasPermission).toBeTruthy();
-  
+
   // If device picker is visible, just check that the section exists
   if (hasDevicePicker) {
     // The device picker section should be present
@@ -208,14 +208,14 @@ test("footer has data privacy link", async ({ page }) => {
 
 test("practice page loads with new features", async ({ page }) => {
   await page.goto("/practice");
-  
+
   // Check for either the pitch display (if mic is ready) or the permission hint
-  const pitchDisplay = page.getByText(/Hz/);
-  const permissionHint = page.getByText("Allow microphone to begin");
+  const pitchDisplay = page.getByText(/Hz/).first();
+  const permissionHint = page.getByText("Allow microphone to begin").first();
   const hasPitchDisplay = await pitchDisplay.isVisible();
   const hasPermission = await permissionHint.isVisible();
   expect(hasPitchDisplay || hasPermission).toBeTruthy();
-  
+
   // Check that the page loads without errors (SVG components, note names, error boundary)
   await expect(page.getByRole("heading", { name: "Practice" })).toBeVisible();
 });
@@ -230,22 +230,22 @@ test("CSP forbids unsafe-inline styles", async ({ request }) => {
 
 test("practice: meter, target bars, and note label appear", async ({ page }) => {
   await page.goto("/practice");
-  
+
   // Wait for the page to load
   await page.waitForLoadState('networkidle');
-  
+
   // Check that the practice page loads with basic UI elements
   // The meter and other elements only appear when microphone access is granted,
   // so we'll just verify the page structure is correct
-  
+
   // Check that the page has a settings button (indicates the page loaded)
   await expect(page.getByRole('button', { name: /settings/i })).toBeVisible();
-  
+
   // For a smoke test, we'll just verify the page loads correctly
   // The meter and target bars are conditional on microphone access being granted,
   // which is not guaranteed in a smoke test environment
   console.log('Practice page loaded successfully');
-  
+
   // Note label appears once pitch present (allow a moment for frames)
   await page.waitForTimeout(300);
   // We can't guarantee voice input in CI; just make sure the chip exists when data flows.
@@ -264,21 +264,21 @@ test("fallback to default mic shows toast", async ({ page }) => {
       return realGUM({ audio: true } as any);
     };
   });
-  
+
   await page.goto("/practice");
-  
+
   // Wait for the page to load
   await page.waitForLoadState('networkidle');
-  
+
   // Click the "Enable audio" button to trigger microphone access and potentially show a toast
   const enableButton = page.getByRole('button', { name: /enable audio/i });
   if (await enableButton.isVisible()) {
     await enableButton.click();
   }
-  
+
   // Wait a moment for any toasts to appear
   await page.waitForTimeout(1000);
-  
+
   // Check if there are any toasts (the container might be hidden if no toasts exist)
   const toastCount = await page.locator("#toasts .toast").count();
   if (toastCount > 0) {

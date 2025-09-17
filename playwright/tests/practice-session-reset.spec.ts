@@ -22,7 +22,7 @@ test.describe('practice session reset', () => {
     await page.goto('/practice');
 
     const counter = page.getByTestId('progress-count');
-    const bar = page.getByTestId('progress-bar');
+    const bar = page.getByTestId('progress-bar').first();
     const status = page.getByTestId('session-progress-status');
 
     await expect(counter).toHaveText(/0\s*\/\s*10/);

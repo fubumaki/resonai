@@ -32,7 +32,13 @@ const INCLUDE_PATTERNS = [
   /flows\/.*\.json$/,
   /icons\/.*\.png$/,
   /icons\/.*\.svg$/,
-  /manifest\.webmanifest$/
+  /manifest\.webmanifest$/,
+  /fonts\/.*\.woff2?$/,
+  /fonts\/.*\.ttf$/,
+  /fonts\/.*\.otf$/,
+  /_next\/static\/.*\.js$/,
+  /_next\/static\/.*\.css$/,
+  /_next\/static\/.*\.woff2?$/
 ];
 
 // File patterns to exclude
