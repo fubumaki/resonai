@@ -179,8 +179,8 @@ export default function Practice() {
 
   // Audio device settings
   const [inputDeviceId, setInputDeviceId] = useState<string | null>(null);
-  const [echoCancellation, setEchoCancellation] = useState(true);
-  const [noiseSuppression, setNoiseSuppression] = useState(true);
+  const [echoCancellation, setEchoCancellation] = useState(false);
+  const [noiseSuppression, setNoiseSuppression] = useState(false);
   const [autoGainControl, setAutoGainControl] = useState(false);
 
   const inPitch = useMemo(() => pitch != null && pitch >= pitchTarget.min && pitch <= pitchTarget.max, [pitch, pitchTarget]);
@@ -211,9 +211,9 @@ export default function Practice() {
     setBrightTarget({ min: settings.brightMin, max: settings.brightMax });
     setLowPower(settings.lowPower ?? false);
     setInputDeviceId(settings.inputDeviceId ?? null);
-    setEchoCancellation(settings.echoCancellation);
-    setNoiseSuppression(settings.noiseSuppression);
-    setAutoGainControl(settings.autoGainControl);
+    setEchoCancellation(settings.echoCancellation === true);
+    setNoiseSuppression(settings.noiseSuppression === true);
+    setAutoGainControl(settings.autoGainControl === true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
 
@@ -519,7 +519,11 @@ export default function Practice() {
     setPreset(defaultSettings.preset);
     setPitchTarget({ min: defaultSettings.pitchMin, max: defaultSettings.pitchMax });
     setBrightTarget({ min: defaultSettings.brightMin, max: defaultSettings.brightMax });
-    setLowPower(false);
+    setLowPower(defaultSettings.lowPower ?? false);
+    setInputDeviceId(defaultSettings.inputDeviceId ?? null);
+    setEchoCancellation(defaultSettings.echoCancellation === true);
+    setNoiseSuppression(defaultSettings.noiseSuppression === true);
+    setAutoGainControl(defaultSettings.autoGainControl === true);
     try { await (db as any).trials.clear(); } catch { }
     handleSessionProgressReset('Practice data reset.');
     toast('Practice data reset');
