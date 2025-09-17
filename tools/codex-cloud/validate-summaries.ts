@@ -20,7 +20,6 @@ const RESEARCH_SUMMARIES_DIR = path.join(ROOT, "docs", "research-summaries");
 type YamlParser = (input: string) => unknown;
 
 type MaybeYamlModule = { parse?: (input: string) => unknown };
-type MaybeJsYamlModule = { load?: (input: string) => unknown };
 
 let yamlParserPromise: Promise<YamlParser> | null = null;
 
@@ -35,19 +34,9 @@ function loadYamlParser(): Promise<YamlParser> {
         }
         throw new Error("Invalid 'yaml' module: missing parse function.");
       })
-      .catch(() =>
-        import("js-yaml").then((module) => {
-          const candidate = module as MaybeJsYamlModule;
-          const load = candidate.load;
-          if (typeof load === "function") {
-            return (input: string) => load(input);
-          }
-          throw new Error("Invalid 'js-yaml' module: missing load function.");
-        }),
-      )
       .catch(() => {
         throw new Error(
-          "Unable to locate a YAML parser. Install the 'yaml' package or ensure 'js-yaml' is available.",
+          "Unable to locate a YAML parser. Install the 'yaml' package to validate research summaries.",
         );
       });
   }
