@@ -36,6 +36,8 @@ export default function InstantPractice() {
   // Calibration state management
   const { config, isConfigured, saveConfig, retestMic } = useMicCalibration();
 
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+
   // Practice metrics for HUD
   const { metrics, isActive: metricsActive, error: metricsError, start: startMetrics, stop: stopMetrics } = usePracticeMetrics(
     mediaStreamRef.current,
@@ -50,8 +52,6 @@ export default function InstantPractice() {
       historyLength: 600, // 10 seconds at 60fps
     }
   );
-
-  const mediaStreamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const ttvStartTime = useRef<number>(Date.now());
 

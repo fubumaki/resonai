@@ -132,7 +132,7 @@ test.describe('Practice HUD', () => {
     // Mock getUserMedia to reject
     await page.addInitScript(() => {
       const originalGetUserMedia = navigator.mediaDevices.getUserMedia;
-      navigator.mediaDevices.getUserMedia = vi.fn().mockRejectedValue(
+      navigator.mediaDevices.getUserMedia = () => Promise.reject(
         new Error('Permission denied')
       );
     });

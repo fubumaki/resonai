@@ -46,5 +46,5 @@
         - /url: /data
       - generic [ref=e35]: vdev
   - alert [ref=e36]
-  - generic "Performance indicators" [ref=e37]: FCP 207ms - INP 0ms - CLS 0.000
+  - generic "Performance indicators" [ref=e37]: FCP 252ms - INP 0ms - CLS 0.000
 ```

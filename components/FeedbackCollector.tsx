@@ -90,8 +90,8 @@ export default function FeedbackCollector({
       setIsVisible(false);
 
       // Track feedback submission
-      if (typeof window !== 'undefined' && window.gtag) {
-        window.gtag('event', 'feedback_submitted', {
+      if (typeof window !== 'undefined' && (window as any).gtag) {
+        (window as any).gtag('event', 'feedback_submitted', {
           feature,
           rating,
           has_comments: comments.trim().length > 0,
