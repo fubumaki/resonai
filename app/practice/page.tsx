@@ -315,7 +315,25 @@ export default function Practice() {
         ? overrides.autoGainControl
         : autoGainControl;
 
-    mediaStream.current?.getTracks().forEach(track => track.stop());
+    setLevel(0);
+    setDbfs(null);
+    setPitch(null);
+    setCentroid(null);
+    setH1H2(null);
+    setClarity(0);
+
+    const stopTracks = (stream: MediaStream | null | undefined) => {
+      if (!stream) return;
+      stream.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch {
+          /* noop */
+        }
+      });
+    };
+
+    stopTracks(mediaStream.current);
     mediaStream.current = null;
 
     analyser.current?.disconnect();
@@ -345,18 +363,37 @@ export default function Practice() {
       throw new Error('AudioContext unsupported.');
     }
 
-    const ctx = new AudioCtor({ latencyHint: 0 } as AudioContextOptions);
-    audioCtx.current = ctx;
-    registerContext();
+    const requestedLatencyHint: number | string = 0;
+    let ctx: AudioContext;
+    let reportedLatencyHint: number | string | null = requestedLatencyHint;
+    try {
+      ctx = new AudioCtor({ latencyHint: requestedLatencyHint } as AudioContextOptions);
+      const actualHint = (ctx as any).latencyHint;
+      if (typeof actualHint === 'number' || typeof actualHint === 'string') {
+        reportedLatencyHint = actualHint;
+      }
+    } catch {
+      ctx = new AudioCtor();
+      const actualHint = (ctx as any).latencyHint;
+      reportedLatencyHint =
+        typeof actualHint === 'number' || typeof actualHint === 'string'
+          ? actualHint
+          : null;
+    }
+
+    const closeNewContext = async () => {
+      try { await ctx.close(); } catch { /* noop */ }
+    };
 
     const probe = ensurePracticeAudioProbe();
     if (probe) {
-      probe.audio_latency.audio_context.latencyHint = 0;
+      probe.audio_latency.audio_context.latencyHint = reportedLatencyHint;
     }
-    notifyPracticeAudioLatency(0);
+    notifyPracticeAudioLatency(reportedLatencyHint);
 
     const devices = navigator.mediaDevices;
     if (!devices?.getUserMedia) {
+      await closeNewContext();
       throw new Error('Microphone access unavailable.');
     }
 
@@ -369,52 +406,80 @@ export default function Practice() {
       }
     });
 
+    let stream: MediaStream | null = null;
     try {
-      mediaStream.current = await devices.getUserMedia(buildConstraints(false));
-    } catch (error) {
-      mediaStream.current = await devices.getUserMedia(buildConstraints(true));
-      showToast('Selected mic unavailable - using system default.');
+      stream = await devices.getUserMedia(buildConstraints(false));
+    } catch (primaryError) {
+      try {
+        stream = await devices.getUserMedia(buildConstraints(true));
+        showToast('Selected mic unavailable - using system default.');
+      } catch (fallbackError) {
+        await closeNewContext();
+        throw fallbackError;
+      }
     }
 
-    const stream = mediaStream.current;
     if (!stream) {
+      await closeNewContext();
       throw new Error('Microphone permission denied.');
     }
 
-    const sourceNode = ctx.createMediaStreamSource(stream);
+    let sourceNode: MediaStreamAudioSourceNode | null = null;
+    let analyserNode: AnalyserNode | null = null;
+    let workletNode: AudioWorkletNode | null = null;
+    let muteNode: GainNode | null = null;
+
+    try {
+      sourceNode = ctx.createMediaStreamSource(stream);
+      analyserNode = ctx.createAnalyser();
+      analyserNode.fftSize = 2048;
+      sourceNode.connect(analyserNode);
+
+      await ctx.audioWorklet.addModule('/worklets/pitch.worklet.js');
+      workletNode = new AudioWorkletNode(ctx, 'pitch-processor');
+      workletNode.port.onmessage = ({ data }) => {
+        const p = data.pitch ? Math.round(data.pitch) : null;
+        setPitch((prev) => smooth(prev, p));
+        setCentroid(data.centroidHz ? Math.round(data.centroidHz) : null);
+        setH1H2(data.h1h2 ?? null);
+        setClarity(data.clarity ?? 0);
+
+        const now = performance.now();
+        intervalsRef.current.push(now - lastMsgRef.current);
+        lastMsgRef.current = now;
+        if (intervalsRef.current.length > 200) intervalsRef.current.shift();
+      };
+
+      intervalsRef.current = [];
+      lastMsgRef.current = performance.now();
+
+      muteNode = ctx.createGain();
+      muteNode.gain.value = 0;
+
+      sourceNode.connect(workletNode);
+      workletNode.connect(muteNode).connect(ctx.destination);
+      workletNode.port.postMessage({ minHz: 70, maxHz: 500, voicingRms: 0.012 });
+    } catch (error) {
+      stopTracks(stream);
+      analyserNode?.disconnect();
+      sourceNode?.disconnect();
+      if (workletNode) {
+        try { workletNode.port.onmessage = null as any; } catch { /* noop */ }
+        workletNode.disconnect();
+      }
+      muteNode?.disconnect();
+      await closeNewContext();
+      throw error;
+    }
+
+    mediaStream.current = stream;
     source.current = sourceNode;
-
-    const analyserNode = ctx.createAnalyser();
-    analyserNode.fftSize = 2048;
-    sourceNode.connect(analyserNode);
     analyser.current = analyserNode;
-
-    intervalsRef.current = [];
-    lastMsgRef.current = performance.now();
-
-    await ctx.audioWorklet.addModule('/worklets/pitch.worklet.js');
-    const workletNode = new AudioWorkletNode(ctx, 'pitch-processor');
-    workletNode.port.onmessage = ({ data }) => {
-      const p = data.pitch ? Math.round(data.pitch) : null;
-      setPitch((prev) => smooth(prev, p));
-      setCentroid(data.centroidHz ? Math.round(data.centroidHz) : null);
-      setH1H2(data.h1h2 ?? null);
-      setClarity(data.clarity ?? 0);
-
-      const now = performance.now();
-      intervalsRef.current.push(now - lastMsgRef.current);
-      lastMsgRef.current = now;
-      if (intervalsRef.current.length > 200) intervalsRef.current.shift();
-    };
     worklet.current = workletNode;
-
-    const muteNode = ctx.createGain();
-    muteNode.gain.value = 0;
     mute.current = muteNode;
 
-    sourceNode.connect(workletNode);
-    workletNode.connect(muteNode).connect(ctx.destination);
-    workletNode.port.postMessage({ minHz: 70, maxHz: 500, voicingRms: 0.012 });
+    audioCtx.current = ctx;
+    registerContext();
   }, [
     inputDeviceId,
     echoCancellation,
@@ -659,9 +724,9 @@ export default function Practice() {
     setter(r);
   };
 
-    // Reset handlers
-    const resetToPresetDefaults = () => {
-      // Use the currently selected preset's defaults
+  // Reset handlers
+  const resetToPresetDefaults = () => {
+    // Use the currently selected preset's defaults
     const p = PRESETS[preset];
     setPitchTarget({ ...p.pitch });
     setBrightTarget({ ...p.bright });
@@ -671,27 +736,40 @@ export default function Practice() {
 
   const resetAll = async () => {
     autoRestartRef.current = false;
+
+    const nextPreset = defaultSettings.preset;
+    const nextPitchTarget = { min: defaultSettings.pitchMin, max: defaultSettings.pitchMax };
+    const nextBrightTarget = { min: defaultSettings.brightMin, max: defaultSettings.brightMax };
+    const nextLowPower = defaultSettings.lowPower ?? false;
+    const nextInputDeviceId = defaultSettings.inputDeviceId ?? null;
+    const nextEchoCancellation = defaultSettings.echoCancellation === true;
+    const nextNoiseSuppression = defaultSettings.noiseSuppression === true;
+    const nextAutoGainControl = defaultSettings.autoGainControl === true;
+
     // Settings → defaults
-    setPreset(defaultSettings.preset);
-    setPitchTarget({ min: defaultSettings.pitchMin, max: defaultSettings.pitchMax });
-    setBrightTarget({ min: defaultSettings.brightMin, max: defaultSettings.brightMax });
-    setLowPower(false);
-    setInputDeviceId(defaultSettings.inputDeviceId);
-    setEchoCancellation(defaultSettings.echoCancellation);
-    setNoiseSuppression(defaultSettings.noiseSuppression);
-    setAutoGainControl(defaultSettings.autoGainControl);
+    setPreset(nextPreset);
+    setPitchTarget(nextPitchTarget);
+    setBrightTarget(nextBrightTarget);
+    setLowPower(nextLowPower);
+    setInputDeviceId(nextInputDeviceId);
+    setEchoCancellation(nextEchoCancellation);
+    setNoiseSuppression(nextNoiseSuppression);
+    setAutoGainControl(nextAutoGainControl);
+
     try { await (db as any).trials.clear(); } catch { }
     handleSessionProgressReset('Practice data reset.');
+
     try {
       await restartAudio({
-        inputDeviceId: defaultSettings.inputDeviceId,
-        echoCancellation: defaultSettings.echoCancellation,
-        noiseSuppression: defaultSettings.noiseSuppression,
-        autoGainControl: defaultSettings.autoGainControl,
+        inputDeviceId: nextInputDeviceId,
+        echoCancellation: nextEchoCancellation,
+        noiseSuppression: nextNoiseSuppression,
+        autoGainControl: nextAutoGainControl,
       });
     } finally {
       autoRestartRef.current = true;
     }
+
     showToast('Practice data reset');
   };
 
