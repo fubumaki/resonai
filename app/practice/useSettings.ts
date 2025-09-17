@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { db, defaultSettings, type SettingsRow } from '@/lib/db';
 
 export function useSettings() {
-  const [settings, setSettings] = useState<SettingsRow>(defaultSettings);
+  const [settings, setSettings] = useState<SettingsRow>({ ...defaultSettings });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -13,7 +13,23 @@ export function useSettings() {
       try {
         if ((db as any).settings) {
           const s = await (db as any).settings.get('default');
-          if (mounted && s) setSettings(s);
+          if (mounted) {
+            if (s) {
+              setSettings({
+                ...defaultSettings,
+                ...s,
+                inputDeviceId: s.inputDeviceId ?? null,
+                lowPower: s.lowPower ?? false,
+                echoCancellation: s.echoCancellation === true,
+                noiseSuppression: s.noiseSuppression === true,
+                autoGainControl: s.autoGainControl === true,
+              });
+            } else {
+              setSettings({ ...defaultSettings });
+            }
+          }
+        } else if (mounted) {
+          setSettings({ ...defaultSettings });
         }
       } finally {
         if (mounted) setLoading(false);

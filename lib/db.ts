@@ -48,8 +48,8 @@ export const defaultSettings: SettingsRow = {
   lowPower: false,
 
   inputDeviceId: null,
-  echoCancellation: true,
-  noiseSuppression: true,
+  echoCancellation: false,
+  noiseSuppression: false,
   autoGainControl: false,
 };
 
@@ -70,8 +70,8 @@ class ResonaiDB extends Dexie {
       const table = tx.table<SettingsRow, string>('settings');
       await table.toCollection().modify((s) => {
         (s as any).inputDeviceId ??= null;
-        (s as any).echoCancellation ??= true;
-        (s as any).noiseSuppression ??= true;
+        (s as any).echoCancellation ??= false;
+        (s as any).noiseSuppression ??= false;
         (s as any).autoGainControl ??= false;
       });
     });
