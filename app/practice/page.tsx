@@ -16,6 +16,15 @@ import TargetBar from './ui/TargetBar';
 import ProgressBar from '@/components/ProgressBar';
 import Orb from '@/components/Orb';
 import { hzToNote } from '@/lib/pitch';
+import {
+  createPitchSabRingBuffer,
+  drainPitchSab,
+  markPitchSabReady,
+  resetPitchSab,
+  type PitchSabFrame,
+  type PitchSabRingBuffer,
+  SAB_RING_BUFFER_PATH,
+} from '@/audio/sabRingBuffer';
 import Script from 'next/script';
 import {
   trackSessionProgress,
@@ -63,6 +72,11 @@ declare global {
       options?: PracticeProgressOptions
     ) => void;
     __getPracticeHooksState?: () => PracticeHooksState;
+    __sabTelemetry?: {
+      sab_available: boolean;
+      sab_ready: boolean;
+      sab_ring_buffer_path: string | null;
+    };
   }
 }
 
@@ -196,10 +210,105 @@ export default function Practice() {
   const source = useRef<MediaStreamAudioSourceNode | null>(null);
   const worklet = useRef<AudioWorkletNode | null>(null);
   const mute = useRef<GainNode | null>(null);
+  const sabBufferRef = useRef<PitchSabRingBuffer | null>(null);
+  const sabReaderRef = useRef<number | null>(null);
+  const sabReadyRef = useRef(false);
+  const sabDrainLastRef = useRef<number | null>(null);
 
   // Worklet health tracking
   const intervalsRef = useRef<number[]>([]);
   const lastMsgRef = useRef<number>(performance.now());
+
+  const updateSabTelemetry = useCallback((update: Partial<{ sab_available: boolean; sab_ready: boolean; sab_ring_buffer_path: string | null }>) => {
+    if (typeof window === 'undefined') return;
+    const win = window as typeof window & {
+      __sabTelemetry?: {
+        sab_available: boolean;
+        sab_ready: boolean;
+        sab_ring_buffer_path: string | null;
+      };
+    };
+    const base = win.__sabTelemetry ?? {
+      sab_available: false,
+      sab_ready: false,
+      sab_ring_buffer_path: null as string | null,
+    };
+    win.__sabTelemetry = { ...base, ...update };
+  }, []);
+
+  const stopSabReader = useCallback(() => {
+    if (sabReaderRef.current != null) {
+      cancelAnimationFrame(sabReaderRef.current);
+      sabReaderRef.current = null;
+    }
+    sabDrainLastRef.current = null;
+    sabReadyRef.current = false;
+  }, []);
+
+  const applyAnalysisResult = useCallback((result: PitchSabFrame, eventTime?: number) => {
+    const now = typeof eventTime === 'number' ? eventTime : performance.now();
+    const nextPitch = result.pitch != null ? Math.round(result.pitch) : null;
+    setPitch((prev) => smooth(prev, nextPitch));
+    setCentroid(result.centroidHz != null ? Math.round(result.centroidHz) : null);
+    setH1H2(result.h1h2 ?? null);
+    setClarity(result.clarity ?? 0);
+
+    const delta = now - lastMsgRef.current;
+    if (Number.isFinite(delta) && delta >= 0) {
+      intervalsRef.current.push(delta);
+      if (intervalsRef.current.length > 200) intervalsRef.current.shift();
+    }
+    lastMsgRef.current = now;
+  }, []);
+
+  const startSabReader = useCallback(() => {
+    if (!sabBufferRef.current) return;
+    if (sabReaderRef.current != null) {
+      cancelAnimationFrame(sabReaderRef.current);
+    }
+
+    const tick = () => {
+      const buffer = sabBufferRef.current;
+      if (!buffer) return;
+      const frames = drainPitchSab(buffer);
+      if (frames.length > 0) {
+        const now = performance.now();
+        const last = sabDrainLastRef.current;
+        if (last == null) {
+          for (const frame of frames) applyAnalysisResult(frame, now);
+        } else {
+          const totalDelta = now - last;
+          const step = frames.length > 0 ? totalDelta / frames.length : 0;
+          for (let i = 0; i < frames.length; i++) {
+            const frameTime = step > 0 ? last + step * (i + 1) : now;
+            applyAnalysisResult(frames[i], frameTime);
+          }
+        }
+        sabDrainLastRef.current = now;
+      }
+      sabReaderRef.current = requestAnimationFrame(tick);
+    };
+
+    sabDrainLastRef.current = performance.now();
+    sabReaderRef.current = requestAnimationFrame(tick);
+  }, [applyAnalysisResult]);
+
+  const normalizeWorkletMessage = (data: unknown): PitchSabFrame => {
+    if (typeof data !== 'object' || data == null) {
+      return { pitch: null, clarity: 0, rms: 0, centroidHz: null, rolloffHz: null, h1h2: null };
+    }
+    const obj = data as Record<string, unknown>;
+    const maybeNumber = (value: unknown): number | null => (typeof value === 'number' ? value : null);
+    const numberOrZero = (value: unknown): number => (typeof value === 'number' ? value : 0);
+    return {
+      pitch: maybeNumber(obj.pitch),
+      clarity: numberOrZero(obj.clarity),
+      rms: numberOrZero(obj.rms),
+      centroidHz: maybeNumber(obj.centroidHz),
+      rolloffHz: maybeNumber(obj.rolloffHz),
+      h1h2: maybeNumber(obj.h1h2),
+    };
+  };
 
   const { needsUnlock, unlock } = useAudioUnlock(audioCtx);
 
@@ -241,6 +350,20 @@ export default function Practice() {
     source.current?.disconnect();
     worklet.current?.disconnect();
     mute.current?.disconnect();
+    stopSabReader();
+    sabBufferRef.current = null;
+    sabDrainLastRef.current = null;
+    sabReadyRef.current = false;
+
+    const sabSupported = typeof window !== 'undefined'
+      && typeof SharedArrayBuffer !== 'undefined'
+      && (window as typeof window & { crossOriginIsolated?: boolean }).crossOriginIsolated === true;
+
+    updateSabTelemetry({
+      sab_available: sabSupported,
+      sab_ready: false,
+      sab_ring_buffer_path: sabSupported ? SAB_RING_BUFFER_PATH : null,
+    });
 
     // create/reuse context
     const ctx = audioCtx.current ?? new (window.AudioContext || (window as any).webkitAudioContext)({ latencyHint: "interactive" });
@@ -270,31 +393,62 @@ export default function Practice() {
     analyser.current.fftSize = 2048;
     source.current.connect(analyser.current);
 
-    // worklet
     if (!worklet.current) {
       await audioCtx.current.audioWorklet.addModule("/worklets/pitch.worklet.js");
       worklet.current = new AudioWorkletNode(audioCtx.current, "pitch-processor");
-      worklet.current.port.onmessage = ({ data }) => {
-        const p = data.pitch ? Math.round(data.pitch) : null;
-        setPitch((prev) => smooth(prev, p));
-        setCentroid(data.centroidHz ? Math.round(data.centroidHz) : null);
-        setH1H2(data.h1h2 ?? null);
-        setClarity(data.clarity ?? 0);
+    }
 
-        // Track worklet message intervals for health monitoring
-        const now = performance.now();
-        intervalsRef.current.push(now - lastMsgRef.current);
-        lastMsgRef.current = now;
-        if (intervalsRef.current.length > 200) intervalsRef.current.shift();
-      };
+    const node = worklet.current!;
+    node.port.onmessage = ({ data }) => {
+      if (data && typeof data === 'object' && Object.prototype.hasOwnProperty.call(data, 'sab')) {
+        const status = (data as { sab: unknown }).sab;
+        if (status === 'ok') {
+          if (sabBufferRef.current) {
+            markPitchSabReady(sabBufferRef.current);
+            sabReadyRef.current = true;
+            sabDrainLastRef.current = performance.now();
+            startSabReader();
+            updateSabTelemetry({
+              sab_available: sabSupported,
+              sab_ready: true,
+              sab_ring_buffer_path: sabSupported ? SAB_RING_BUFFER_PATH : null,
+            });
+          }
+        } else if (status === 'error') {
+          sabReadyRef.current = false;
+          stopSabReader();
+          sabBufferRef.current = null;
+          updateSabTelemetry({ sab_ready: false });
+        }
+        return;
+      }
+
+      if (sabReadyRef.current && sabBufferRef.current) {
+        return;
+      }
+
+      const frame = normalizeWorkletMessage(data);
+      applyAnalysisResult(frame);
+    };
+
+    if (sabSupported) {
+      const buffer = createPitchSabRingBuffer();
+      sabBufferRef.current = buffer;
+      resetPitchSab(buffer);
+      node.port.postMessage({
+        type: 'attach-sab',
+        sab: buffer.sab,
+        capacity: buffer.capacity,
+        frameSize: buffer.valuesPerFrame,
+      });
     }
 
     // mute to avoid feedback
     mute.current = audioCtx.current.createGain();
     mute.current.gain.value = 0;
-    source.current.connect(worklet.current!);
-    worklet.current!.connect(mute.current).connect(audioCtx.current.destination);
-    worklet.current!.port.postMessage({ minHz: 70, maxHz: 500, voicingRms: 0.012 });
+    source.current.connect(node);
+    node.connect(mute.current).connect(audioCtx.current.destination);
+    node.port.postMessage({ minHz: 70, maxHz: 500, voicingRms: 0.012 });
   };
 
   useEffect(() => {
@@ -318,6 +472,9 @@ export default function Practice() {
     return () => {
       mediaStream.current?.getTracks().forEach(t => t.stop());
       audioCtx.current?.close();
+      stopSabReader();
+      sabBufferRef.current = null;
+      updateSabTelemetry({ sab_ready: false });
     };
   }, []);
 
