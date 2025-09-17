@@ -100,6 +100,121 @@
 .meter-bg { fill: rgba(255,255,255,.07); }
 .meter-fill { fill: color-mix(in oklab, var(--brand) 65%, var(--ok) 35%); }
 
+.practice-meter-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.practice-meter-track {
+  fill: #e2e8f0;
+}
+
+.dark .practice-meter-track {
+  fill: #1e293b;
+}
+
+.practice-pitch-segment--low,
+.practice-pitch-segment--high {
+  fill: #f87171;
+}
+
+.practice-pitch-segment--target {
+  fill: #4ade80;
+}
+
+.practice-pitch-indicator {
+  stroke: #0f172a;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+.dark .practice-pitch-indicator {
+  stroke: #f8fafc;
+}
+
+.practice-meter-fill {
+  transition: width 150ms ease;
+}
+
+.practice-meter-fill--good {
+  color: #4ade80;
+}
+
+.practice-meter-fill--warn {
+  color: #facc15;
+}
+
+.practice-meter-fill--alert {
+  color: #f87171;
+}
+
+.practice-meter-fill--info {
+  color: #60a5fa;
+}
+
+.practice-meter-gradient-fill {
+  transition: width 200ms ease;
+}
+
+.meter-progress {
+  width: 100%;
+  height: 16px;
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: #e2e8f0;
+  border-radius: 9999px;
+  overflow: hidden;
+  color: #22c55e;
+  transition: color 150ms ease;
+}
+
+.meter-progress--tall {
+  height: 24px;
+}
+
+.meter-progress--good {
+  color: #22c55e;
+}
+
+.meter-progress--warn {
+  color: #facc15;
+}
+
+.meter-progress--muted {
+  color: #94a3b8;
+}
+
+.dark .meter-progress {
+  background-color: #1e293b;
+}
+
+.meter-progress::-webkit-progress-bar {
+  background-color: inherit;
+  border-radius: 9999px;
+}
+
+.meter-progress::-webkit-progress-value {
+  background-color: currentColor;
+  border-radius: 9999px;
+  transition: width 150ms ease;
+}
+
+.meter-progress::-moz-progress-bar {
+  background-color: currentColor;
+  border-radius: 9999px;
+  transition: width 150ms ease;
+}
+
+.dark .meter-progress::-webkit-progress-bar {
+  background-color: inherit;
+}
+
+.dark .meter-progress::-webkit-progress-value,
+.dark .meter-progress::-moz-progress-bar {
+  background-color: currentColor;
+}
+
 .target-svg { width: 100%; height: 22px; display: block; }
 .track { fill: rgba(255,255,255,.07); }
 .zone { fill: rgba(122,94,255,.35); }
