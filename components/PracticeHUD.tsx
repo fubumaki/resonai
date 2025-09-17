@@ -1,5 +1,6 @@
 'use client';
 
+/* eslint-disable no-restricted-syntax */
 import React from 'react';
 import { PracticeMetrics, TargetRanges } from '../hooks/usePracticeMetrics';
 

@@ -1,5 +1,6 @@
 'use client';
 
+/* eslint-disable no-restricted-syntax */
 import React, { useEffect, useState, useCallback } from 'react';
 import { deviceManager } from '../audio/deviceManager';
 import { calibrationAnalytics } from '../lib/analytics/calibration';

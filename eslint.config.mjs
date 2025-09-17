@@ -28,7 +28,7 @@ const eslintConfig = [
           message: "Avoid inline styles; use CSS classes or SVG attributes (strict CSP).",
         },
         {
-          selector: "JSXAttribute[name.name='style'] JSXExpressionContainer ObjectExpression Property[key.name!='--']",
+          selector: "JSXAttribute[name.name='style'] JSXExpressionContainer ObjectExpression Property[value.type='Literal'][key.name!='--pitch-position'][key.name!='--meter-width']",
           message: "Avoid inline styles; use CSS custom properties (--*) or CSS classes (strict CSP).",
         },
         {

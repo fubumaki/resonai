@@ -11,6 +11,6 @@
   "editor.autoClosingBrackets": "languageDefined",
   "editor.smartQuotes": false,
   "typescript.preferences.quoteStyle": "single",
-  "javascript.preferences.quoteStyle": "single"
+  "javascript.preferences.quoteStyle": "single",
+  "chatgpt.openOnStartup": true
 }
-
