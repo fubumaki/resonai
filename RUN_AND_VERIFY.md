@@ -2,24 +2,24 @@
 
 ## CI Single Source of Truth (SSOT)
 
-**Last green commit:** _pending — current run has failures (Playwright (firefox): 22 failed)._  
-**Current commit:** `b22e630` (2025-09-16 05:57 UTC)
-Generated: 2025-09-16 06:33 UTC — see [.artifacts/SSOT.md](.artifacts/SSOT.md) for full artifact details.
+**Last green commit:** _pending — current run has failures (Vitest: 6 failed; Playwright (firefox): 73 failed)._ 
+**Current commit:** `31afdc0` (2025-09-17 03:22 UTC)
+Generated: 2025-09-17 03:48 UTC — see [.artifacts/SSOT.md](.artifacts/SSOT.md) for full artifact details.
 
 See [QUALITY-GATES/lanes.md](QUALITY-GATES/lanes.md) for the lane-specific (A1/B1/C1/D1) acceptance checklists referenced by the merge agent.
 
 | Suite | Passed | Failed | Skipped | Flaky | Duration |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Vitest | 85 | 0 | 0 | 0 | 0.08s |
-| Playwright (firefox) | 34 | 22 | 12 | 0 | 6m 5.42s |
+| Vitest | 158 | 6 | 0 | 0 | 12.7s |
+| Playwright (firefox) | 5 | 73 | 5 | 0 | 2m 1.50s |
 
 **Flakiest specs**
 
-1. `playwright/tests/a11y_min.spec.ts` — permission primer dialog is accessible when shown (failed ×1) — 10.8s — Locator: getByRole('dialog')
-2. `playwright/tests/analytics_beacon.spec.ts` — analytics events are posted (sendBeacon stub + forced flush) (failed ×1) — 10.4s — Expected: ArrayContaining ["screen_view", "permission_requested"]
-3. `playwright/tests/smoke.spec.ts` — fallback to default mic shows toast (failed ×1) — 8.95s — Locator: locator('#toasts')
-4. `playwright/tests/smoke.spec.ts` — data privacy page is accessible (failed ×1) — 8.01s — Locator: getByText('Local‑first by design')
-5. `playwright/tests/mic_flow.spec.ts` — one-tap mic toggles recording and emits analytics (failed ×1) — 7.24s — Locator: locator('.pitch-meter')
+1. `playwright/tests/smoke.spec.ts` — practice page has persistent settings features (failed ×1) — 0.02s — Error: browserType.launch: Executable doesn't exist at /root/.cache/ms-playwright/firefox-1490/firefox/firefox
+2. `playwright/tests/headers.ci.spec.ts` — Practice route is crossOriginIsolated and has COOP/COEP (failed ×1) — 0.01s — Error: browserType.launch: Executable doesn't exist at /root/.cache/ms-playwright/firefox-1490/firefox/firefox
+3. `playwright/tests/smoke.spec.ts` — session summary shows after a trial (failed ×1) — 0.01s — Error: browserType.launch: Executable doesn't exist at /root/.cache/ms-playwright/firefox-1490/firefox/firefox
+4. `playwright/tests/a11y_quick_wins.spec.ts` — error messages are announced to screen readers (failed ×1) — 0.01s — Error: browserType.launch: Executable doesn't exist at /root/.cache/ms-playwright/firefox-1490/firefox/firefox
+5. `playwright/tests/smoke.spec.ts` — practice page loads without errors (failed ×1) — 0.01s — Error: browserType.launch: Executable doesn't exist at /root/.cache/ms-playwright/firefox-1490/firefox/firefox
 
 ## How to regenerate SSOT locally
 
