@@ -133,7 +133,7 @@ function ResultsPane({
 }) {
   const status = passCount === 2 ? 'Great! Both contours detected.' :
                  passCount === 1 ? 'Nice! 1 of 2 detected - try once more.' :
-                 'Let&apos;s try again with gentler contours.';
+                 'Let\'s try again with gentler contours.';
 
   // Generate coaching tips for failed attempts
   const getCoachingTip = (result: ProsodyDrillResult): string => {
