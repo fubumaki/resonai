@@ -7,6 +7,7 @@ import SwRegister from "./SwRegister";
 import PerfHUD from "./PerfHUD";
 // import CspDevLogger from "./CspDevLogger";
 import CommitHud from "../components/CommitHud";
+import { navigationItems } from "./navigation";
 
 export const metadata = {
   title: "Resonai - Local-first voice feminization trainer",
@@ -41,9 +42,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <nav className="bar" aria-label="Primary">
               <Link href="/" className="brand" aria-label="Resonai home">Resonai</Link>
               <ul>
-                <li><Link href="/listen">Listen</Link></li>
-                <li><Link href="/practice">Practice</Link></li>
-                <li><Link href="/about">About</Link></li>
+                {navigationItems
+                  .filter((item) => item.showInHeader)
+                  .sort(
+                    (a, b) =>
+                      (a.headerOrder ?? Number.MAX_SAFE_INTEGER) -
+                      (b.headerOrder ?? Number.MAX_SAFE_INTEGER),
+                  )
+                  .map((item) => (
+                    <li key={item.href}>
+                      <Link href={item.href}>{item.label}</Link>
+                    </li>
+                  ))}
               </ul>
               <Link href="/practice" className="button">Start practice</Link>
             </nav>
