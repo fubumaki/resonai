@@ -45,6 +45,15 @@ Legend: [codex] coordinator • [cursor] UI implementor • [either] any
 - [either] SW precache alignment
   - `scripts/build-precache.js` now updates `APP_SHELL`; run and verify precache list.
 
+- [cursor] E2E Test – Offline Isolation & PWA Functionality (done)
+  - Implemented comprehensive offline isolation test in `playwright/tests/offlineIsolation.spec.ts`
+  - Validates crossOriginIsolated status maintained when offline
+  - Ensures critical assets (worklets, ONNX models, fonts) load from cache
+  - Tests navigation and user flows while offline
+  - Verifies accessibility features work offline
+  - Updates SSOT with `isolation.cross_origin_isolated_offline:true` status
+  - Acceptance: All offline functionality works without network access, isolation preserved
+
 ## P2 - Polish
 
 - [cursor] A11y polish where e2e asserts exist
