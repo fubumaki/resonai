@@ -37,6 +37,9 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
   const [audioLevel, setAudioLevel] = useState(0);
   const [noiseFloor, setNoiseFloor] = useState(0);
 
+  const clampedAudioLevel = Math.max(0, Math.min(100, audioLevel));
+  const roundedAudioLevel = Math.round(clampedAudioLevel);
+
   // Load available devices
   useEffect(() => {
     // Track calibration start
@@ -245,9 +248,9 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
 
   // Step 2: Level Calibration
   if (currentStep === 'level') {
-    const isLevelGood = audioLevel > 10 && audioLevel < 90; // Good range
+    const isLevelGood = clampedAudioLevel > 10 && clampedAudioLevel < 90; // Good range
     const isNoiseFloorHigh = noiseFloor > 45; // dBFS equivalent warning
-    
+
     return (
       <div className="panel col gap-8" role="dialog" aria-labelledby="calibration-title">
         <h2 id="calibration-title">Step 2: Level Calibration</h2>
@@ -257,24 +260,15 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
             <label htmlFor="audio-level">Audio Level:</label>
             <div className="row gap-4 items-center">
               <div className="flex-1">
-                <div 
+                <progress
                   id="audio-level"
-                  className="h-4 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden"
-                  role="progressbar"
-                  aria-valuenow={audioLevel}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label={`Audio level: ${Math.round(audioLevel)}%`}
-                >
-                  <div 
-                    className={`h-full transition-all duration-100 ${
-                      isLevelGood ? 'bg-green-500' : 'bg-yellow-500'
-                    }`}
-                    style={{ width: `${audioLevel}%` }}
-                  />
-                </div>
+                  className={`meter-progress ${isLevelGood ? 'meter-progress--good' : 'meter-progress--warn'}`}
+                  value={clampedAudioLevel}
+                  max={100}
+                  aria-label={`Audio level: ${roundedAudioLevel}%`}
+                />
               </div>
-              <span className="text-sm font-mono">{Math.round(audioLevel)}%</span>
+              <span className="text-sm font-mono">{roundedAudioLevel}%</span>
             </div>
           </div>
 
@@ -315,8 +309,8 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
 
   // Step 3: Environment Testing
   if (currentStep === 'environment') {
-    const hasInput = audioLevel > 5;
-    
+    const hasInput = clampedAudioLevel > 5;
+
     return (
       <div className="panel col gap-8" role="dialog" aria-labelledby="calibration-title">
         <h2 id="calibration-title">Step 3: Environment Test</h2>
@@ -329,24 +323,15 @@ export default function MicCalibrationFlow({ onComplete, onCancel }: MicCalibrat
               <label htmlFor="environment-level">Voice Input:</label>
               <div className="row gap-4 items-center">
                 <div className="flex-1">
-                  <div 
+                  <progress
                     id="environment-level"
-                    className="h-6 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden"
-                    role="progressbar"
-                    aria-valuenow={audioLevel}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-label={`Voice input level: ${Math.round(audioLevel)}%`}
-                  >
-                    <div 
-                      className={`h-full transition-all duration-100 ${
-                        hasInput ? 'bg-green-500' : 'bg-slate-400'
-                      }`}
-                      style={{ width: `${audioLevel}%` }}
-                    />
-                  </div>
+                    className={`meter-progress meter-progress--tall ${hasInput ? 'meter-progress--good' : 'meter-progress--muted'}`}
+                    value={clampedAudioLevel}
+                    max={100}
+                    aria-label={`Voice input level: ${roundedAudioLevel}%`}
+                  />
                 </div>
-                <span className="text-sm font-mono">{Math.round(audioLevel)}%</span>
+                <span className="text-sm font-mono">{roundedAudioLevel}%</span>
               </div>
             </div>
 
