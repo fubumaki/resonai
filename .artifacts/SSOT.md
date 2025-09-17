@@ -1,24 +1,20 @@
 # CI Single Source of Truth
 
-**Last green commit:** _pending — current run has failures (Playwright (firefox): 58 failed)._
-**Current commit:** `6017d81` (2025-09-16 08:58 UTC)
+**Last green commit:** _pending — current run has failures (Vitest: 5 failed)._
+**Current commit:** `fe8becb` (2025-09-17 00:48 UTC)
 
-Generated: 2025-09-16 09:13 UTC
+Generated: 2025-09-17 01:49 UTC
 
 ## Totals
 
 | Suite | Passed | Failed | Skipped | Flaky | Duration |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Vitest | 96 | 0 | 0 | 0 | 0.22s |
-| Playwright (firefox) | 5 | 58 | 5 | 0 | 1m 6.27s |
+| Vitest | 159 | 5 | 0 | 0 | 9.24s |
+| Playwright (firefox) | 1 | 0 | 0 | 0 | 27.3s |
 
 ## Flakiest specs
 
-1. `playwright/tests/a11y_min.spec.ts` — permission primer dialog is accessible when shown (failed ×1) — 0.01s — Error: browserType.launch: Executable doesn't exist at /root/.cache/ms-playwright/firefox-1490/firefox/firefox
-2. `playwright/tests/smoke.spec.ts` — data privacy page is accessible (failed ×1) — 0.01s — Error: browserType.launch: Executable doesn't exist at /root/.cache/ms-playwright/firefox-1490/firefox/firefox
-3. `playwright/tests/smoke.spec.ts` — export/import/clear controls are visible (failed ×1) — 0.01s — Error: browserType.launch: Executable doesn't exist at /root/.cache/ms-playwright/firefox-1490/firefox/firefox
-4. `playwright/tests/manifest-link.spec.ts` — home page includes web app manifest link (failed ×1) — 0.01s — Error: browserType.launch: Executable doesn't exist at /root/.cache/ms-playwright/firefox-1490/firefox/firefox
-5. `playwright/tests/smoke.spec.ts` — fallback to default mic shows toast (failed ×1) — 0.01s — Error: browserType.launch: Executable doesn't exist at /root/.cache/ms-playwright/firefox-1490/firefox/firefox
+_No flaky specs detected in the latest artifacts._
 
 _Source: `.artifacts/vitest.json`, `.artifacts/playwright.json`._
 
