@@ -3,19 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { getFeatureFlag } from '@/lib/feature-flags';
-
-interface NavItem {
-  href: string;
-  label: string;
-  icon: string;
-}
-
-const navItems: NavItem[] = [
-  { href: '/', label: 'Home', icon: '🏠' },
-  { href: '/try', label: 'Practice', icon: '🎤' },
-  { href: '/listen', label: 'Listen', icon: '👂' },
-  { href: '/about', label: 'About', icon: 'ℹ️' },
-];
+import { navigationItems } from '@/app/navigation';
 
 export default function BottomNav() {
   const pathname = usePathname();
@@ -30,24 +18,31 @@ export default function BottomNav() {
       aria-label="Main navigation"
     >
       <div className="flex items-center justify-around px-4 py-2">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href;
-          
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`
-                flex flex-col items-center justify-center p-2 rounded-lg min-h-[44px] min-w-[44px]
-                transition-colors duration-200
-                ${isActive 
-                  ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20' 
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800'
-                }
-                focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900
-              `}
-              aria-current={isActive ? 'page' : undefined}
-            >
+        {navigationItems
+          .filter((item) => item.showInBottomNav)
+          .sort(
+            (a, b) =>
+              (a.bottomNavOrder ?? Number.MAX_SAFE_INTEGER) -
+              (b.bottomNavOrder ?? Number.MAX_SAFE_INTEGER),
+          )
+          .map((item) => {
+            const isActive = pathname === item.href;
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`
+                  flex flex-col items-center justify-center p-2 rounded-lg min-h-[44px] min-w-[44px]
+                  transition-colors duration-200
+                  ${isActive
+                    ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }
+                  focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900
+                `}
+                aria-current={isActive ? 'page' : undefined}
+              >
               <span className="text-lg mb-1" aria-hidden="true">
                 {item.icon}
               </span>
