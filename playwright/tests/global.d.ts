@@ -14,5 +14,10 @@ declare global {
       value: number,
       options?: { totalSteps?: number; announcementPrefix?: string }
     ) => void;
+    __sabTelemetry?: {
+      sab_available: boolean;
+      sab_ready: boolean;
+      sab_ring_buffer_path: string | null;
+    };
   }
 }

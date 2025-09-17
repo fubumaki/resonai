@@ -1,6 +1,9 @@
 // public/worklets/pitch.worklet.js
 // Real-time pitch + brightness (spectral centroid) + H1–H2 estimator.
-// Posts: { pitch, clarity, rms, centroidHz, rolloffHz, h1h2 } ~every 20ms.
+// Supports SharedArrayBuffer-backed telemetry when available to minimize
+// main-thread message churn. Fallback: postMessage per hop.
+
+import { WorkletRingBuffer, encodeNullable } from './sab-ring-buffer.js';
 
 class PitchProcessor extends AudioWorkletProcessor {
   constructor() {
@@ -21,8 +24,32 @@ class PitchProcessor extends AudioWorkletProcessor {
     this.im = new Float32Array(this.frameSize);
     this.window = hanning(this.frameSize);
 
+    // SAB-backed telemetry (lazy)
+    this.sab = null;
+    this.sabFrameSize = 6;
+
     this.port.onmessage = (e) => {
-      const { minHz, maxHz, voicingRms } = e.data || {};
+      const msg = e.data || {};
+      if (msg && msg.type === 'attach-sab' && typeof SharedArrayBuffer !== 'undefined' && msg.sab instanceof SharedArrayBuffer) {
+        try {
+          const capacity = typeof msg.capacity === 'number' && msg.capacity > 0
+            ? Math.floor(msg.capacity)
+            : 256;
+          const frameSize = typeof msg.frameSize === 'number' && msg.frameSize > 0
+            ? Math.floor(msg.frameSize)
+            : this.sabFrameSize;
+          this.sabFrameSize = frameSize;
+          this.sab = new WorkletRingBuffer(msg.sab, { capacity, frameSize });
+          this.sab.markReady();
+          this.port.postMessage({ sab: 'ok' });
+        } catch (err) {
+          this.sab = null;
+          this.port.postMessage({ sab: 'error', message: err ? String(err.message || err) : 'failed' });
+        }
+        return;
+      }
+
+      const { minHz, maxHz, voicingRms } = msg;
       if (minHz) this.minHz = minHz;
       if (maxHz) this.maxHz = maxHz;
       if (voicingRms) this.voicingRms = voicingRms;
@@ -61,7 +88,7 @@ class PitchProcessor extends AudioWorkletProcessor {
     for (let i = 0; i < frame.length; i++) sum += frame[i] * frame[i];
     const rms = Math.sqrt(sum / frame.length);
     if (rms < this.voicingRms) {
-      this.port.postMessage({ pitch: null, clarity: 0, rms, centroidHz: null, rolloffHz: null, h1h2: null });
+      this.emitResult({ pitch: null, clarity: 0, rms, centroidHz: null, rolloffHz: null, h1h2: null });
       return true;
     }
 
@@ -144,8 +171,23 @@ class PitchProcessor extends AudioWorkletProcessor {
       }
     }
 
-    this.port.postMessage({ pitch, clarity, rms, centroidHz, rolloffHz, h1h2 });
+    this.emitResult({ pitch, clarity, rms, centroidHz, rolloffHz, h1h2 });
     return true;
+  }
+
+  emitResult(result) {
+    if (this.sab) {
+      this.sab.push([
+        encodeNullable(result.pitch),
+        result.clarity ?? 0,
+        result.rms ?? 0,
+        encodeNullable(result.centroidHz),
+        encodeNullable(result.rolloffHz),
+        encodeNullable(result.h1h2),
+      ]);
+    } else {
+      this.port.postMessage(result);
+    }
   }
 }
 
