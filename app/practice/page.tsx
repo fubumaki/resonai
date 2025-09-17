@@ -55,6 +55,22 @@ type PracticeHooksState = {
   defaultSetProgress?: (value: number, options?: PracticeProgressOptions) => void;
 };
 
+type AudioConstraintOverrides = Partial<{
+  inputDeviceId: string | null;
+  echoCancellation: boolean;
+  noiseSuppression: boolean;
+  autoGainControl: boolean;
+}>;
+
+type PracticeAudioProbe = {
+  audio_latency: {
+    audio_context: {
+      latencyHint: number | string | null;
+    };
+  };
+  getLatencyHint: () => number | string | null;
+};
+
 declare global {
   interface Window {
     __setPracticeReady?: (value: boolean) => void;
@@ -137,6 +153,7 @@ function hasCachedPracticeHooksState(): boolean {
 
 function useAudioUnlock(ctxRef: React.MutableRefObject<AudioContext | null>) {
   const [needsUnlock, setNeedsUnlock] = useState(false);
+  const [contextVersion, setContextVersion] = useState(0);
 
   useEffect(() => {
     const ctx = ctxRef.current;
@@ -146,14 +163,19 @@ function useAudioUnlock(ctxRef: React.MutableRefObject<AudioContext | null>) {
     const onState = () => check();
     ctx.addEventListener("statechange", onState);
     return () => ctx.removeEventListener("statechange", onState);
-  }, []);
+  }, [ctxRef, contextVersion]);
 
   const unlock = async () => {
     const ctx = ctxRef.current;
     if (!ctx) return;
     try { await ctx.resume(); } catch { }
   };
-  return { needsUnlock, unlock };
+
+  const registerContext = () => {
+    setContextVersion((value) => value + 1);
+  };
+
+  return { needsUnlock, unlock, registerContext };
 }
 
 export default function Practice() {
@@ -196,12 +218,13 @@ export default function Practice() {
   const source = useRef<MediaStreamAudioSourceNode | null>(null);
   const worklet = useRef<AudioWorkletNode | null>(null);
   const mute = useRef<GainNode | null>(null);
+  const autoRestartRef = useRef(true);
 
   // Worklet health tracking
   const intervalsRef = useRef<number[]>([]);
   const lastMsgRef = useRef<number>(performance.now());
 
-  const { needsUnlock, unlock } = useAudioUnlock(audioCtx);
+  const { needsUnlock, unlock, registerContext } = useAudioUnlock(audioCtx);
 
   // Load saved settings on first load
   useEffect(() => {
@@ -233,80 +256,237 @@ export default function Practice() {
     }
   }, [preset]);
 
-  // Refactored audio initialization function
-  const startAudio = async () => {
-    // tear down old
-    mediaStream.current?.getTracks().forEach(t => t.stop());
+  const showToast = useCallback((msg: string) => {
+    if (typeof document === 'undefined') return;
+    const host = document.getElementById('toasts');
+    if (!host) return;
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.textContent = msg;
+    host.appendChild(el);
+    window.setTimeout(() => el.remove(), 1800);
+  }, []);
+
+  const ensurePracticeAudioProbe = useCallback((): PracticeAudioProbe | null => {
+    if (typeof window === 'undefined') return null;
+    const globalAny = window as typeof window & { __practiceAudioProbe?: PracticeAudioProbe };
+    if (!globalAny.__practiceAudioProbe) {
+      globalAny.__practiceAudioProbe = {
+        audio_latency: { audio_context: { latencyHint: null } },
+        getLatencyHint() {
+          return this.audio_latency.audio_context.latencyHint;
+        },
+      };
+    } else if (typeof globalAny.__practiceAudioProbe.getLatencyHint !== 'function') {
+      globalAny.__practiceAudioProbe.getLatencyHint = function getLatencyHint() {
+        return this.audio_latency.audio_context.latencyHint;
+      };
+    }
+    return globalAny.__practiceAudioProbe;
+  }, []);
+
+  const notifyPracticeAudioLatency = useCallback((hint: number | string | null) => {
+    if (typeof window === 'undefined') return;
+    const globalAny = window as typeof window & {
+      __practiceAudioLatencyDidChange?: (value: number | string | null) => void;
+    };
+    const handler = globalAny.__practiceAudioLatencyDidChange;
+    if (typeof handler === 'function') {
+      handler(hint);
+    }
+  }, []);
+
+  const resetAudioPipeline = useCallback(async (overrides?: AudioConstraintOverrides) => {
+    const hasInputOverride = overrides && Object.prototype.hasOwnProperty.call(overrides, 'inputDeviceId');
+    const resolvedInputDeviceId = hasInputOverride ? overrides?.inputDeviceId ?? null : inputDeviceId;
+    const hasEchoOverride = overrides && Object.prototype.hasOwnProperty.call(overrides, 'echoCancellation');
+    const resolvedEchoCancellation =
+      hasEchoOverride && typeof overrides?.echoCancellation === 'boolean'
+        ? overrides.echoCancellation
+        : echoCancellation;
+    const hasNoiseOverride = overrides && Object.prototype.hasOwnProperty.call(overrides, 'noiseSuppression');
+    const resolvedNoiseSuppression =
+      hasNoiseOverride && typeof overrides?.noiseSuppression === 'boolean'
+        ? overrides.noiseSuppression
+        : noiseSuppression;
+    const hasAgcOverride = overrides && Object.prototype.hasOwnProperty.call(overrides, 'autoGainControl');
+    const resolvedAutoGainControl =
+      hasAgcOverride && typeof overrides?.autoGainControl === 'boolean'
+        ? overrides.autoGainControl
+        : autoGainControl;
+
+    const probe = ensurePracticeAudioProbe();
+    if (probe) {
+      probe.audio_latency.audio_context.latencyHint = null;
+    }
+    notifyPracticeAudioLatency(null);
+
+    mediaStream.current?.getTracks().forEach(track => track.stop());
+    mediaStream.current = null;
+
     analyser.current?.disconnect();
+    analyser.current = null;
     source.current?.disconnect();
-    worklet.current?.disconnect();
+    source.current = null;
+    if (worklet.current) {
+      try { worklet.current.port.onmessage = null as any; } catch { /* noop */ }
+      worklet.current.disconnect();
+      worklet.current = null;
+    }
     mute.current?.disconnect();
+    mute.current = null;
 
-    // create/reuse context
-    const ctx = audioCtx.current ?? new (window.AudioContext || (window as any).webkitAudioContext)({ latencyHint: "interactive" });
-    audioCtx.current = ctx;
-
-    const build = (forceDefault = false): MediaStreamConstraints => ({
-      audio: {
-        deviceId: !forceDefault && inputDeviceId ? { exact: inputDeviceId } : undefined,
-        echoCancellation,
-        noiseSuppression,
-        autoGainControl,
-      }
-    });
-
-    try {
-      mediaStream.current = await navigator.mediaDevices.getUserMedia(build(false));
-    } catch (e: any) {
-      // Typical when device unplugged or permission changes
-      mediaStream.current = await navigator.mediaDevices.getUserMedia(build(true));
-      toast("Selected mic unavailable - using system default.");
+    const prevCtx = audioCtx.current;
+    audioCtx.current = null;
+    if (prevCtx) {
+      try { await prevCtx.close(); } catch { /* noop */ }
     }
 
-    source.current = audioCtx.current.createMediaStreamSource(mediaStream.current);
+    if (typeof window === 'undefined') {
+      throw new Error('AudioContext unavailable.');
+    }
 
-    // analyser for level
-    analyser.current = audioCtx.current.createAnalyser();
-    analyser.current.fftSize = 2048;
-    source.current.connect(analyser.current);
+    const AudioCtor = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtor) {
+      throw new Error('AudioContext unsupported.');
+    }
 
-    // worklet
-    if (!worklet.current) {
-      await audioCtx.current.audioWorklet.addModule("/worklets/pitch.worklet.js");
-      worklet.current = new AudioWorkletNode(audioCtx.current, "pitch-processor");
-      worklet.current.port.onmessage = ({ data }) => {
+    const ctx = new AudioCtor({ latencyHint: 0 } as AudioContextOptions);
+    audioCtx.current = ctx;
+
+    try {
+      if (probe) {
+        probe.audio_latency.audio_context.latencyHint = 0;
+      }
+      notifyPracticeAudioLatency(0);
+
+      const devices = navigator.mediaDevices;
+      if (!devices?.getUserMedia) {
+        throw new Error('Microphone access unavailable.');
+      }
+
+      const buildConstraints = (forceDefault = false): MediaStreamConstraints => ({
+        audio: {
+          deviceId: !forceDefault && resolvedInputDeviceId ? { exact: resolvedInputDeviceId } : undefined,
+          echoCancellation: resolvedEchoCancellation,
+          noiseSuppression: resolvedNoiseSuppression,
+          autoGainControl: resolvedAutoGainControl,
+        }
+      });
+
+      try {
+        mediaStream.current = await devices.getUserMedia(buildConstraints(false));
+      } catch (error) {
+        mediaStream.current = await devices.getUserMedia(buildConstraints(true));
+        showToast('Selected mic unavailable - using system default.');
+      }
+
+      const stream = mediaStream.current;
+      if (!stream) {
+        throw new Error('Microphone permission denied.');
+      }
+
+      const sourceNode = ctx.createMediaStreamSource(stream);
+      source.current = sourceNode;
+
+      const analyserNode = ctx.createAnalyser();
+      analyserNode.fftSize = 2048;
+      sourceNode.connect(analyserNode);
+      analyser.current = analyserNode;
+
+      intervalsRef.current = [];
+      lastMsgRef.current = performance.now();
+
+      await ctx.audioWorklet.addModule('/worklets/pitch.worklet.js');
+      const workletNode = new AudioWorkletNode(ctx, 'pitch-processor');
+      workletNode.port.onmessage = ({ data }) => {
         const p = data.pitch ? Math.round(data.pitch) : null;
         setPitch((prev) => smooth(prev, p));
         setCentroid(data.centroidHz ? Math.round(data.centroidHz) : null);
         setH1H2(data.h1h2 ?? null);
         setClarity(data.clarity ?? 0);
 
-        // Track worklet message intervals for health monitoring
         const now = performance.now();
         intervalsRef.current.push(now - lastMsgRef.current);
         lastMsgRef.current = now;
         if (intervalsRef.current.length > 200) intervalsRef.current.shift();
       };
-    }
+      worklet.current = workletNode;
 
-    // mute to avoid feedback
-    mute.current = audioCtx.current.createGain();
-    mute.current.gain.value = 0;
-    source.current.connect(worklet.current!);
-    worklet.current!.connect(mute.current).connect(audioCtx.current.destination);
-    worklet.current!.port.postMessage({ minHz: 70, maxHz: 500, voicingRms: 0.012 });
-  };
+      const muteNode = ctx.createGain();
+      muteNode.gain.value = 0;
+      mute.current = muteNode;
+
+      sourceNode.connect(workletNode);
+      workletNode.connect(muteNode).connect(ctx.destination);
+      workletNode.port.postMessage({ minHz: 70, maxHz: 500, voicingRms: 0.012 });
+
+      registerContext();
+    } catch (error) {
+      mediaStream.current?.getTracks().forEach(track => track.stop());
+      mediaStream.current = null;
+
+      analyser.current?.disconnect();
+      analyser.current = null;
+      source.current?.disconnect();
+      source.current = null;
+      if (worklet.current) {
+        try { worklet.current.port.onmessage = null as any; } catch { /* noop */ }
+        worklet.current.disconnect();
+        worklet.current = null;
+      }
+      mute.current?.disconnect();
+      mute.current = null;
+
+      audioCtx.current = null;
+      try { await ctx.close(); } catch { /* noop */ }
+      if (probe) {
+        probe.audio_latency.audio_context.latencyHint = null;
+      }
+      notifyPracticeAudioLatency(null);
+      throw error;
+    }
+  }, [
+    inputDeviceId,
+    echoCancellation,
+    noiseSuppression,
+    autoGainControl,
+    showToast,
+    registerContext,
+    ensurePracticeAudioProbe,
+    notifyPracticeAudioLatency,
+  ]);
+
+  const handleAudioError = useCallback((error: unknown) => {
+    const message =
+      error && typeof error === 'object' && 'message' in error && typeof (error as any).message === 'string'
+        ? (error as any).message as string
+        : 'Microphone permission denied.';
+    setErr(message);
+    setReady(false);
+    updatePracticeHooksReady(false);
+  }, []);
+
+  const restartAudio = useCallback(async (overrides?: AudioConstraintOverrides) => {
+    try {
+      await resetAudioPipeline(overrides);
+      setErr(null);
+      setReady(true);
+      updatePracticeHooksReady(true);
+      return true;
+    } catch (error) {
+      handleAudioError(error);
+      return false;
+    }
+  }, [resetAudioPipeline, handleAudioError]);
+
+  useEffect(() => {
+    ensurePracticeAudioProbe();
+  }, [ensurePracticeAudioProbe]);
 
   useEffect(() => {
     (async () => {
-      try {
-        await startAudio();
-        setReady(true);
-        updatePracticeHooksReady(true);
-      } catch (e: any) {
-        setErr(e?.message ?? "Microphone permission denied.");
-        updatePracticeHooksReady(false);
-      }
+      await restartAudio();
     })();
     // Attach test helpers for Playwright deterministically
     if (typeof window !== 'undefined') {
@@ -317,25 +497,47 @@ export default function Practice() {
     }
     return () => {
       mediaStream.current?.getTracks().forEach(t => t.stop());
-      audioCtx.current?.close();
+      analyser.current?.disconnect();
+      analyser.current = null;
+      source.current?.disconnect();
+      source.current = null;
+      if (worklet.current) {
+        try { worklet.current.port.onmessage = null as any; } catch { /* noop */ }
+        worklet.current.disconnect();
+      }
+      worklet.current = null;
+      mute.current?.disconnect();
+      mute.current = null;
+      const ctx = audioCtx.current;
+      audioCtx.current = null;
+      ctx?.close().catch(() => undefined);
+      const probe = ensurePracticeAudioProbe();
+      if (probe) {
+        probe.audio_latency.audio_context.latencyHint = null;
+      }
+      notifyPracticeAudioLatency(null);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Restart audio when device/constraints change
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !autoRestartRef.current) return;
     (async () => {
-      try { await startAudio(); } catch (e: any) { setErr(e?.message ?? "Device change failed."); }
+      await restartAudio();
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inputDeviceId, echoCancellation, noiseSuppression, autoGainControl]);
+  }, [inputDeviceId, echoCancellation, noiseSuppression, autoGainControl, ready]);
 
   // Handle device hot-plug
   useEffect(() => {
-    const onChange = () => startAudio().catch(() => { });
-    navigator.mediaDevices.addEventListener?.("devicechange", onChange);
-    return () => navigator.mediaDevices.removeEventListener?.("devicechange", onChange);
-  }, [ready, inputDeviceId, echoCancellation, noiseSuppression, autoGainControl]);
+    const onChange = () => {
+      if (!autoRestartRef.current) return;
+      restartAudio().catch(() => undefined);
+    };
+    navigator.mediaDevices.addEventListener?.('devicechange', onChange);
+    return () => navigator.mediaDevices.removeEventListener?.('devicechange', onChange);
+  }, [restartAudio]);
 
   const handleSessionProgressReset = useCallback((announcementPrefix?: string, totalSteps?: number) => {
     const safeTotal = sanitizeTotalSteps(totalSteps, TOTAL_TRIALS);
@@ -493,17 +695,6 @@ export default function Practice() {
     setter(r);
   };
 
-  // Toast helper
-  const toast = (msg: string) => {
-    const host = document.getElementById('toasts');
-    if (!host) return;
-    const el = document.createElement('div');
-    el.className = 'toast';
-    el.textContent = msg;
-    host.appendChild(el);
-    setTimeout(() => el.remove(), 1800);
-  };
-
   // Reset handlers
   const resetToPresetDefaults = () => {
     // Use the currently selected preset's defaults
@@ -511,18 +702,39 @@ export default function Practice() {
     setPitchTarget({ ...p.pitch });
     setBrightTarget({ ...p.bright });
     handleSessionProgressReset('Practice data reset.');
-    toast('Practice data reset');
+    showToast('Practice data reset');
   };
 
   const resetAll = async () => {
+    autoRestartRef.current = false;
     // Settings → defaults
+    const defaultLowPower = defaultSettings.lowPower ?? false;
+    const defaultInputId = defaultSettings.inputDeviceId ?? null;
+    const defaultEchoCancellation = defaultSettings.echoCancellation === true;
+    const defaultNoiseSuppression = defaultSettings.noiseSuppression === true;
+    const defaultAutoGainControl = defaultSettings.autoGainControl === true;
+
     setPreset(defaultSettings.preset);
     setPitchTarget({ min: defaultSettings.pitchMin, max: defaultSettings.pitchMax });
     setBrightTarget({ min: defaultSettings.brightMin, max: defaultSettings.brightMax });
-    setLowPower(false);
+    setLowPower(defaultLowPower);
+    setInputDeviceId(defaultInputId);
+    setEchoCancellation(defaultEchoCancellation);
+    setNoiseSuppression(defaultNoiseSuppression);
+    setAutoGainControl(defaultAutoGainControl);
     try { await (db as any).trials.clear(); } catch { }
     handleSessionProgressReset('Practice data reset.');
-    toast('Practice data reset');
+    try {
+      await restartAudio({
+        inputDeviceId: defaultInputId,
+        echoCancellation: defaultEchoCancellation,
+        noiseSuppression: defaultNoiseSuppression,
+        autoGainControl: defaultAutoGainControl,
+      });
+    } finally {
+      autoRestartRef.current = true;
+    }
+    showToast('Practice data reset');
   };
 
   return (
@@ -681,7 +893,7 @@ export default function Practice() {
         />
 
         {/* Export button */}
-        <ExportButton />
+        <ExportButton onResetAudioPipeline={restartAudio} />
 
         {/* Session Summary */}
         <SessionSummary />

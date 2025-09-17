@@ -3,6 +3,10 @@
 import { db } from '@/lib/db';
 import { dispatchSessionProgressReset } from '@/src/sessionProgress';
 
+type ExportButtonProps = {
+  onResetAudioPipeline?: () => Promise<boolean>;
+};
+
 type ImportedPayload = {
   version: number;
   exportedAt?: string;
@@ -20,7 +24,7 @@ type ImportedPayload = {
   }>;
 };
 
-export default function ExportButton() {
+export default function ExportButton({ onResetAudioPipeline }: ExportButtonProps) {
   const onExport = async () => {
     try {
       const trials = await (db as any).trials.orderBy('ts').reverse().limit(20).toArray();
@@ -68,6 +72,13 @@ export default function ExportButton() {
       window.dispatchEvent(new CustomEvent('resonai:trials-cleared'));
       dispatchSessionProgressReset({ reason: 'trials-cleared', announcementPrefix: 'Trials cleared.' });
       toast('Trials cleared.');
+      if (onResetAudioPipeline) {
+        try {
+          await onResetAudioPipeline();
+        } catch {
+          // Non-fatal; analytics may still have consumed the reset event
+        }
+      }
     }
     catch { toast('Could not clear trials.'); }
   };

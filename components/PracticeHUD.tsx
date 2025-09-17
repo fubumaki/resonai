@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useId } from 'react';
 import { PracticeMetrics, TargetRanges } from '../hooks/usePracticeMetrics';
 
 interface PracticeHUDProps {
@@ -10,12 +10,14 @@ interface PracticeHUDProps {
   className?: string;
 }
 
-export default function PracticeHUD({ 
-  metrics, 
+export default function PracticeHUD({
+  metrics,
   targetRanges,
   isVisible = true,
   className = ''
 }: PracticeHUDProps) {
+  const inRangeGradientId = useId();
+
   if (!isVisible) return null;
 
   const defaultTargetRanges: TargetRanges = {
@@ -64,8 +66,16 @@ export default function PracticeHUD({
     return `${Math.round(percentage)}%`;
   };
 
+  const clampPercentage = (value: number) => Math.min(100, Math.max(0, value));
+  const pitchIndicatorPosition = metrics.pitch === null
+    ? null
+    : clampPercentage(((metrics.pitch - 100) / 500) * 100);
+  const brightnessPercent = clampPercentage(metrics.brightness * 100);
+  const confidencePercent = clampPercentage(metrics.confidence * 100);
+  const inRangePercent = clampPercentage(metrics.inRangePercentage);
+
   return (
-    <div 
+    <div
       className={`practice-hud bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg p-4 ${className}`}
       role="status"
       aria-live="polite"
@@ -87,45 +97,31 @@ export default function PracticeHUD({
           </div>
           
           {/* Pitch Range Indicator */}
-          <div className="relative h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-            <div className="absolute inset-0 flex">
-              {/* Low range indicator */}
-              <div 
-                className="bg-red-400 h-full"
-                style={{ width: '30%' }}
-                aria-hidden="true"
-              />
-              {/* Target range indicator */}
-              <div 
-                className="bg-green-400 h-full"
-                style={{ width: '40%' }}
-                aria-hidden="true"
-              />
-              {/* High range indicator */}
-              <div 
-                className="bg-red-400 h-full"
-                style={{ width: '30%' }}
-                aria-hidden="true"
-              />
-            </div>
-            
-            {/* Current pitch indicator */}
-            {metrics.pitch && (
-              <div 
-                className="absolute top-0 w-1 h-full bg-slate-900 dark:bg-white rounded-full transform -translate-x-1/2"
-                style={{ 
-                  left: `${Math.min(100, Math.max(0, 
-                    ((metrics.pitch - 100) / 500) * 100
-                  ))}%` 
-                }}
-                aria-label={`Pitch indicator at ${formatPitch(metrics.pitch)}`}
-              />
-            )}
+          <div className="h-2" aria-hidden="true">
+            <svg
+              className="practice-meter-svg"
+              viewBox="0 0 100 4"
+              preserveAspectRatio="none"
+            >
+              <rect className="practice-meter-track" x="0" y="0" width="100" height="4" rx="2" />
+              <rect className="practice-pitch-segment practice-pitch-segment--low" x="0" y="0" width="30" height="4" rx="2" />
+              <rect className="practice-pitch-segment practice-pitch-segment--target" x="30" y="0" width="40" height="4" />
+              <rect className="practice-pitch-segment practice-pitch-segment--high" x="70" y="0" width="30" height="4" rx="2" />
+              {pitchIndicatorPosition !== null && (
+                <line
+                  className="practice-pitch-indicator"
+                  x1={pitchIndicatorPosition}
+                  x2={pitchIndicatorPosition}
+                  y1={0}
+                  y2={4}
+                />
+              )}
+            </svg>
           </div>
-          
+
           {/* Status indicator */}
           <div className="flex items-center mt-1">
-            <div 
+            <div
               className={`w-2 h-2 rounded-full mr-2 ${
                 getPitchStatus(metrics.pitch) === 'in-range' ? 'bg-green-500' :
                 getPitchStatus(metrics.pitch) === 'low' ? 'bg-red-500' :
@@ -158,16 +154,27 @@ export default function PracticeHUD({
           </div>
           
           {/* Brightness Meter */}
-          <div className="relative h-8 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-            <div 
-              className={`h-full transition-all duration-200 ${
-                getBrightnessStatus(metrics.brightness) === 'in-range' ? 'bg-green-400' :
-                getBrightnessStatus(metrics.brightness) === 'low' ? 'bg-yellow-400' :
-                'bg-red-400'
-              }`}
-              style={{ width: `${Math.min(100, Math.max(0, metrics.brightness * 100))}%` }}
-              aria-label={`Brightness level: ${formatBrightness(metrics.brightness)}`}
-            />
+          <div className="h-8" aria-label={`Brightness level: ${formatBrightness(metrics.brightness)}`}>
+            <svg
+              className="practice-meter-svg"
+              viewBox="0 0 100 16"
+              preserveAspectRatio="none"
+            >
+              <rect className="practice-meter-track" x="0" y="0" width="100" height="16" rx="8" />
+              <rect
+                className={`practice-meter-fill ${
+                  getBrightnessStatus(metrics.brightness) === 'in-range' ? 'practice-meter-fill--good' :
+                  getBrightnessStatus(metrics.brightness) === 'low' ? 'practice-meter-fill--warn' :
+                  'practice-meter-fill--alert'
+                }`}
+                x="0"
+                y="0"
+                height="16"
+                rx="8"
+                width={brightnessPercent}
+                fill="currentColor"
+              />
+            </svg>
           </div>
         </div>
 
@@ -186,16 +193,27 @@ export default function PracticeHUD({
           </div>
           
           {/* Confidence Meter */}
-          <div className="relative h-8 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-            <div 
-              className={`h-full transition-all duration-200 ${
-                getConfidenceStatus(metrics.confidence) === 'high' ? 'bg-blue-400' :
-                getConfidenceStatus(metrics.confidence) === 'medium' ? 'bg-yellow-400' :
-                'bg-red-400'
-              }`}
-              style={{ width: `${Math.min(100, Math.max(0, metrics.confidence * 100))}%` }}
-              aria-label={`Confidence level: ${formatConfidence(metrics.confidence)}`}
-            />
+          <div className="h-8" aria-label={`Confidence level: ${formatConfidence(metrics.confidence)}`}>
+            <svg
+              className="practice-meter-svg"
+              viewBox="0 0 100 16"
+              preserveAspectRatio="none"
+            >
+              <rect className="practice-meter-track" x="0" y="0" width="100" height="16" rx="8" />
+              <rect
+                className={`practice-meter-fill ${
+                  getConfidenceStatus(metrics.confidence) === 'high' ? 'practice-meter-fill--info' :
+                  getConfidenceStatus(metrics.confidence) === 'medium' ? 'practice-meter-fill--warn' :
+                  'practice-meter-fill--alert'
+                }`}
+                x="0"
+                y="0"
+                height="16"
+                rx="8"
+                width={confidencePercent}
+                fill="currentColor"
+              />
+            </svg>
           </div>
         </div>
 
@@ -214,14 +232,32 @@ export default function PracticeHUD({
           </div>
           
           {/* Progress Bar */}
-          <div className="relative h-3 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-red-400 via-yellow-400 to-green-400 transition-all duration-300"
-              style={{ width: `${Math.min(100, Math.max(0, metrics.inRangePercentage))}%` }}
-              aria-label={`Progress: ${formatInRange(metrics.inRangePercentage)} in range`}
-            />
+          <div className="h-3" aria-label={`Progress: ${formatInRange(metrics.inRangePercentage)} in range`}>
+            <svg
+              className="practice-meter-svg"
+              viewBox="0 0 100 12"
+              preserveAspectRatio="none"
+            >
+              <defs>
+                <linearGradient id={inRangeGradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#f87171" />
+                  <stop offset="50%" stopColor="#facc15" />
+                  <stop offset="100%" stopColor="#22c55e" />
+                </linearGradient>
+              </defs>
+              <rect className="practice-meter-track" x="0" y="0" width="100" height="12" rx="6" />
+              <rect
+                className="practice-meter-gradient-fill"
+                x="0"
+                y="0"
+                height="12"
+                rx="6"
+                width={inRangePercent}
+                fill={`url(#${inRangeGradientId})`}
+              />
+            </svg>
           </div>
-          
+
           <div className="text-xs text-slate-600 dark:text-slate-400 mt-1">
             Last 10 seconds
           </div>
