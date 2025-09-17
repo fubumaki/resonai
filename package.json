@@ -36,8 +36,10 @@
     "cursor:model": "node scripts/cursor-model-router.mjs",
     "issues:seed": "node tools/seed_issues_from_tasks.mjs",
     "issues:create": "node tools/seed_issues_from_tasks.mjs --create",
+    "codex:validate-summaries": "tsx tools/codex-cloud/validate-summaries.ts",
     "backlog:build": "tsx tools/codex-cloud/build-backlog.ts",
     "codex:render-batch": "tsx tools/codex-cloud/render-summaries.ts --input",
+    "codex:manifest": "tsx tools/codex-cloud/generate-manifest.ts",
     "agent:start": "pnpm exec tsx scripts/agent/watchdog.ts"
   },
   "dependencies": {

@@ -44,10 +44,51 @@ async function pathExists(candidate: string): Promise<boolean> {
   }
 }
 
+const PATH_SEPARATOR_PATTERN = /[\\/]/;
+
+function ensureSafeSlug(slug: string, index: number): string {
+  if (!slug) {
+    throw new Error(`Manifest at index ${index} is missing a slug.`);
+  }
+
+  if (slug === "." || slug === "..") {
+    throw new Error(`Manifest at index ${index} slug resolves outside the output directory.`);
+  }
+
+  if (PATH_SEPARATOR_PATTERN.test(slug)) {
+    throw new Error(
+      `Manifest at index ${index} slug "${slug}" must not include path separators.`,
+    );
+  }
+
+  if (path.isAbsolute(slug)) {
+    throw new Error(`Manifest at index ${index} slug must be relative, received "${slug}".`);
+  }
+
+  if (slug.includes("\0")) {
+    throw new Error(`Manifest at index ${index} slug contains invalid characters.`);
+  }
+
+  const normalized = path.normalize(slug);
+  if (
+    normalized === ".." ||
+    normalized === "." ||
+    normalized.startsWith(`..${path.sep}`) ||
+    normalized.includes(`${path.sep}..${path.sep}`) ||
+    normalized.endsWith(`${path.sep}..`)
+  ) {
+    throw new Error(
+      `Manifest at index ${index} slug "${slug}" resolves outside the output directory.`,
+    );
+  }
+
+  return slug;
+}
+
 function extractSlug(manifest: Manifest, frontMatter: Record<string, unknown>, index: number): string {
   const candidate = frontMatter.slug ?? manifest.slug;
   if (typeof candidate === "string" && candidate.trim()) {
-    return candidate.trim();
+    return ensureSafeSlug(candidate.trim(), index);
   }
 
   throw new Error(`Manifest at index ${index} is missing a slug.`);
