@@ -73,31 +73,27 @@ class AnalyticsClient {
     });
   }
 
+  private getCsrfToken(): string | null {
+    if (typeof document === 'undefined') return null;
+    const match = document.cookie
+      .split('; ')
+      .find(row => row.startsWith('resonai_csrf='));
+    return match ? decodeURIComponent(match.split('=')[1]) : null;
+  }
+
   private async flush(): Promise<void> {
     if (this.buffer.length === 0) return;
 
     const events = [...this.buffer];
     this.buffer = [];
 
+    if (process.env.NODE_ENV === 'production') {
+      // Honor privacy promise: do not transmit analytics beacons in production builds.
+      return;
+    }
+
     try {
-      // Use sendBeacon for reliable delivery
-      if (navigator.sendBeacon) {
-        const payload = JSON.stringify({ events });
-        const body = typeof Blob !== 'undefined'
-          ? new Blob([payload], { type: 'application/json' })
-          : payload;
-        const success = navigator.sendBeacon(
-          '/api/events',
-          body
-        );
-        if (!success) {
-          // Fallback to fetch if sendBeacon fails
-          await this.fallbackFlush(events);
-        }
-      } else {
-        // Fallback for browsers without sendBeacon
-        await this.fallbackFlush(events);
-      }
+      await this.fallbackFlush(events);
     } catch (error) {
       console.warn('Analytics flush failed:', error);
       // Re-add events to buffer for retry
@@ -106,11 +102,19 @@ class AnalyticsClient {
   }
 
   private async fallbackFlush(events: AnalyticsEvent[]): Promise<void> {
+    const csrf = this.getCsrfToken();
+    if (!csrf) {
+      console.warn('Analytics flush blocked: missing CSRF token');
+      return;
+    }
+
     await fetch('/api/events', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-resonai-csrf': csrf,
       },
+      credentials: 'same-origin',
       body: JSON.stringify({ events }),
     });
   }

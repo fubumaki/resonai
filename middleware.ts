@@ -3,6 +3,7 @@ import { bucketPct } from './lib/flagBucket';
 
 const PILOT_COOKIE = 'pilot_cohort';     // 'pilot' | 'control'
 const DEFAULT_ROLLOUT = 0.2;             // 20% if env missing
+const CSRF_COOKIE = 'resonai_csrf';
 
 export function middleware(req: NextRequest) {
   const url = req.nextUrl.clone();
@@ -23,6 +24,18 @@ export function middleware(req: NextRequest) {
     const pct = Number(process.env.PILOT_ROLLOUT_PCT ?? DEFAULT_ROLLOUT);
     const cohort = bucketPct(sid) < pct ? 'pilot' : 'control';
     res.cookies.set(PILOT_COOKIE, cohort, { path: '/', httpOnly: false, sameSite: 'lax', maxAge: 60 * 60 * 24 * 365 });
+  }
+
+  const csrfCookie = req.cookies.get(CSRF_COOKIE)?.value;
+  if (!csrfCookie) {
+    const token = crypto.randomUUID().replace(/-/g, '');
+    res.cookies.set(CSRF_COOKIE, token, {
+      path: '/',
+      httpOnly: false,
+      sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 60 * 60 * 24 * 30,
+    });
   }
 
   return res;
