@@ -7,6 +7,7 @@ type EventItem = {
   props?: Record<string, unknown>;
   ts?: number;
   session_id?: string;
+  session_hash?: string;
   variant?: Record<string, string>;
 };
 
@@ -66,7 +67,7 @@ export default function AnalyticsPage() {
 
     const bySession = new Map<string, { activation: boolean }>();
     for (const e of events) {
-      const sid = e.session_id || 'anon';
+      const sid = e.session_hash || e.session_id || 'anon';
       const rec = bySession.get(sid) ?? { activation: false };
       if (e.event === 'activation') rec.activation = true;
       bySession.set(sid, rec);

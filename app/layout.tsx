@@ -23,19 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        <Script id="session-progress-globals" strategy="beforeInteractive">
-          {`
-            window.__resetSessionProgress = window.__resetSessionProgress || function () { 
-              if (window.__resetSessionProgressImpl) window.__resetSessionProgressImpl();
-            };
-            window.__getSessionProgress = window.__getSessionProgress || function () { 
-              return window.__getSessionProgressImpl ? window.__getSessionProgressImpl() : [];
-            };
-            window.__trackSessionProgress = window.__trackSessionProgress || function (stepCount, totalSteps) { 
-              return window.__trackSessionProgressImpl ? window.__trackSessionProgressImpl(stepCount, totalSteps) : {};
-            };
-          `}
-        </Script>
+        <Script src="/scripts/session-progress-globals.js" strategy="beforeInteractive" />
         <a href="#main" className="sr-only">Skip to content</a>
         <header className="site">
           <div className="container">
