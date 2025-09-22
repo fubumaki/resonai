@@ -97,9 +97,9 @@ export default function PracticeHUD({
   };
 
   // Calculate enhanced metrics according to contracts
-  const timeInTarget = metrics.timeInTargetPct || 0;
-  const smoothness = metrics.smoothness || (1 - (metrics.jitterEma || 0));
-  const expressiveness = metrics.expressiveness || 0;
+  const timeInTarget = metrics.timeInTargetPct ?? 0;
+  const smoothness = metrics.smoothness ?? (1 - (metrics.jitterEma ?? 0));
+  const expressiveness = metrics.expressiveness ?? 0;
 
   const pitchStatus = getPitchStatus(metrics.pitch);
   const brightnessStatus = getBrightnessStatus(metrics.brightness);
@@ -279,11 +279,11 @@ export default function PracticeHUD({
             <div className="grid grid-cols-2 gap-4 text-xs">
               <div>
                 <span className="text-slate-500 dark:text-slate-400">Voiced Time:</span>
-                <span className="ml-2 font-mono">{Math.round((metrics.voicedTimePct || 0) * 100)}%</span>
+                <span className="ml-2 font-mono">{Math.round((metrics.voicedTimePct ?? 0) * 100)}%</span>
               </div>
               <div>
                 <span className="text-slate-500 dark:text-slate-400">Jitter EMA:</span>
-                <span className="ml-2 font-mono">{(metrics.jitterEma || 0).toFixed(3)}</span>
+                <span className="ml-2 font-mono">{(metrics.jitterEma ?? 0).toFixed(3)}</span>
               </div>
             </div>
           </div>
@@ -299,3 +299,4 @@ export default function PracticeHUD({
     </div>
   );
 }
+

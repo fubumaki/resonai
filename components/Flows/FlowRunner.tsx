@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FlowV1, FlowState, StepResult } from '@/flows/schema';
-import PracticeHUD from '@/components/PracticeHUD';
+import PracticeHUD from '@/components/HUD/PracticeHUD';
 import { usePracticeMetrics } from '@/hooks/usePracticeMetrics';
 
 interface FlowRunnerProps {
@@ -76,10 +76,10 @@ export default function FlowRunner({
           derived[metric] = practiceMetrics.jitterEma || 0;
           break;
         case 'timeInTargetPct':
-          derived[metric] = practiceMetrics.inRangePercentage / 100 || 0;
+          derived[metric] = practiceMetrics.timeInTargetPct ?? 0;
           break;
         case 'smoothness':
-          derived[metric] = 1 - (practiceMetrics.jitterEma || 0); // Inverse of jitter for smoothness
+          derived[metric] = practiceMetrics.smoothness ?? (1 - (practiceMetrics.jitterEma || 0)); // Inverse of jitter for smoothness
           break;
         case 'endRiseDetected':
           derived[metric] = practiceMetrics.endRiseDetected || false;
@@ -382,6 +382,7 @@ export default function FlowRunner({
             metrics={metrics}
             isVisible={isRecording && metricsActive}
             className="max-w-md mx-auto"
+            showAdvancedMetrics
           />
         </div>
       )}
@@ -393,3 +394,4 @@ export default function FlowRunner({
     </div>
   );
 }
+

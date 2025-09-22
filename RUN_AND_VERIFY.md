@@ -1,3 +1,51 @@
+# ✅ Env Clean & Healthy — Acceptance (Resonai)
+
+**Date:** {{YYYY-MM-DD}}  
+**Runner:** {{name}}  •  **OS:** Windows 11  •  **Node:** v{{x.y.z}}  •  **pnpm:** v{{x.y.z}}
+
+## Summary
+- [x] Tidy run (caches purged, store pruned)
+- [x] Install (lock honored)
+- [x] Build (Next.js)
+- [x] Smoke (optional Playwright)
+- [x] Isolation (COOP/COEP present; `crossOriginIsolated === true`)
+
+## Commands (PowerShell)
+```pwsh
+# 0) Fast cleanup
+pnpm run tidy
+
+# 1) Install (lockfile is the source of truth)
+pnpm i --frozen-lockfile
+
+# 2) Build (should exit 0)
+pnpm build
+
+# 3) (Optional) Run smoke tests if available
+# pnpm test:smoke   # or: pnpm exec playwright test --project=firefox --grep @smoke
+
+# 4) Verify headers & isolation in a local run
+# Start dev (separate terminal) → next dev --turbo
+# Then in browser console:
+#   console.log(window.crossOriginIsolated)
+# Expect: true
+```
+
+## Acceptance Criteria
+
+| Check         | Expectation                                       | Result  |
+| ------------- | ------------------------------------------------- | ------- |
+| **Tidy**      | `== DONE ==` printed; no errors                   | ✅/❌     |
+| **Install**   | `pnpm i --frozen-lockfile` completes              | ✅/❌     |
+| **Build**     | `pnpm build` exits 0; no CSP warnings             | ✅/❌     |
+| **Smoke**     | (optional) smoke tests pass                       | ✅/❌/N/A |
+| **Isolation** | COOP/COEP present; `crossOriginIsolated === true` | ✅/❌     |
+
+> Notes:
+>
+> * If `crossOriginIsolated` is false, check `next.config.js` headers (COOP/COEP), service worker passthrough, and any third-party assets that lack CORS/CORP.
+> * If build is slow after heavy Docker use, run `pnpm run tidy && pnpm run clean:deep` and repeat the acceptance flow.
+
 # Run and Verify Guide
 
 ## CI Single Source of Truth (SSOT)

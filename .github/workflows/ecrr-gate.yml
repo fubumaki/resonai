@@ -1,0 +1,40 @@
+name: ECRR Gate
+
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  check-ecrr:
+    name: Verify PR contains ECRR block
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate ECRR block in PR body
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.pull_request?.body || "";
+            const hasBlock = /(^|\n)##\s*✅\s*ECRR Gate\b/i.test(body);
+
+            if (!hasBlock) {
+              core.setFailed(
+                "ECRR check failed: PR body must include a '## ✅ ECRR Gate' section. " +
+                "Use the checklist from .github/pull_request_template.md."
+              );
+            } else {
+              // Optional: soft warning if no linked ECRR report file is mentioned
+              const mentionsReport = /docs\/ECRR_REPORTS\/.+\.md/i.test(body);
+              if (!mentionsReport) {
+                core.notice(
+                  "ECRR note: consider linking your report (docs/ECRR_REPORTS/<date>-<slug>.md).",
+                  { title: "ECRR report link not detected" }
+                );
+              }
+              core.summary
+                .addHeading("ECRR Gate")
+                .addRaw("✅ Found '## ✅ ECRR Gate' in PR body.\n")
+                .write();
+            }

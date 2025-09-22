@@ -1,7 +1,10 @@
 // Minimal dev-friendly analytics sink with an in-memory ring buffer.
 // DO NOT rely on this for production. Replace with your real sink when ready.
+// Also forwards sanitized analytics to OTel Collector → SigNoz for observability.
 
 // --- add at top-level (module scope) ---
+import { sendOtelLogs, createAnalyticsLogRecord } from '../../../lib/otel/logs';
+
 type RateState = { count: number; resetAt: number };
 const RL: Map<string, RateState> = (globalThis as { __EVENT_RL__?: Map<string, RateState> }).__EVENT_RL__ ??= new Map();
 
@@ -101,6 +104,22 @@ export async function POST(request: Request) {
     
     console.log(`[events] +${valid.length} (schema=${SCHEMA_VERSION})`);
     push(valid);
+    
+    // Tee analytics to OTel Collector → SigNoz (best-effort, non-blocking)
+    try {
+      const otelRecords = valid.map(createAnalyticsLogRecord);
+      // Send in small batches to avoid overwhelming the collector
+      const batchSize = 50;
+      for (let i = 0; i < otelRecords.length; i += batchSize) {
+        const batch = otelRecords.slice(i, i + batchSize);
+        sendOtelLogs(batch).catch(err => 
+          console.warn('[events] OTel forwarding failed:', err.message)
+        );
+      }
+    } catch (err) {
+      console.warn('[events] OTel record creation failed:', err instanceof Error ? err.message : String(err));
+    }
+    
     return new Response(JSON.stringify({ ok: true, count: valid.length }), {
       status: 200,
       headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },

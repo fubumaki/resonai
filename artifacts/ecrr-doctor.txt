@@ -1,0 +1,27 @@
+[INFO] ECRR Doctor - Resonai Environment Examination
+[INFO] Timestamp: 2025-09-20 04:09:48
+[INFO] Working directory: C:\otel\third_party\resonai
+[INFO] PowerShell version: 7.5.3
+[SECTION] Development tooling
+[OK] Node.js detected: v22.18.0
+[OK] pnpm detected: 8.15.0
+[OK] package.json found
+[SECTION] Development server status
+[OK] Dev server detected on port 3003
+[SECTION] Agent workflow files
+[OK] .agent directory present
+[SECTION] ECRR report storage
+[OK] docs/ECRR_REPORTS present with 1 markdown files
+[SECTION] Resonai-specific validation
+[OK] Resonai component found: app/layout.tsx
+[OK] Resonai component found: app/page.tsx
+[OK] Resonai component found: audio
+[OK] Resonai component found: components
+[OK] Resonai component found: coach
+[SECTION] Manual follow-up checks
+[NOTE] Open browser devtools and check: location.href, window.crossOriginIsolated === true
+[NOTE] Test mic constraints: navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false, noiseSuppression:false, autoGainControl:false}})
+[NOTE] Verify practice flow: warm-up → glide → phrase → reflection displays correctly
+[NOTE] Check IndexedDB: open DevTools → Application → IndexedDB → ResonaiDB
+[SECTION] Summary
+[OK] No critical issues detected

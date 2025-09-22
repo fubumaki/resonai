@@ -1,6 +1,15 @@
 ## Summary
 Provide a concise description of the change and the why.
 
+## ✅ Env Clean & Healthy (from RUN_AND_VERIFY.md)
+- Tidy: ☐/✅
+- Install: ☐/✅
+- Build: ☐/✅
+- Smoke (Playwright): ☐/✅/N/A
+- Isolation (crossOriginIsolated): ☐/✅
+
+Notes:
+
 ## Owner Checklist
 - [ ] A1 - SSOT regenerated or explicitly deferred with rationale
 - [ ] B1 - Reset flows verified (practice session, progress meter, toasts)
@@ -16,3 +25,4 @@ Provide a concise description of the change and the why.
 
 <!-- Macro: comment this once CI is green -->
 `@cloud ready-for-gate`
+

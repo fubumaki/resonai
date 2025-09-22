@@ -5,6 +5,9 @@
 - Ship-gate SLOs treat privacy, isolation, and offline readiness as go/no-go criteria, so every remediation must preserve the local-first guarantees documented for the practice flow.【F:docs/slo-budgets.md†L30-L75】
 - This response maps each audit issue to accountable owners and code areas while anchoring follow-up decisions to the governance log in `docs/DECISIONS.md`.
 
+## Audit Acceptance Checklist
+- [x] Isolation: Confirm `window.crossOriginIsolated === true` in Firefox both online and after an offline reload under service worker control (run `pnpm playwright test isolation_headers.spec.ts --project=firefox`).
+
 ## Issue Matrix
 | Issue | Impact | Status | Recommended Owner(s) | Linked Areas / Docs | Notes & Next Actions |
 | --- | --- | --- | --- | --- | --- |
