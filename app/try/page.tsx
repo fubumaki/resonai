@@ -1,389 +1,188 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { getFeatureFlag } from '@/lib/feature-flags';
-import { getExperimentVariant } from '@/lib/ab';
-import {
-  trackScreenView,
-  trackPermissionRequested,
-  trackPermissionGranted,
-  trackPermissionDenied,
-  trackMicSessionStart,
-  trackMicSessionEnd,
-  trackTtvMeasured,
-  trackActivation
-} from '@/lib/analytics';
-import { getCoachMessage, getProgressMessage } from '@/lib/coach-copy';
-import MicPrimerDialog from '@/components/MicPrimerDialog';
-import MicCalibrationFlow from '@/components/MicCalibrationFlow';
-import PracticeHUD from '@/components/PracticeHUD';
-import ProgressBar from '@/components/ProgressBar';
-import MicroInteraction from '@/components/MicroInteraction';
-import { useMicCalibration } from '@/hooks/useMicCalibration';
-import { usePracticeMetrics } from '@/hooks/usePracticeMetrics';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import FlowRunner from '@/components/Flows/FlowRunner';
+import { FlowV1, StepResult } from '@/flows/schema';
+import { trackScreenView, trackActivation } from '@/lib/analytics';
 
-export default function InstantPractice() {
-  const [micReady, setMicReady] = useState(false);
-  const [recording, setRecording] = useState(false);
+export default function TryPage() {
+  const [flow, setFlow] = useState<FlowV1 | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showPrimer, setShowPrimer] = useState(false);
-  const [showCalibration, setShowCalibration] = useState(false);
-  const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
-  const [hasActivated, setHasActivated] = useState(false);
-  const [currentMessage, setCurrentMessage] = useState<keyof typeof import('@/lib/coach-copy').COACH_MESSAGES>('ready');
-  const [showMicroInteraction, setShowMicroInteraction] = useState(false);
-
-  // Calibration state management
-  const { config, isConfigured, saveConfig, retestMic } = useMicCalibration();
-
-  const mediaStreamRef = useRef<MediaStream | null>(null);
-
-  // Practice metrics for HUD
-  const { metrics, isActive: metricsActive, error: metricsError, start: startMetrics, stop: stopMetrics } = usePracticeMetrics(
-    mediaStreamRef.current,
-    {
-      targetRanges: {
-        pitchMin: 200, // G3
-        pitchMax: 400, // G4
-        brightnessMin: 0.3,
-        brightnessMax: 0.7,
-      },
-      updateInterval: 16.67, // 60fps
-      historyLength: 600, // 10 seconds at 60fps
-    }
-  );
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const ttvStartTime = useRef<number>(Date.now());
-
-  // Feature flags and experiments
-  const instantPracticeEnabled = getFeatureFlag('ff.instantPractice');
-  const hapticsEnabled = getFeatureFlag('ff.haptics');
-  const primerShort = getFeatureFlag('ff.permissionPrimerShort');
-  const signUpFirst = getFeatureFlag('ff.signUpFirst');
-
-  const e1Variant = getExperimentVariant('E1');
-  const e2Variant = getExperimentVariant('E2');
+  const router = useRouter();
 
   useEffect(() => {
-    // Check pilot cohort cookie
-    const pilotCohort = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('pilot_cohort='))
-      ?.split('=')[1];
-
-    if (pilotCohort !== 'pilot') {
-      // Not in pilot cohort, redirect to home
-      window.location.href = '/';
-      return;
-    }
-
-    if (!instantPracticeEnabled) {
-      // Redirect to home if feature is disabled
-      window.location.href = '/';
-      return;
-    }
-
     // Track screen view
-    trackScreenView('instant_practice');
-
-    // Set TTV start time
-    ttvStartTime.current = Date.now();
-  }, [instantPracticeEnabled]);
-
-  const requestMic = async () => {
-    try {
-      // Check if we have a calibrated configuration
-      if (isConfigured && config) {
-        // Use calibrated configuration
-        await requestMicWithCalibration();
-      } else {
-        // Show calibration flow for new users or E2A variant
-        if (e2Variant === 'A' && primerShort) {
-          setShowPrimer(true);
-          return;
-        }
-        
-        // Show calibration flow for better setup
-        setShowCalibration(true);
-      }
-    } catch (error) {
-      console.error('Mic request failed:', error);
-    }
-  };
-
-  const requestMicWithCalibration = async () => {
-    try {
-      trackPermissionRequested('microphone', 'instant_practice');
-
-      // Use calibrated constraints
-      const constraints = {
-        audio: config!.constraints
-      };
-
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      mediaStreamRef.current = stream;
-      setMicReady(true);
-      setError(null);
-      setCurrentMessage('ready');
-
-      trackPermissionGranted('instant_practice');
-
-      // Measure TTV
-      const ttv = Date.now() - ttvStartTime.current;
-      trackTtvMeasured(ttv);
-
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Microphone access denied');
-      setCurrentMessage('micDenied');
-      trackPermissionDenied('instant_practice');
-    }
-  };
-
-  const requestMicPermission = async () => {
-    try {
-      trackPermissionRequested('microphone', 'instant_practice');
-
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaStreamRef.current = stream;
-      setMicReady(true);
-      setError(null);
-      setCurrentMessage('ready');
-
-      trackPermissionGranted('instant_practice');
-
-      // Measure TTV
-      const ttv = Date.now() - ttvStartTime.current;
-      trackTtvMeasured(ttv);
-
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Microphone access denied');
-      setCurrentMessage('micDenied');
-      trackPermissionDenied('instant_practice');
-    }
-  };
-
-  const handlePrimerAccept = async () => {
-    setShowPrimer(false);
-    await requestMicPermission();
-  };
-
-  const handlePrimerDecline = () => {
-    setShowPrimer(false);
-    setCurrentMessage('micDenied');
-    trackPermissionDenied('instant_practice');
-  };
-
-  const handleCalibrationComplete = async (calibrationConfig: any) => {
-    saveConfig(calibrationConfig);
-    setShowCalibration(false);
+    trackScreenView('try_page');
     
-    // Use the calibrated configuration immediately
-    await requestMicWithCalibration();
-  };
+    // Load the DailyPractice flow
+    loadDailyPracticeFlow();
+  }, []);
 
-  const handleCalibrationCancel = () => {
-    setShowCalibration(false);
-    // Fall back to basic permission request
-    requestMicPermission();
-  };
-
-  const startStop = () => {
-    if (!micReady) return;
-
-    if (!recording) {
-      // Haptic feedback
-      if (hapticsEnabled && navigator.vibrate) {
-        navigator.vibrate(10);
+  const loadDailyPracticeFlow = async () => {
+    try {
+      const response = await fetch('/flows/presets/DailyPractice_v1.json');
+      if (!response.ok) {
+        throw new Error(`Failed to load flow: ${response.statusText}`);
       }
-
-      const mr = new MediaRecorder(mediaStreamRef.current!);
-      mediaRecorderRef.current = mr;
-      mr.start();
-      setRecording(true);
-      setSessionStartTime(Date.now());
-      setCurrentMessage('recording');
-
-      // Update pitch meter state
-      const pitchMeter = document.querySelector('.pitch-meter');
-      if (pitchMeter) {
-        pitchMeter.setAttribute('data-active', 'true');
-      }
-
-      trackMicSessionStart();
-
-      // Dispatch analytics event
-      window.dispatchEvent(new CustomEvent('analytics:track', {
-        detail: { event: 'mic_session_start', props: {}, ts: Date.now() }
-      }));
-    } else {
-      mediaRecorderRef.current?.stop();
-      setRecording(false);
-
-      // Update pitch meter state
-      const pitchMeter = document.querySelector('.pitch-meter');
-      if (pitchMeter) {
-        pitchMeter.setAttribute('data-active', 'false');
-      }
-
-      const duration = sessionStartTime ? Date.now() - sessionStartTime : undefined;
-      trackMicSessionEnd(duration);
-
-      // Dispatch analytics event
-      window.dispatchEvent(new CustomEvent('analytics:track', {
-        detail: { event: 'mic_session_end', props: { duration }, ts: Date.now() }
-      }));
-
-      // Show celebration for first session
-      if (!hasActivated) {
-        setCurrentMessage('firstSession');
-        setShowMicroInteraction(true);
-        trackActivation('instant_practice_m0');
-        setHasActivated(true);
-      } else {
-        setCurrentMessage('sessionComplete');
-        setShowMicroInteraction(true);
-      }
+      
+      const flowData: FlowV1 = await response.json();
+      setFlow(flowData);
+    } catch (err) {
+      console.error('Failed to load DailyPractice flow:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load practice flow');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const getCurrentCoachMessage = () => {
-    return getCoachMessage(currentMessage);
+  const handleFlowComplete = (results: StepResult[]) => {
+    console.log('Flow completed with results:', results);
+    
+    // Track activation
+    trackActivation('daily_practice_complete');
+    
+    // Calculate session summary
+    const sessionSummary = {
+      ts: Date.now(),
+      medianF0: calculateMedianF0(results),
+      inBandPct: calculateInBandPercentage(results),
+      prosodyVar: calculateProsodyVariance(results),
+      voicedTimePct: calculateVoicedTimePercentage(results),
+      jitterEma: calculateAverageJitter(results),
+      comfort: results.find(r => r.stepId === 'reflection')?.metrics.comfort as number || 3,
+      fatigue: results.find(r => r.stepId === 'reflection')?.metrics.fatigue as number || 3,
+      euphoria: results.find(r => r.stepId === 'reflection')?.metrics.euphoria as number || 3,
+    };
+    
+    // Store session in IndexedDB (implement storage logic)
+    storeSessionSummary(sessionSummary);
+    
+    // Show completion message and redirect
+    setTimeout(() => {
+      router.push('/practice?completed=true');
+    }, 2000);
   };
 
-  if (!instantPracticeEnabled) {
-    return null;
+  const handleStepChange = (stepId: string, metrics: Record<string, number | boolean>) => {
+    console.log(`Step ${stepId} metrics:`, metrics);
+    // Could emit analytics events here for step-level tracking
+  };
+
+  // Helper functions for session summary calculation
+  const calculateMedianF0 = (results: StepResult[]): number | null => {
+    const pitchValues = results
+      .filter(r => r.stepId !== 'reflection')
+      .map(r => r.metrics.medianF0)
+      .filter((f0): f0 is number => typeof f0 === 'number');
+    
+    if (pitchValues.length === 0) return null;
+    
+    const sorted = pitchValues.sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 === 0 ? 
+      (sorted[mid - 1] + sorted[mid]) / 2 : 
+      sorted[mid];
+  };
+
+  const calculateInBandPercentage = (results: StepResult[]): number => {
+    const inBandValues = results
+      .filter(r => r.stepId !== 'reflection' && typeof r.metrics.timeInTargetPct === 'number')
+      .map(r => r.metrics.timeInTargetPct as number);
+    
+    return inBandValues.length > 0 ? 
+      inBandValues.reduce((sum, val) => sum + val, 0) / inBandValues.length : 0;
+  };
+
+  const calculateProsodyVariance = (results: StepResult[]): number => {
+    const prosodyValues = results
+      .filter(r => r.stepId !== 'reflection' && typeof r.metrics.expressiveness === 'number')
+      .map(r => r.metrics.expressiveness as number);
+    
+    if (prosodyValues.length === 0) return 0;
+    
+    const mean = prosodyValues.reduce((sum, val) => sum + val, 0) / prosodyValues.length;
+    const variance = prosodyValues.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / prosodyValues.length;
+    return Math.sqrt(variance);
+  };
+
+  const calculateVoicedTimePercentage = (results: StepResult[]): number => {
+    const voicedValues = results
+      .filter(r => r.stepId !== 'reflection' && typeof r.metrics.voicedTimePct === 'number')
+      .map(r => r.metrics.voicedTimePct as number);
+    
+    return voicedValues.length > 0 ? 
+      voicedValues.reduce((sum, val) => sum + val, 0) / voicedValues.length : 0;
+  };
+
+  const calculateAverageJitter = (results: StepResult[]): number => {
+    const jitterValues = results
+      .filter(r => r.stepId !== 'reflection' && typeof r.metrics.jitterEma === 'number')
+      .map(r => r.metrics.jitterEma as number);
+    
+    return jitterValues.length > 0 ? 
+      jitterValues.reduce((sum, val) => sum + val, 0) / jitterValues.length : 0;
+  };
+
+  const storeSessionSummary = async (summary: any) => {
+    try {
+      // TODO: Implement IndexedDB storage
+      console.log('Storing session summary:', summary);
+    } catch (error) {
+      console.error('Failed to store session summary:', error);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="text-slate-600 dark:text-slate-400">Loading practice flow...</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 flex items-center justify-center">
+        <div className="text-center space-y-4 max-w-md mx-auto p-6">
+          <div className="text-red-500 text-4xl">⚠️</div>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Unable to Load Practice</h1>
+          <p className="text-slate-600 dark:text-slate-400">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  if (!flow) {
+    return (
+      <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <p className="text-slate-600 dark:text-slate-400">No practice flow available</p>
+        </div>
+      </main>
+    );
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 pb-20">
-      {/* Progress bar for multi-step flow */}
-      <div className="p-4">
-        <ProgressBar
-          currentStep={micReady ? 2 : 1}
-          totalSteps={2}
+    <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900">
+      <div className="container mx-auto px-4 py-8">
+        <FlowRunner
+          flow={flow}
+          onComplete={handleFlowComplete}
+          onStepChange={handleStepChange}
+          className="max-w-2xl mx-auto"
         />
       </div>
-
-      {/* Practice HUD */}
-      {micReady && recording && (
-        <section className="fixed top-4 left-4 right-4 z-40">
-          <div className="max-w-md mx-auto">
-            <PracticeHUD 
-              metrics={metrics}
-              isVisible={recording && metricsActive}
-              className="shadow-xl"
-            />
-          </div>
-        </section>
-      )}
-
-      {/* Visual feedback area */}
-      <section className="flex-1 flex items-center justify-center p-8" aria-live="polite">
-        <div className="text-center space-y-6">
-          <div
-            className={`w-32 h-32 mx-auto rounded-full flex items-center justify-center transition-all duration-300 ${recording
-              ? 'bg-blue-100 dark:bg-blue-900/20 scale-110'
-              : 'bg-slate-100 dark:bg-slate-800'
-              }`}
-            data-active={recording}
-          >
-            <span className="text-4xl">
-              {recording ? '🎤' : '🎵'}
-            </span>
-          </div>
-
-          {/* Pitch meter for visual feedback */}
-          <div
-            className="pitch-meter w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden transition-all duration-300"
-            data-active="false"
-            aria-label="Audio level indicator"
-          >
-            <div className="h-full bg-gradient-to-r from-green-400 to-blue-500 rounded-full transition-all duration-300 w-0" />
-          </div>
-
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-              Instant Practice
-            </h1>
-            <p className="text-slate-600 dark:text-slate-400">
-              {getCurrentCoachMessage().text}
-            </p>
-            {error && (
-              <p className="text-red-600 dark:text-red-400 text-sm" role="alert">
-                {error}
-              </p>
-            )}
-            {metricsError && (
-              <p className="text-yellow-600 dark:text-yellow-400 text-sm" role="alert">
-                Metrics: {metricsError}
-              </p>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Bottom controls */}
-      <nav className="fixed bottom-20 left-0 right-0 p-4 safe-area-pb">
-        <div className="max-w-sm mx-auto space-y-3">
-          {!micReady ? (
-            <button
-              className="w-full py-4 px-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 active:scale-95"
-              onClick={requestMic}
-              aria-label="Enable microphone to start practicing"
-            >
-              {isConfigured ? 'Start with voice' : 'Setup microphone'}
-            </button>
-          ) : (
-            <>
-              <button
-                className={`w-full py-4 px-6 font-semibold rounded-lg shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-900 active:scale-95 ${recording
-                  ? 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-500'
-                  : 'bg-green-600 hover:bg-green-700 text-white focus:ring-green-500'
-                  }`}
-                onClick={startStop}
-                aria-pressed={recording}
-              >
-                {recording ? 'Stop' : 'Start'}
-              </button>
-              
-              {/* Recalibrate option */}
-              <button
-                className="w-full py-2 px-4 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors duration-200"
-                onClick={() => setShowCalibration(true)}
-              >
-                Recalibrate microphone
-              </button>
-            </>
-          )}
-        </div>
-      </nav>
-
-      {/* Permission primer dialog */}
-      <MicPrimerDialog
-        isOpen={showPrimer}
-        onAccept={handlePrimerAccept}
-        onDecline={handlePrimerDecline}
-      />
-
-      {/* Mic calibration flow */}
-      {showCalibration && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <MicCalibrationFlow
-              onComplete={handleCalibrationComplete}
-              onCancel={handleCalibrationCancel}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Micro-interactions */}
-      {showMicroInteraction && (
-        <MicroInteraction
-          message={getCurrentCoachMessage()}
-          onComplete={() => setShowMicroInteraction(false)}
-        />
-      )}
     </main>
   );
 }

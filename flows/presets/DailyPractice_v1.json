@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "flowName": "DailyPractice_v1",
+  "steps": [
+    {
+      "id": "onboarding",
+      "type": "info",
+      "title": "Welcome to Daily Practice",
+      "content": "Find a quiet space, wear headphones, and relax your shoulders.\n\n💡 For best results: disable Windows microphone 'audio enhancements' in device properties for a clean signal.\n\nWhen you're ready, press Next to begin your practice session.",
+      "next": "warmup"
+    },
+    {
+      "id": "warmup",
+      "type": "drill",
+      "title": "SOVT Warm‑Up",
+      "copy": "Gentle lip trill or hum for about a minute. Keep it easy and relaxed.",
+      "durationSec": 60,
+      "metrics": ["voicedTimePct", "jitterEma"],
+      "successThreshold": { "voicedTimePct": 0.6 },
+      "next": "glide"
+    },
+    {
+      "id": "glide",
+      "type": "drill",
+      "title": "Pitch Glide",
+      "copy": "Glide smoothly up, then down through your comfortable range. Aim for steady movement without sudden jumps.",
+      "durationSec": 45,
+      "target": { "pitchRange": ["low", "high"] },
+      "metrics": ["timeInTargetPct", "jitterEma", "smoothness"],
+      "successThreshold": { "timeInTargetPct": 0.7, "smoothness": 0.6 },
+      "next": "phrase"
+    },
+    {
+      "id": "phrase",
+      "type": "drill",
+      "title": "Prosody Phrase",
+      "copy": "Say: \"How are you doing?\" with a gentle rise at the end. Focus on natural intonation.",
+      "durationSec": 30,
+      "target": { "intonation": "rising", "phraseText": "How are you doing?" },
+      "metrics": ["endRiseDetected", "expressiveness"],
+      "successThreshold": { "endRiseDetected": true, "expressiveness": 0.5 },
+      "next": "reflection"
+    },
+    {
+      "id": "reflection",
+      "type": "reflection",
+      "title": "Session Reflection",
+      "copy": "Nice work! Let's capture how that felt:",
+      "prompts": ["Comfort level (1–5)", "Any tightness or strain?", "A note for tomorrow's practice"]
+    }
+  ]
+}
