@@ -1,0 +1,18 @@
+OpenTelemetry functions loaded:
+  canary           - Run canary test
+  otel-status      - Quick status check
+  otel-restart-test - Test auto-restart functionality
+  otel-health      - Check health endpoint
+  otel-start       - Start service
+  otel-stop        - Stop service
+  otel-restart     - Restart service
+== ECRR-01 COI Header Verification ==
+Base URL: http://localhost:3003
+Paths: /, /_next/static/chunks/webpack.js
+
+Checking http://localhost:3003/...
+  √ COOP=same-origin; COEP=require-corp
+Checking http://localhost:3003/_next/static/chunks/webpack.js...
+  √ COOP=same-origin; COEP=require-corp
+
+== COI headers verified == √
