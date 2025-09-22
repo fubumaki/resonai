@@ -7,6 +7,41 @@ const nextConfig = {
     NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA: process.env.VERCEL_GIT_COMMIT_SHA || "local-dev",
     NEXT_PUBLIC_VERCEL_ENV: process.env.VERCEL_ENV || "development",
   },
+  
+  // Webpack config for ONNX Runtime Web and SharedArrayBuffer support
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        path: false,
+        crypto: false,
+      };
+    }
+    
+    // Exclude ONNX Runtime Web from build since it's dynamically imported
+    config.externals = config.externals || [];
+    config.externals.push({
+      'onnxruntime-web': 'commonjs onnxruntime-web',
+    });
+    
+    // Handle ONNX Runtime Web module files
+    config.module.rules.push({
+      test: /\.mjs$/,
+      include: /node_modules\/onnxruntime-web/,
+      type: 'javascript/auto',
+    });
+    
+    // Ensure SharedArrayBuffer support
+    config.experiments = {
+      ...config.experiments,
+      asyncWebAssembly: true,
+    };
+    
+    return config;
+  },
   async headers() {
     const csp = [
       "default-src 'self'",
